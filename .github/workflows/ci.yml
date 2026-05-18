@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  facade:
+    name: Facade crate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: rustup toolchain install stable
+
+      - name: Test facade
+        run: cargo test
+
+      - name: Check dynamic loading facade
+        run: cargo check --features dynamic-loading
+
+      - name: Verify Cargo package contents
+        run: |
+          cargo package --list > target/libbun-package-files.txt
+          if grep -E '^(vendor/|native/|plugin/|dist/|\\.github/)' target/libbun-package-files.txt; then
+            echo "facade crate package includes unpublished native/release material" >&2
+            exit 1
+          fi
+
+      - name: Cargo publish dry run
+        run: cargo publish --dry-run

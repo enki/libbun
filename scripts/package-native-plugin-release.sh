@@ -27,6 +27,8 @@ platform="$(uname -m)-$(uname -s | tr '[:upper:]' '[:lower:]')"
 case "$platform" in
   arm64-darwin) platform="aarch64-apple-darwin" ;;
   x86_64-darwin) platform="x86_64-apple-darwin" ;;
+  aarch64-linux) platform="aarch64-unknown-linux-gnu" ;;
+  x86_64-linux) platform="x86_64-unknown-linux-gnu" ;;
 esac
 
 binary_asset="$out_dir/libbun-plugin-native-${release_version}-${platform}.tar.zst"
@@ -48,9 +50,17 @@ require tar
 require zstd
 require python3
 
+sha256() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    sha256sum "$1" | awk '{print $1}'
+  fi
+}
+
 bun_commit="$(tr -d '[:space:]' < "$repo_root/BUN_SOURCE_COMMIT")"
 git_commit="$(git -C "$repo_root" rev-parse HEAD)"
-plugin_checksum="$(shasum -a 256 "$plugin_binary" | awk '{print $1}')"
+plugin_checksum="$(sha256 "$plugin_binary")"
 manifest="${LIBBUN_NATIVE_LINK_MANIFEST:-"$repo_root/vendor/bun/build/debug/libbun_native_link_manifest.txt"}"
 
 if [[ ! -f "$manifest" ]]; then
@@ -193,11 +203,14 @@ SOURCE
 
 (
   cd "$out_dir"
-  shasum -a 256 "$(basename "$binary_asset")" \
+  for asset in \
+    "$(basename "$binary_asset")" \
     "$(basename "$source_asset")" \
     "$(basename "$notice_asset")" \
     "$(basename "$inventory_asset")" \
-    "$(basename "$source_txt_asset")"
+    "$(basename "$source_txt_asset")"; do
+    printf '%s  %s\n' "$(sha256 "$asset")" "$asset"
+  done
 ) > "$checksums_asset"
 
 echo "created native plugin release assets in $out_dir"

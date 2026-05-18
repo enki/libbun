@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-env-changed=LIBBUN_NATIVE_LINK_BUN");
@@ -23,26 +24,28 @@ fn main() {
         )
     });
 
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     for line in contents.lines() {
         let Some((kind, path)) = line.split_once('=') else {
             continue;
         };
-        match kind {
-            "archive" | "static" => println!("cargo:rustc-link-arg=-Wl,-force_load,{path}"),
-            _ => {}
+        if kind == "archive" || kind == "static" {
+            if target_os == "macos" {
+                println!("cargo:rustc-link-arg=-Wl,-force_load,{path}");
+            } else {
+                println!("cargo:rustc-link-arg=-Wl,--whole-archive");
+                println!("cargo:rustc-link-arg={path}");
+                println!("cargo:rustc-link-arg=-Wl,--no-whole-archive");
+            }
         }
     }
 
-    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "macos" {
         println!("cargo:rustc-link-arg=-fsanitize=null");
         println!("cargo:rustc-link-arg=-Wl,-ld_new");
         println!("cargo:rustc-link-arg=-Wl,-no_compact_unwind");
         println!("cargo:rustc-link-arg=-mmacosx-version-min=26");
-        let ubsan = PathBuf::from(
-            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21/lib/darwin/libclang_rt.ubsan_osx_dynamic.dylib",
-        );
-        if ubsan.exists() {
+        if let Some(ubsan) = find_compiler_rt("libclang_rt.ubsan_osx_dynamic.dylib") {
             let ubsan_dir = ubsan.parent().expect("ubsan dylib has parent");
             println!("cargo:rustc-link-arg={}", ubsan.display());
             println!("cargo:rustc-link-arg=-Wl,-rpath,{}", ubsan_dir.display());
@@ -50,7 +53,25 @@ fn main() {
         println!("cargo:rustc-link-lib=c++");
         println!("cargo:rustc-link-lib=icucore");
         println!("cargo:rustc-link-lib=resolv");
+    } else if target_os == "linux" {
+        println!("cargo:rustc-link-lib=stdc++");
+        println!("cargo:rustc-link-lib=dl");
+        println!("cargo:rustc-link-lib=pthread");
+        println!("cargo:rustc-link-lib=m");
     }
+}
+
+fn find_compiler_rt(library: &str) -> Option<PathBuf> {
+    let output = Command::new("clang")
+        .arg(format!("-print-file-name={library}"))
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let path = String::from_utf8(output.stdout).ok()?;
+    let path = PathBuf::from(path.trim());
+    path.exists().then_some(path)
 }
 
 fn default_manifest_path() -> PathBuf {

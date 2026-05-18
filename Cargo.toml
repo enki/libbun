@@ -2,8 +2,23 @@
 name = "libbun"
 version = "0.1.0"
 edition = "2024"
+description = "Rust facade for hosting JavaScript and TypeScript providers through a replaceable Bun native plugin"
 license = "Apache-2.0"
-publish = false
+repository = "https://github.com/enki/libbun"
+homepage = "https://github.com/enki/libbun"
+readme = "README.md"
+keywords = ["bun", "javascript", "typescript", "embedding", "plugin"]
+categories = ["api-bindings", "development-tools::ffi"]
+include = [
+    "/BUN_SOURCE_COMMIT",
+    "/Cargo.lock",
+    "/Cargo.toml",
+    "/LICENSE",
+    "/README.md",
+    "/build.rs",
+    "/src/**",
+    "/tests/**",
+]
 
 [lib]
 path = "src/lib.rs"

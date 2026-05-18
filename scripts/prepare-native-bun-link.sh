@@ -23,7 +23,18 @@ if [[ ! -s "$objects_file" ]]; then
   exit 1
 fi
 
-(cd "$build_dir" && xcrun libtool -static -o "$archive" $(cat "$objects_file")) >&2
+case "$(uname -s)" in
+  Darwin)
+    (cd "$build_dir" && xcrun libtool -static -o "$archive" $(cat "$objects_file")) >&2
+    ;;
+  Linux)
+    (cd "$build_dir" && rm -f "$archive" && ar crs "$archive" $(cat "$objects_file")) >&2
+    ;;
+  *)
+    echo "unsupported native plugin build OS: $(uname -s)" >&2
+    exit 1
+    ;;
+esac
 
 {
   printf 'archive=%s\n' "$archive"

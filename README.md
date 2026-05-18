@@ -22,13 +22,98 @@ output capture, deterministic shutdown, and Rust-substrate rejection.
 The native adapter binds this facade to Bun/JSC internals and has a real linked
 integration flow for source module load, prepared source bundle load,
 synchronous export calls, async export parking/resolution, structured provider
-errors, event-loop pumping, and shutdown. It captures Bun stdout/stderr into
-`OutputRecord`s and supports host-owned output draining plus callback delivery.
-Downstream hosts consume the native implementation only through the replaceable
-dynamic plugin described by ADR-2038; they should not statically link
-`libbun-native`. Dedicated native Bun internal log stream semantics are tracked
-in ADR-2036. Native support for host environment overlays is tracked in
-ADR-2037 and is not part of the active facade yet.
+errors, event-loop pumping, host environment overlays, dedicated internal log
+capture, and shutdown. Downstream hosts consume the native implementation only
+through the replaceable dynamic plugin described by ADR-2038; they should not
+statically link `libbun-native`.
+
+## Downstream Use
+
+Downstream Rust applications depend on the facade crate and load the native Bun
+implementation from a GitHub Release plugin asset.
+
+Add the facade:
+
+```sh
+cargo add libbun --features dynamic-loading
+```
+
+Download the plugin asset that matches the host platform from the same
+`libbun` GitHub Release as the facade version. The broadly supported release
+targets are expected to be:
+
+```text
+libbun-plugin-native-vX.Y.Z-aarch64-apple-darwin.tar.zst
+libbun-plugin-native-vX.Y.Z-x86_64-apple-darwin.tar.zst
+libbun-plugin-native-vX.Y.Z-x86_64-unknown-linux-gnu.tar.zst
+libbun-plugin-native-vX.Y.Z-aarch64-unknown-linux-gnu.tar.zst
+```
+
+For example:
+
+```sh
+version=v0.1.0
+target=x86_64-unknown-linux-gnu
+curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
+tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst"
+export LIBBUN_PLUGIN_PATH="$PWD/liblibbun_plugin_native.so"
+```
+
+On macOS, the unpacked library is `liblibbun_plugin_native.dylib`.
+
+Minimal dynamic-loading example:
+
+```rust
+use libbun::dynamic::DynamicBunRuntime;
+use libbun::{
+    BunEmbeddingRuntime, BunModuleSpec, BunRuntimeConfig, ExportCallResult,
+    ProviderCallResult, StructuralValue,
+};
+use serde_json::json;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut runtime = DynamicBunRuntime::initialize(BunRuntimeConfig::new(
+        "example-host",
+        std::env::current_dir()?,
+    ))?;
+
+    let module = runtime.load_module(BunModuleSpec::Source {
+        module_id: "provider".to_string(),
+        source: r#"
+            export function run(input) {
+                return { ok: true, input };
+            }
+        "#
+        .to_string(),
+    })?;
+
+    let result = runtime.call_export(
+        &module,
+        "run",
+        StructuralValue(json!({ "value": 7 })),
+    )?;
+
+    assert_eq!(
+        result,
+        ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+            "ok": true,
+            "input": { "value": 7 }
+        }))))
+    );
+
+    runtime.shutdown()?;
+    Ok(())
+}
+```
+
+If `LIBBUN_PLUGIN_PATH` is unset, initialization fails with an error naming that
+environment variable. If the plugin ABI does not match the facade ABI,
+initialization fails before a runtime is created.
+
+If you redistribute the native plugin binary, pass through the matching
+`SOURCE.txt`, `NOTICE.txt`, `licenses.json`, source archive, and checksum file
+from the same GitHub Release. Keep the plugin replaceable by user-controlled
+path or configuration.
 
 ## Vendored Bun
 
