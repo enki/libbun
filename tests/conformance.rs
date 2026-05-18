@@ -1,4 +1,6 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use libbun::BunAsyncHandle;
 use libbun::BunEmbeddingRuntime;
@@ -11,6 +13,8 @@ use libbun::LibbunError;
 use libbun::LibbunResult;
 use libbun::OutputRecord;
 use libbun::OutputStream;
+use libbun::PreparedBundleModuleV1;
+use libbun::PreparedBundleV1;
 use libbun::ProviderCallResult;
 use libbun::ProviderContractIdentity;
 use libbun::ProviderDomainClass;
@@ -172,6 +176,10 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
 
     fn captured_output(&self) -> &[OutputRecord] {
         &self.output
+    }
+
+    fn drain_captured_output(&mut self) -> Vec<OutputRecord> {
+        std::mem::take(&mut self.output)
     }
 
     fn shutdown(&mut self) -> LibbunResult<()> {
@@ -357,4 +365,82 @@ fn shutdown_is_deterministic_and_blocks_later_calls() {
         .pump_event_loop(PumpBudget { max_ticks: 1 })
         .expect_err("post-shutdown pump fails");
     assert!(matches!(error, LibbunError::RuntimeShutdown));
+}
+
+#[test]
+fn output_handler_receives_records_without_polling_runtime() {
+    let records = Arc::new(Mutex::new(Vec::new()));
+    let handler_records = Arc::clone(&records);
+    let mut host = BunHost::<ConformanceRuntime>::initialize_with_output_handler(
+        BunRuntimeConfig::new("test-host", "/tmp"),
+        move |record| {
+            handler_records
+                .lock()
+                .expect("handler records lock")
+                .push(record);
+        },
+    )
+    .expect("host initializes");
+
+    let module = host
+        .load_module(BunModuleSpec::Source {
+            module_id: "echo".to_string(),
+            source: "export:echo".to_string(),
+        })
+        .expect("module loads");
+    host.call_export(&module, "default", StructuralValue(json!({ "ok": true })))
+        .expect("export succeeds");
+
+    let records = records.lock().expect("handler records lock");
+    assert!(records.iter().any(|record| {
+        record.stream == OutputStream::Log && record.text == "initialized test-host"
+    }));
+    assert!(records.iter().any(|record| {
+        record.stream == OutputStream::Stdout && record.text == "called default"
+    }));
+}
+
+#[test]
+fn host_can_drain_captured_output_history() {
+    let mut host = host();
+    let initial = host.drain_captured_output();
+    assert_eq!(initial.len(), 1);
+    assert!(host.captured_output().is_empty());
+}
+
+#[test]
+fn prepared_bundle_artifact_is_versioned_and_fingerprinted() {
+    let mut modules = BTreeMap::new();
+    modules.insert(
+        "entry.mjs".to_string(),
+        PreparedBundleModuleV1::source("export { value } from './lib/value.mjs';"),
+    );
+    modules.insert(
+        "lib/value.mjs".to_string(),
+        PreparedBundleModuleV1::source("export const value = 42;"),
+    );
+
+    let bundle = PreparedBundleV1::source_bundle("bundle-test", "entry.mjs", modules)
+        .expect("bundle is valid");
+    let bytes = bundle.to_bytes().expect("bundle serializes");
+    let decoded = PreparedBundleV1::from_bytes(&bytes).expect("bundle decodes");
+
+    assert_eq!(decoded, bundle);
+    assert_eq!(decoded.fingerprint().expect("fingerprint hashes").len(), 71);
+    decoded
+        .validate_for_current_runtime("bundle-test")
+        .expect("runtime metadata matches");
+}
+
+#[test]
+fn prepared_bundle_rejects_unsafe_module_paths() {
+    let mut modules = BTreeMap::new();
+    modules.insert(
+        "../escape.mjs".to_string(),
+        PreparedBundleModuleV1::source("export const value = 1;"),
+    );
+
+    let error = PreparedBundleV1::source_bundle("bundle-test", "../escape.mjs", modules)
+        .expect_err("unsafe path is rejected");
+    assert!(matches!(error, LibbunError::ModuleLoad { .. }));
 }

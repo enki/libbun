@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
+use std::path::PathBuf;
 use std::ptr::NonNull;
 
 use bun_core::{String as BunString, ZigString};
@@ -22,7 +23,7 @@ use libbun::OutputStream;
 use libbun::{
     BunAsyncHandle, BunEmbeddingRuntime, BunModuleHandle, BunModuleSpec, BunRuntimeConfig,
     ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, ProviderError,
-    PumpBudget, PumpOutcome, SinkPolicy, StructuralValue,
+    PreparedBundleV1, PumpBudget, PumpOutcome, SinkPolicy, StructuralValue,
 };
 
 #[derive(Debug)]
@@ -148,6 +149,39 @@ impl NativeBunRuntime {
         self.stdout.drain_into(&mut self.output)?;
         self.stderr.drain_into(&mut self.output)?;
         Ok(())
+    }
+
+    fn materialize_prepared_bundle(
+        &self,
+        module_id: &str,
+        bundle_id: &str,
+        bytes: &[u8],
+    ) -> LibbunResult<PathBuf> {
+        let bundle = PreparedBundleV1::from_bytes(bytes)?;
+        bundle.validate_for_current_runtime(bundle_id)?;
+
+        let bundle_dir = self.tempdir.path().join(format!("{module_id}.bundle"));
+        std::fs::create_dir_all(&bundle_dir).map_err(|err| {
+            LibbunError::module_load(format!("prepared bundle directory create failed: {err}"))
+        })?;
+
+        for (module_path, module) in &bundle.modules {
+            let path = bundle_dir.join(module_path);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).map_err(|err| {
+                    LibbunError::module_load(format!(
+                        "prepared bundle module directory create failed: {err}"
+                    ))
+                })?;
+            }
+            std::fs::write(&path, module.source.as_bytes()).map_err(|err| {
+                LibbunError::module_load(format!(
+                    "prepared bundle module `{module_path}` write failed: {err}"
+                ))
+            })?;
+        }
+
+        Ok(bundle_dir.join(bundle.entry_module))
     }
 }
 
@@ -302,10 +336,8 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
                 path
             }
             BunModuleSpec::Path { path } => path,
-            BunModuleSpec::PreparedBundle { .. } => {
-                return Err(LibbunError::module_load(
-                    "prepared Bun bundle loading is not implemented by the native adapter yet",
-                ));
+            BunModuleSpec::PreparedBundle { bundle_id, bytes } => {
+                self.materialize_prepared_bundle(&id, &bundle_id, &bytes)?
             }
         };
 
@@ -440,6 +472,10 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
 
     fn captured_output(&self) -> &[OutputRecord] {
         &self.output
+    }
+
+    fn drain_captured_output(&mut self) -> Vec<OutputRecord> {
+        std::mem::take(&mut self.output)
     }
 
     fn shutdown(&mut self) -> LibbunResult<()> {

@@ -45,24 +45,30 @@ integration tests when `LIBBUN_NATIVE_LINK_BUN=1` is set. The manifest
 intentionally excludes Bun's Rust staticlib; the native adapter links the
 vendored Rust crates directly to avoid duplicate Rust runtime and VM state.
 
-The native linked integration test currently covers a source module loaded
-through Bun's module loader, synchronous export calls, async export parking and
-resolution, event-loop pumping, structured provider errors, and shutdown
-against the real Bun C++ / JSC object set. The native adapter also initializes
-Bun stdout/stderr to host-owned capture files before VM creation and drains
-those files into `OutputRecord`s.
+The native linked integration tests currently cover source modules and prepared
+`libbun` bundles loaded through Bun's module loader, synchronous export calls,
+async export parking and resolution, event-loop pumping, structured provider
+errors, and shutdown against the real Bun C++ / JSC object set. The native
+adapter also initializes Bun stdout/stderr to host-owned capture files before VM
+creation and drains those files into `OutputRecord`s.
 
 Known follow-up ADRs:
 
-- ADR-2034 defines the prepared bundle artifact contract before
-  `BunModuleSpec::PreparedBundle` can be honestly implemented.
-- ADR-2035 defines host-owned output and log sink semantics beyond the current
-  stdout/stderr capture path.
+- ADR-2034 defines the implemented prepared bundle artifact contract for
+  embedding-only source bundle artifacts.
+- ADR-2035 defines host-owned stdout/stderr delivery and documents remaining log
+  sink constraints.
+- ADR-2036 tracks a dedicated native Bun internal log stream separate from
+  provider stderr.
+- ADR-2037 tracks native support for the `BunRuntimeConfig.environment` host
+  overlay without mutating process-global environment state.
 
 Remaining work before this ADR can move to `docs/done/`:
 
-- prepared bundle loading semantics, tracked by ADR-2034;
-- complete host-owned output/log sink semantics, tracked by ADR-2035;
+- decide whether ADR-2036 is required for the ADR-2033 completion boundary or a
+  later native observability enhancement;
+- resolve ADR-2037 or remove/de-scope `BunRuntimeConfig.environment` from the
+  claimed native embedding contract;
 - a completion audit proving the non-CLI native adapter covers the provider
   success, async, structured error, event-loop pump, output, and shutdown cases
   end to end.
