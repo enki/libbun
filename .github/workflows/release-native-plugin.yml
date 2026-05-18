@@ -25,12 +25,16 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             plugin_name: liblibbun_plugin_native.dylib
+            experimental: false
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             plugin_name: liblibbun_plugin_native.so
+            experimental: false
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             plugin_name: liblibbun_plugin_native.so
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
     env:
       LIBBUN_NATIVE_BUILD_JOBS: "8"
     steps:
@@ -53,6 +57,15 @@ jobs:
             echo "/usr/lib/llvm-21/bin" >> "$GITHUB_PATH"
           fi
 
+      - name: Add Linux link swap
+        if: runner.os == 'Linux'
+        run: |
+          sudo fallocate -l 12G /libbun-swap || sudo dd if=/dev/zero of=/libbun-swap bs=1M count=12288
+          sudo chmod 600 /libbun-swap
+          sudo mkswap /libbun-swap
+          sudo swapon /libbun-swap
+          free -h
+
       - name: Install Rust toolchains
         run: |
           rustup toolchain install stable
@@ -67,7 +80,7 @@ jobs:
         run: scripts/prepare-native-bun-link.sh
 
       - name: Build native plugin
-        run: LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+        run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 
       - name: Verify dynamic plugin loading
         run: |
@@ -76,7 +89,7 @@ jobs:
           LIBBUN_PLUGIN_PATH="$plugin_path" cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
 
       - name: Verify replacement plugin build path
-        run: LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 check --manifest-path plugin/Cargo.toml
+        run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 check --manifest-path plugin/Cargo.toml
 
       - name: Package release assets
         run: |

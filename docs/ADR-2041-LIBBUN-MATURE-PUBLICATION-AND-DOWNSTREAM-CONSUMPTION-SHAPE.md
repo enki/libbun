@@ -47,11 +47,16 @@ The first broadly usable public release must include at least:
 ```text
 libbun-plugin-native-vX.Y.Z-aarch64-apple-darwin.tar.zst
 libbun-plugin-native-vX.Y.Z-x86_64-unknown-linux-gnu.tar.zst
-libbun-plugin-native-vX.Y.Z-aarch64-unknown-linux-gnu.tar.zst
 ```
 
 A macOS-only release is acceptable as an internal smoke release, but it is not
 the target public consumption shape.
+
+Linux aarch64 is common enough to belong in the mature matrix, but it is not a
+first-release blocker until the Bun/WebKit native inputs are built in a form
+that can be linked into a shared object on that target. The current
+`aarch64-unknown-linux-gnu` experiment fails with AArch64 TLS relocations from
+static WebKit/Bun inputs that are not usable in a `cdylib`.
 
 The facade crate version and native plugin release version should match until
 there is a compelling reason to split version lines. The plugin ABI version is
@@ -183,8 +188,8 @@ This ADR can move to `docs/done/` when:
 - `cargo package --list` proves the published crate excludes native/plugin/Bun
   vendor material;
 - `cargo publish --dry-run` passes in CI;
-- GitHub Releases produce at least macOS aarch64, Linux x86_64, and Linux
-  aarch64 native plugin binaries;
+- GitHub Releases produce at least macOS aarch64 and Linux x86_64 native plugin
+  binaries;
 - the release contains source, notice, license inventory, source instruction,
   checksum, and binary assets from the same tag;
 - README downstream usage instructions are complete enough for a Rust host to
