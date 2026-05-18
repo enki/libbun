@@ -48,5 +48,13 @@ scripts/check-vendored-bun-rust.sh
 ```
 
 That script runs Bun configure/codegen inside `vendor/bun`, rewrites generated
-artifact identity to the pinned `BUN_SOURCE_COMMIT`, and checks `bun_jsc` plus
-`bun_runtime` with Bun's pinned nightly toolchain.
+artifact identity to the pinned `BUN_SOURCE_COMMIT`, checks `bun_jsc` plus
+`bun_runtime`, and type-checks the `native/` adapter with Bun's pinned nightly
+toolchain.
+
+## Native Adapter
+
+`native/` contains the nightly-only adapter that implements `BunEmbeddingRuntime`
+over vendored Bun/JSC crates. It is kept out of the default crate so downstream
+users can depend on the stable facade without pulling Bun's build toolchain into
+their normal Rust build.

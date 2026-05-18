@@ -1,0 +1,18 @@
+[package]
+name = "libbun-native"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+bun_ast = { path = "../vendor/bun/src/ast" }
+bun_core = { path = "../vendor/bun/src/bun_core" }
+bun_jsc = { path = "../vendor/bun/src/jsc" }
+libbun = { path = ".." }
+serde_json = "1"
+tempfile = "3"

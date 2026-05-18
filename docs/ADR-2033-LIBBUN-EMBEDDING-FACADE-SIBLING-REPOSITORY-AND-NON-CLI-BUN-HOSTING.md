@@ -31,8 +31,21 @@ tree, restores Bun-managed Rust source dependencies such as `lolhtml`, and
 rewrites generated Bun artifact identity to `BUN_SOURCE_COMMIT` so `libbun`
 receipts do not accidentally report the parent `libbun` Git commit.
 `scripts/check-vendored-bun-rust.sh` verifies the reusable `bun_jsc` and
-`bun_runtime` crates against that prepared vendored tree.
+`bun_runtime` crates against that prepared vendored tree and type-checks the
+nightly-only `native/` adapter.
 
-Next work is to bind the facade to reusable non-CLI Bun/JSC internals from the
-vendored Bun source without linking the CLI-shaped `bun_bin` staticlib as the
-embedding boundary.
+The native adapter lives in `native/` so the default `libbun` crate remains a
+generic stable facade. The adapter implements `BunEmbeddingRuntime` using the
+vendored `bun_jsc` and `bun_runtime` crates rather than the CLI-shaped
+`bun_bin` staticlib boundary.
+
+Remaining work before this ADR can move to `docs/done/`:
+
+- native integration tests that link and execute the adapter against Bun's C++ /
+  JSC objects, not only `cargo check`;
+- stdout/stderr/log sink hooks wired into Bun output rather than only preserving
+  the facade capture shape;
+- prepared bundle loading semantics;
+- a completion audit proving the non-CLI native adapter covers the provider
+  success, async, structured error, event-loop pump, output, and shutdown cases
+  end to end.
