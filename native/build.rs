@@ -22,6 +22,10 @@ fn main() {
     });
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "linux" {
+        println!("cargo:rustc-link-arg=-fuse-ld=lld");
+    }
+
     for line in contents.lines() {
         let Some((kind, path)) = line.split_once('=') else {
             continue;
