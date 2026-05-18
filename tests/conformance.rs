@@ -23,6 +23,7 @@ use libbun::ProviderHostReceipt;
 use libbun::ProviderRequest;
 use libbun::PumpBudget;
 use libbun::PumpOutcome;
+use libbun::SinkPolicy;
 use libbun::StructuralValue;
 use serde_json::json;
 
@@ -405,6 +406,15 @@ fn host_can_drain_captured_output_history() {
     let mut host = host();
     let initial = host.drain_captured_output();
     assert_eq!(initial.len(), 1);
+    assert!(host.captured_output().is_empty());
+}
+
+#[test]
+fn host_enforces_log_drop_policy_for_all_runtimes() {
+    let mut config = BunRuntimeConfig::new("test-host", "/tmp");
+    config.log = SinkPolicy::Drop;
+    let host = BunHost::<ConformanceRuntime>::initialize(config).expect("host initializes");
+
     assert!(host.captured_output().is_empty());
 }
 

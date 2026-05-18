@@ -443,16 +443,44 @@ pub struct BunHost<R: BunEmbeddingRuntime> {
     runtime: R,
     output: CapturedOutput,
     output_handler: Option<OutputHandler>,
+    output_policies: OutputPolicies,
     shutdown: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct OutputPolicies {
+    stdout: SinkPolicy,
+    stderr: SinkPolicy,
+    log: SinkPolicy,
+}
+
+impl OutputPolicies {
+    fn from_config(config: &BunRuntimeConfig) -> Self {
+        Self {
+            stdout: config.stdout,
+            stderr: config.stderr,
+            log: config.log,
+        }
+    }
+
+    fn captures(self, stream: OutputStream) -> bool {
+        match stream {
+            OutputStream::Stdout => self.stdout == SinkPolicy::Capture,
+            OutputStream::Stderr => self.stderr == SinkPolicy::Capture,
+            OutputStream::Log => self.log == SinkPolicy::Capture,
+        }
+    }
 }
 
 impl<R: BunEmbeddingRuntime> BunHost<R> {
     pub fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
+        let output_policies = OutputPolicies::from_config(&config);
         let runtime = R::initialize(config)?;
         let mut host = Self {
             runtime,
             output: CapturedOutput::default(),
             output_handler: None,
+            output_policies,
             shutdown: false,
         };
         host.collect_output();
@@ -463,11 +491,13 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
         config: BunRuntimeConfig,
         output_handler: impl FnMut(OutputRecord) + Send + 'static,
     ) -> LibbunResult<Self> {
+        let output_policies = OutputPolicies::from_config(&config);
         let runtime = R::initialize(config)?;
         let mut host = Self {
             runtime,
             output: CapturedOutput::default(),
             output_handler: Some(Box::new(output_handler)),
+            output_policies,
             shutdown: false,
         };
         host.collect_output();
@@ -571,6 +601,9 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
 
     fn collect_output(&mut self) {
         for record in self.runtime.drain_captured_output() {
+            if !self.output_policies.captures(record.stream) {
+                continue;
+            }
             if let Some(handler) = self.output_handler.as_mut() {
                 handler(record.clone());
             }
@@ -587,6 +620,7 @@ where
         f.debug_struct("BunHost")
             .field("runtime", &self.runtime)
             .field("output", &self.output)
+            .field("output_policies", &self.output_policies)
             .field("shutdown", &self.shutdown)
             .finish_non_exhaustive()
     }
