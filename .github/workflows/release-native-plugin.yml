@@ -27,7 +27,9 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install release tools
-        run: brew install zstd
+        run: |
+          brew install zstd llvm@21 ninja cmake
+          echo "$(brew --prefix llvm@21)/bin" >> "$GITHUB_PATH"
 
       - name: Install Rust toolchains
         run: |

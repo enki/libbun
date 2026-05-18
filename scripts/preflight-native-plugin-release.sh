@@ -48,6 +48,7 @@ require() {
 
 require cargo
 require rustup
+require bun
 require zstd
 
 cd "$repo_root"
