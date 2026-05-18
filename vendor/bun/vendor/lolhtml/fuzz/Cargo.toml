@@ -1,0 +1,25 @@
+[package]
+name = "lol_html-fuzz"
+authors = ["Automatically generated"]
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+test_case = { path = "./test_case" }
+
+[dependencies.libfuzzer-sys]
+git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+
+[[bin]]
+name = "fuzz_c_api"
+path = "fuzz_targets/fuzz_c_api.rs"
+
+[[bin]]
+name = "fuzz_rewriter"
+path = "fuzz_targets/fuzz_rewriter.rs"
+
+[profile.dev]
+opt-level=3

@@ -4,6 +4,12 @@
 with `git archive`, so it intentionally excludes upstream `.git` metadata and
 local build artifacts.
 
+Some Bun build-time source dependencies are fetched by Bun's build scripts into
+its own `vendor/` directory rather than tracked in the Bun repository. `libbun`
+vendors the dependencies needed for Rust crate consumption as part of the same
+snapshot. Today that includes `vendor/bun/vendor/lolhtml`, pinned by Bun's
+`scripts/build/deps/lolhtml.ts`.
+
 The pinned upstream commit is recorded in `../BUN_SOURCE_COMMIT`.
 
 To update the snapshot:

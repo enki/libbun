@@ -26,7 +26,8 @@ implementation layer.
 
 Bun source is tracked at `vendor/bun`. The snapshot is created from upstream
 Git history with `git archive`, so it excludes nested `.git` metadata and local
-build artifacts.
+build artifacts. Bun build-time source dependencies needed by the Rust crates,
+including `lolhtml`, are vendored under `vendor/bun/vendor`.
 
 Update to a new upstream ref:
 
@@ -39,3 +40,13 @@ Verify the vendored snapshot:
 ```sh
 scripts/verify-vendored-bun.sh
 ```
+
+Prepare Bun's generated Rust inputs and check the reusable Rust runtime crates:
+
+```sh
+scripts/check-vendored-bun-rust.sh
+```
+
+That script runs Bun configure/codegen inside `vendor/bun`, rewrites generated
+artifact identity to the pinned `BUN_SOURCE_COMMIT`, and checks `bun_jsc` plus
+`bun_runtime` with Bun's pinned nightly toolchain.

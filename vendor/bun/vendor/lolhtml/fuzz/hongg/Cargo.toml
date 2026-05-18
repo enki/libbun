@@ -1,0 +1,9 @@
+[package]
+name = "hongg"
+authors = ["Yevgen Safronov <yevgen@cloudflare.com>"]
+edition = "2024"
+publish = false
+
+[dependencies]
+honggfuzz = "0.5.45"
+test_case = { path = "../test_case" }

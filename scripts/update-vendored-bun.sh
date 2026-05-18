@@ -23,6 +23,9 @@ rm -rf "$vendor_dir"
 mkdir -p "$vendor_dir"
 git -C "$tmp_dir/bun" archive --format=tar "$commit" | tar -x -C "$vendor_dir"
 
+"$repo_root/scripts/vendor-bun-deps.sh" >&2
+lolhtml_commit="$(tr -d '[:space:]' < "$vendor_dir/vendor/lolhtml/.ref")"
+
 printf '%s\n' "$commit" > "$commit_file"
 mkdir -p "$(dirname "$metadata_file")"
 cat > "$metadata_file" <<JSON
@@ -30,6 +33,13 @@ cat > "$metadata_file" <<JSON
   "upstream": "$repo_url",
   "ref": "$ref",
   "commit": "$commit",
+  "dependencies": {
+    "lolhtml": {
+      "upstream": "$lolhtml_repo",
+      "commit": "$lolhtml_commit",
+      "vendoredPath": "vendor/bun/vendor/lolhtml"
+    }
+  },
   "vendoredPath": "vendor/bun",
   "updatedAt": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 }

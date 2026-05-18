@@ -1,0 +1,10 @@
+[package]
+name = "parser_trace"
+authors = ["Ivan Nikulin <inikulin@cloudflare.com>"]
+edition = "2024"
+publish = false
+
+[dependencies]
+encoding_rs = "0.8.35"
+lol_html = { path = "../../", features=["integration_test", "debug_trace"] }
+getopts = "0.2.23"

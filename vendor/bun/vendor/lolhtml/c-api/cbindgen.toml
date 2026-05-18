@@ -1,0 +1,15 @@
+# To generate a header:
+#
+# make
+
+language = "C"
+tab_width = 4
+documentation = true
+documentation_style = "c99"
+documentation_length = "full"
+
+[export]
+prefix = "lol_html_"
+
+[export.mangle]
+rename_types = "SnakeCase"

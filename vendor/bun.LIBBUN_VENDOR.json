@@ -2,6 +2,13 @@
   "upstream": "git@github.com:oven-sh/bun.git",
   "ref": "9ecb985ad0f06fa12cbd8eede2404589992527d5",
   "commit": "9ecb985ad0f06fa12cbd8eede2404589992527d5",
+  "dependencies": {
+    "lolhtml": {
+      "upstream": "https://github.com/cloudflare/lol-html.git",
+      "commit": "77127cd2b8545998756e8d64e36ee2313c4bb312",
+      "vendoredPath": "vendor/bun/vendor/lolhtml"
+    }
+  },
   "vendoredPath": "vendor/bun",
   "updatedAt": "2026-05-18T00:00:00Z"
 }
