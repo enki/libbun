@@ -10,13 +10,12 @@ usage() {
   cat >&2 <<'USAGE'
 usage: scripts/verify-release-assets.sh --version <vX.Y.Z> [--dir <asset-dir> | --repo <owner/repo>] [--target <triple>...]
 
-Verifies that a libbun native plugin release has the minimum binary and
-compliance assets expected by ADR-2041. With --dir, checks local files. Without
---dir, reads GitHub Release assets through gh.
+Verifies that a libbun native plugin release has the binary and compliance
+assets expected for currently supported plugin targets. With --dir, checks
+local files. Without --dir, reads GitHub Release assets through gh.
 
 Default targets:
   aarch64-apple-darwin
-  x86_64-unknown-linux-gnu
 USAGE
 }
 
@@ -61,7 +60,7 @@ case "$version" in
 esac
 
 if [[ ${#targets[@]} -eq 0 ]]; then
-  targets=(aarch64-apple-darwin x86_64-unknown-linux-gnu)
+  targets=(aarch64-apple-darwin)
 fi
 
 assets=()

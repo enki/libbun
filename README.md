@@ -39,27 +39,27 @@ cargo add libbun --features dynamic-loading
 ```
 
 Download the plugin asset that matches the host platform from the same
-`libbun` GitHub Release as the facade version. The broadly supported release
-targets are expected to be:
+`libbun` GitHub Release as the facade version. The currently supported native
+plugin release target is:
 
 ```text
 libbun-plugin-native-vX.Y.Z-aarch64-apple-darwin.tar.zst
-libbun-plugin-native-vX.Y.Z-x86_64-apple-darwin.tar.zst
-libbun-plugin-native-vX.Y.Z-x86_64-unknown-linux-gnu.tar.zst
-libbun-plugin-native-vX.Y.Z-aarch64-unknown-linux-gnu.tar.zst
 ```
+
+Linux plugin binaries are not published yet. Current vendored Bun/WebKit static
+inputs contain TLS relocations that cannot be linked into a Linux shared
+object; Linux plugin releases require future PIC/shared-library-compatible
+native inputs.
 
 For example:
 
 ```sh
 version=v0.1.0
-target=x86_64-unknown-linux-gnu
+target=aarch64-apple-darwin
 curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
 tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst"
-export LIBBUN_PLUGIN_PATH="$PWD/liblibbun_plugin_native.so"
+export LIBBUN_PLUGIN_PATH="$PWD/liblibbun_plugin_native.dylib"
 ```
-
-On macOS, the unpacked library is `liblibbun_plugin_native.dylib`.
 
 Minimal dynamic-loading example:
 
