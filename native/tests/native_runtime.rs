@@ -1,7 +1,7 @@
 use libbun::{
     BunHost, BunModuleHandle, BunModuleSpec, BunRuntimeConfig, ProviderCallResult,
     ProviderContractIdentity, ProviderDomainClass, ProviderHostReceipt, ProviderRequest,
-    PumpBudget, StructuralValue,
+    PumpBudget, StructuralValue, OutputStream,
 };
 use libbun_native::NativeBunRuntime;
 use serde_json::json;
@@ -41,6 +41,13 @@ fn assert_sync_export(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleHa
         ),
         ProviderHostReceipt::Parked(_) => panic!("expected ready receipt"),
     }
+
+    assert!(host.captured_output().iter().any(|record| {
+        record.stream == OutputStream::Stdout && record.text.contains("native stdout 42")
+    }));
+    assert!(host.captured_output().iter().any(|record| {
+        record.stream == OutputStream::Stderr && record.text.contains("native stderr")
+    }));
 }
 
 fn assert_async_export(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleHandle) {
@@ -105,6 +112,8 @@ fn native_runtime_provider_flows() {
             module_id: "flows".to_string(),
             source: r#"
                 export function sync(input) {
+                    console.log("native stdout", input.value);
+                    console.error("native stderr");
                     return { ok: true, input };
                 }
 

@@ -5,6 +5,8 @@
 //! codegen inputs.
 
 use std::collections::BTreeMap;
+use std::fs::OpenOptions;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use std::ptr::NonNull;
 
@@ -16,10 +18,11 @@ use bun_jsc::{
     JSValue, JSType, ZigStringJsc,
 };
 use bun_runtime as _;
+use libbun::OutputStream;
 use libbun::{
     BunAsyncHandle, BunEmbeddingRuntime, BunModuleHandle, BunModuleSpec, BunRuntimeConfig,
     ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, ProviderError,
-    PumpBudget, PumpOutcome, StructuralValue,
+    PumpBudget, PumpOutcome, SinkPolicy, StructuralValue,
 };
 
 #[derive(Debug)]
@@ -28,10 +31,21 @@ pub struct NativeBunRuntime {
     modules: BTreeMap<String, JSValue>,
     pending: BTreeMap<String, JSValue>,
     output: Vec<OutputRecord>,
+    stdout: OutputCapture,
+    stderr: OutputCapture,
     tempdir: tempfile::TempDir,
     next_module: u64,
     next_async: u64,
     shutdown: bool,
+}
+
+#[derive(Debug)]
+struct OutputCapture {
+    stream: OutputStream,
+    policy: SinkPolicy,
+    write_file: std::fs::File,
+    read_file: std::fs::File,
+    read_offset: u64,
 }
 
 impl NativeBunRuntime {
@@ -128,6 +142,87 @@ impl NativeBunRuntime {
         }
         Ok(Some(self.value_to_result(value)?))
     }
+
+    fn drain_output(&mut self) -> LibbunResult<()> {
+        bun_core::Output::flush();
+        self.stdout.drain_into(&mut self.output)?;
+        self.stderr.drain_into(&mut self.output)?;
+        Ok(())
+    }
+}
+
+impl OutputCapture {
+    fn create(
+        dir: &Path,
+        name: &str,
+        stream: OutputStream,
+        policy: SinkPolicy,
+    ) -> LibbunResult<Self> {
+        let path = dir.join(name);
+        let write_file = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&path)
+            .map_err(|err| LibbunError::initialize(format!("output capture create failed: {err}")))?;
+        let read_file = OpenOptions::new()
+            .read(true)
+            .open(&path)
+            .map_err(|err| LibbunError::initialize(format!("output capture open failed: {err}")))?;
+        Ok(Self {
+            stream,
+            policy,
+            write_file,
+            read_file,
+            read_offset: 0,
+        })
+    }
+
+    fn bun_file(&self) -> bun_core::Output::File {
+        bun_core::Output::File(fd_from_file(&self.write_file))
+    }
+
+    fn drain_into(&mut self, output: &mut Vec<OutputRecord>) -> LibbunResult<()> {
+        let len = self
+            .read_file
+            .metadata()
+            .map_err(|err| LibbunError::export_call(format!("output metadata failed: {err}")))?
+            .len();
+        if len <= self.read_offset {
+            return Ok(());
+        }
+
+        self.read_file
+            .seek(SeekFrom::Start(self.read_offset))
+            .map_err(|err| LibbunError::export_call(format!("output seek failed: {err}")))?;
+        let mut bytes = Vec::with_capacity((len - self.read_offset) as usize);
+        self.read_file
+            .read_to_end(&mut bytes)
+            .map_err(|err| LibbunError::export_call(format!("output read failed: {err}")))?;
+        self.read_offset = len;
+
+        if self.policy == SinkPolicy::Capture && !bytes.is_empty() {
+            output.push(OutputRecord {
+                stream: self.stream,
+                text: String::from_utf8_lossy(&bytes).into_owned(),
+            });
+        }
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
+fn fd_from_file(file: &std::fs::File) -> bun_core::Fd {
+    use std::os::fd::AsRawFd;
+
+    bun_core::Fd::from_native(file.as_raw_fd())
+}
+
+#[cfg(windows)]
+fn fd_from_file(file: &std::fs::File) -> bun_core::Fd {
+    use std::os::windows::io::AsRawHandle;
+
+    bun_core::Fd::from_system(file.as_raw_handle().cast())
 }
 
 fn js_value_to_string(global: &JSGlobalObject, value: JSValue) -> Option<String> {
@@ -147,8 +242,26 @@ fn js_value_to_string(global: &JSGlobalObject, value: JSValue) -> Option<String>
 impl BunEmbeddingRuntime for NativeBunRuntime {
     fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
         ensure_macos_compat_symbols();
-        bun_core::Output::init_test();
         bun_core::StackCheck::configure_thread();
+
+        let tempdir = tempfile::Builder::new()
+            .prefix("libbun-native-")
+            .tempdir_in(&config.working_directory)
+            .map_err(|err| LibbunError::initialize(format!("tempdir create failed: {err}")))?;
+        let stdout = OutputCapture::create(
+            tempdir.path(),
+            "stdout.capture",
+            OutputStream::Stdout,
+            config.stdout,
+        )?;
+        let stderr = OutputCapture::create(
+            tempdir.path(),
+            "stderr.capture",
+            OutputStream::Stderr,
+            config.stderr,
+        )?;
+        bun_core::Output::Source::set_init(stdout.bun_file(), stderr.bun_file());
+
         bun_jsc::initialize(false);
         bun_ast::initialize_store();
 
@@ -159,16 +272,13 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         })
         .map_err(|err| LibbunError::initialize(format!("{err:?}")))?;
 
-        let tempdir = tempfile::Builder::new()
-            .prefix("libbun-native-")
-            .tempdir_in(&config.working_directory)
-            .map_err(|err| LibbunError::initialize(format!("tempdir create failed: {err}")))?;
-
         Ok(Self {
             vm: NonNull::new(vm).ok_or_else(|| LibbunError::initialize("Bun VM init returned null"))?,
             modules: BTreeMap::new(),
             pending: BTreeMap::new(),
             output: Vec::new(),
+            stdout,
+            stderr,
             tempdir,
             next_module: 1,
             next_async: 1,
@@ -215,6 +325,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
                     JSInternalPromise::opaque_mut(promise.as_ptr()).result(unsafe { &*self.vm().jsc_vm });
                 self.vm().run_with_api_lock(|| namespace.protect());
                 self.modules.insert(id.clone(), namespace);
+                self.drain_output()?;
                 Ok(BunModuleHandle { id })
             }
             ProviderCallResult::Err(error) => Err(LibbunError::module_load(format!(
@@ -259,7 +370,10 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
                 }
             }) {
             Ok(result) => result,
-            Err(error) => return Ok(ExportCallResult::Ready(error)),
+            Err(error) => {
+                self.drain_output()?;
+                return Ok(ExportCallResult::Ready(error));
+            }
         };
 
         if result.is_cell() && result.js_type() == JSType::JSPromise {
@@ -267,10 +381,13 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             self.next_async += 1;
             self.vm().run_with_api_lock(|| result.protect());
             self.pending.insert(id.clone(), result);
+            self.drain_output()?;
             return Ok(ExportCallResult::Pending(BunAsyncHandle { id }));
         }
 
-        Ok(ExportCallResult::Ready(self.value_to_result(result)?))
+        let result = self.value_to_result(result)?;
+        self.drain_output()?;
+        Ok(ExportCallResult::Ready(result))
     }
 
     fn pump_event_loop(&mut self, budget: PumpBudget) -> LibbunResult<PumpOutcome> {
@@ -282,6 +399,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             self.vm_mut().event_loop_mut().tick();
             ticks += 1;
         }
+        self.drain_output()?;
         Ok(PumpOutcome {
             ticks,
             pending_async_work: self.pending.len(),
@@ -316,6 +434,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             self.vm().run_with_api_lock(|| value.unprotect());
             self.pending.remove(&handle.id);
         }
+        self.drain_output()?;
         Ok(result)
     }
 
@@ -333,6 +452,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         for (_, value) in std::mem::take(&mut self.modules) {
             self.vm().run_with_api_lock(|| value.unprotect());
         }
+        self.drain_output()?;
         self.vm_mut().destroy();
         self.shutdown = true;
         Ok(())

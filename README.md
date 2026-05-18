@@ -22,7 +22,9 @@ shutdown, and Rust-substrate rejection.
 The native adapter binds this facade to Bun/JSC internals and has a real linked
 integration flow for source module load, synchronous export calls, async export
 parking/resolution, structured provider errors, event-loop pumping, and
-shutdown. Output sink wiring and prepared bundle loading are still open.
+shutdown. It captures Bun stdout/stderr into `OutputRecord`s. Full host-owned
+log sink semantics and prepared bundle loading are tracked in ADR-2035 and
+ADR-2034.
 
 ## Vendored Bun
 

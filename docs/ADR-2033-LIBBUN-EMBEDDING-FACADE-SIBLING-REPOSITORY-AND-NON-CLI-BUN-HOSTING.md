@@ -48,13 +48,21 @@ vendored Rust crates directly to avoid duplicate Rust runtime and VM state.
 The native linked integration test currently covers a source module loaded
 through Bun's module loader, synchronous export calls, async export parking and
 resolution, event-loop pumping, structured provider errors, and shutdown
-against the real Bun C++ / JSC object set.
+against the real Bun C++ / JSC object set. The native adapter also initializes
+Bun stdout/stderr to host-owned capture files before VM creation and drains
+those files into `OutputRecord`s.
+
+Known follow-up ADRs:
+
+- ADR-2034 defines the prepared bundle artifact contract before
+  `BunModuleSpec::PreparedBundle` can be honestly implemented.
+- ADR-2035 defines host-owned output and log sink semantics beyond the current
+  stdout/stderr capture path.
 
 Remaining work before this ADR can move to `docs/done/`:
 
-- stdout/stderr/log sink hooks wired into Bun output rather than only preserving
-  the facade capture shape;
-- prepared bundle loading semantics;
+- prepared bundle loading semantics, tracked by ADR-2034;
+- complete host-owned output/log sink semantics, tracked by ADR-2035;
 - a completion audit proving the non-CLI native adapter covers the provider
   success, async, structured error, event-loop pump, output, and shutdown cases
   end to end.
