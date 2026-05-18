@@ -17,6 +17,7 @@ compliance assets expected by ADR-2041. With --dir, checks local files. Without
 Default targets:
   aarch64-apple-darwin
   x86_64-unknown-linux-gnu
+  aarch64-unknown-linux-gnu
 USAGE
 }
 
@@ -61,7 +62,7 @@ case "$version" in
 esac
 
 if [[ ${#targets[@]} -eq 0 ]]; then
-  targets=(aarch64-apple-darwin x86_64-unknown-linux-gnu)
+  targets=(aarch64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu)
 fi
 
 assets=()
