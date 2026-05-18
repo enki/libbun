@@ -15,15 +15,15 @@ use bun_core::{String as BunString, ZigString};
 use bun_jsc::js_promise::Status as PromiseStatus;
 use bun_jsc::virtual_machine::{InitOptions, VirtualMachine};
 use bun_jsc::{
-    AnyPromise, BuiltinName, JSGlobalObject, JSInternalPromise, JSModuleLoader, JSPromise,
-    JSValue, JSType, ZigStringJsc,
+    AnyPromise, BuiltinName, JSGlobalObject, JSInternalPromise, JSModuleLoader, JSPromise, JSType,
+    JSValue, ZigStringJsc,
 };
 use bun_runtime as _;
 use libbun::OutputStream;
 use libbun::{
     BunAsyncHandle, BunEmbeddingRuntime, BunModuleHandle, BunModuleSpec, BunRuntimeConfig,
-    ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, ProviderError,
-    PreparedBundleV1, PumpBudget, PumpOutcome, SinkPolicy, StructuralValue,
+    ExportCallResult, LibbunError, LibbunResult, OutputRecord, PreparedBundleV1,
+    ProviderCallResult, ProviderError, PumpBudget, PumpOutcome, SinkPolicy, StructuralValue,
 };
 
 #[derive(Debug)]
@@ -93,7 +93,9 @@ impl NativeBunRuntime {
         }
 
         let parsed = serde_json::from_slice(&bytes).map_err(|err| {
-            LibbunError::export_call(format!("provider result is not structurally serializable: {err}"))
+            LibbunError::export_call(format!(
+                "provider result is not structurally serializable: {err}"
+            ))
         })?;
         Ok(ProviderCallResult::Ok(StructuralValue(parsed)))
     }
@@ -130,7 +132,10 @@ impl NativeBunRuntime {
         js_value_to_string(global, value).unwrap_or_else(|| fallback.to_string())
     }
 
-    fn promise_result(&self, promise: *mut JSInternalPromise) -> LibbunResult<Option<ProviderCallResult>> {
+    fn promise_result(
+        &self,
+        promise: *mut JSInternalPromise,
+    ) -> LibbunResult<Option<ProviderCallResult>> {
         let status = JSPromise::status_ptr(promise);
         if status == PromiseStatus::Pending {
             return Ok(None);
@@ -198,7 +203,9 @@ impl OutputCapture {
             .truncate(true)
             .write(true)
             .open(&path)
-            .map_err(|err| LibbunError::initialize(format!("output capture create failed: {err}")))?;
+            .map_err(|err| {
+                LibbunError::initialize(format!("output capture create failed: {err}"))
+            })?;
         let read_file = OpenOptions::new()
             .read(true)
             .open(&path)
@@ -307,7 +314,8 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         .map_err(|err| LibbunError::initialize(format!("{err:?}")))?;
 
         Ok(Self {
-            vm: NonNull::new(vm).ok_or_else(|| LibbunError::initialize("Bun VM init returned null"))?,
+            vm: NonNull::new(vm)
+                .ok_or_else(|| LibbunError::initialize("Bun VM init returned null"))?,
             modules: BTreeMap::new(),
             pending: BTreeMap::new(),
             output: Vec::new(),
@@ -331,8 +339,9 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         let module_path = match spec {
             BunModuleSpec::Source { source, .. } => {
                 let path = self.tempdir.path().join(format!("{id}.mjs"));
-                std::fs::write(&path, source)
-                    .map_err(|err| LibbunError::module_load(format!("source write failed: {err}")))?;
+                std::fs::write(&path, source).map_err(|err| {
+                    LibbunError::module_load(format!("source write failed: {err}"))
+                })?;
                 path
             }
             BunModuleSpec::Path { path } => path,
@@ -349,12 +358,14 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             .wait_for_promise(AnyPromise::Internal(promise.as_ptr()));
 
         let Some(result) = self.promise_result(promise.as_ptr())? else {
-            return Err(LibbunError::module_load("module import remained pending after wait"));
+            return Err(LibbunError::module_load(
+                "module import remained pending after wait",
+            ));
         };
         match result {
             ProviderCallResult::Ok(_) => {
-                let namespace =
-                    JSInternalPromise::opaque_mut(promise.as_ptr()).result(unsafe { &*self.vm().jsc_vm });
+                let namespace = JSInternalPromise::opaque_mut(promise.as_ptr())
+                    .result(unsafe { &*self.vm().jsc_vm });
                 self.vm().run_with_api_lock(|| namespace.protect());
                 self.modules.insert(id.clone(), namespace);
                 self.drain_output()?;
@@ -392,15 +403,15 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         }
 
         let arg = self.evaluate_json(&input)?;
-        let result = match self
-            .vm()
-            .run_with_api_lock(|| match function.call(self.vm().global(), namespace, &[arg]) {
+        let result = match self.vm().run_with_api_lock(|| {
+            match function.call(self.vm().global(), namespace, &[arg]) {
                 Ok(result) => Ok(result),
                 Err(error) => {
                     let exception = self.vm().global().take_exception(error);
                     Err(self.rejected_to_result(exception))
                 }
-            }) {
+            }
+        }) {
             Ok(result) => result,
             Err(error) => {
                 self.drain_output()?;
@@ -445,22 +456,24 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         if self.shutdown {
             return Err(LibbunError::RuntimeShutdown);
         }
-        let value = *self
-            .pending
-            .get(&handle.id)
-            .ok_or_else(|| LibbunError::UnknownAsyncHandle {
-                handle: handle.id.clone(),
-            })?;
+        let value =
+            *self
+                .pending
+                .get(&handle.id)
+                .ok_or_else(|| LibbunError::UnknownAsyncHandle {
+                    handle: handle.id.clone(),
+                })?;
         if !(value.is_cell() && value.js_type() == JSType::JSPromise) {
             return Err(LibbunError::UnknownAsyncHandle {
                 handle: handle.id.clone(),
             });
         }
-        let promise = value
-            .as_internal_promise()
-            .ok_or_else(|| LibbunError::UnknownAsyncHandle {
-                handle: handle.id.clone(),
-            })?;
+        let promise =
+            value
+                .as_internal_promise()
+                .ok_or_else(|| LibbunError::UnknownAsyncHandle {
+                    handle: handle.id.clone(),
+                })?;
         let result = self.promise_result(promise)?;
         if result.is_some() {
             self.vm().run_with_api_lock(|| value.unprotect());
@@ -511,7 +524,8 @@ fn path_to_file_specifier(path: &Path) -> LibbunResult<String> {
 
 #[cfg(target_os = "macos")]
 fn ensure_macos_compat_symbols() {
-    let symbol = libbun_libcxx_hash_memory_compat as extern "C" fn(*const std::ffi::c_void, usize) -> usize;
+    let symbol =
+        libbun_libcxx_hash_memory_compat as extern "C" fn(*const std::ffi::c_void, usize) -> usize;
     std::hint::black_box(symbol);
 }
 

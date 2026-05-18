@@ -1,7 +1,7 @@
 use libbun::{
-    BunHost, BunModuleHandle, BunModuleSpec, BunRuntimeConfig, ProviderCallResult,
+    BunHost, BunModuleHandle, BunModuleSpec, BunRuntimeConfig, OutputStream, ProviderCallResult,
     ProviderContractIdentity, ProviderDomainClass, ProviderHostReceipt, ProviderRequest,
-    PumpBudget, StructuralValue, OutputStream,
+    PumpBudget, StructuralValue,
 };
 use libbun_native::NativeBunRuntime;
 use serde_json::json;
@@ -81,7 +81,10 @@ fn assert_async_export(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleH
     panic!("async export did not resolve");
 }
 
-fn assert_structured_provider_error(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleHandle) {
+fn assert_structured_provider_error(
+    host: &mut BunHost<NativeBunRuntime>,
+    module: &BunModuleHandle,
+) {
     let receipt = host
         .call_provider(ProviderRequest {
             contract: contract(),

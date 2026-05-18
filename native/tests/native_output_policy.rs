@@ -34,7 +34,9 @@ fn native_runtime_honors_drop_output_policy() {
 
     assert_eq!(
         result,
-        ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({ "ok": true }))))
+        ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(
+            json!({ "ok": true })
+        )))
     );
     assert!(host.captured_output().is_empty());
 }
