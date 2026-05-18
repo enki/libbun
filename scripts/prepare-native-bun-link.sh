@@ -52,4 +52,11 @@ esac
     done
 } > "$manifest"
 
+if [[ "${LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST:-0}" == "1" ]]; then
+  rm -rf \
+    "$build_dir/bun-debug" \
+    "$build_dir/obj" \
+    "$build_dir/rust-target"
+fi
+
 echo "Prepared native Bun link manifest at $manifest"

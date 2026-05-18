@@ -68,17 +68,9 @@ jobs:
           cargo check --features dynamic-loading
 
       - name: Prepare native Bun link manifest
-        run: scripts/prepare-native-bun-link.sh
-
-      - name: Add Linux link swap
-        if: runner.os == 'Linux'
         run: |
+          LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST=1 scripts/prepare-native-bun-link.sh
           df -h /
-          sudo fallocate -l 4G /libbun-swap || sudo dd if=/dev/zero of=/libbun-swap bs=1M count=4096
-          sudo chmod 600 /libbun-swap
-          sudo mkswap /libbun-swap
-          sudo swapon /libbun-swap
-          free -h
 
       - name: Build native plugin
         run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
