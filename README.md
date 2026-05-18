@@ -1,10 +1,11 @@
 # libbun
 
-Private Rust facade for hosting JavaScript and TypeScript providers through a
-non-CLI Bun embedding boundary.
+Rust facade for hosting JavaScript and TypeScript providers through a non-CLI
+Bun embedding boundary.
 
-This repository owns the stable facade and conformance tests. It does not call
-Bun CLI `main`, `Cli::start`, or process-global command dispatch.
+This repository owns the stable facade, conformance tests, and a vendored Bun
+source snapshot. It does not call Bun CLI `main`, `Cli::start`, or
+process-global command dispatch.
 
 Current Bun source target:
 
@@ -20,3 +21,21 @@ shutdown, and Rust-substrate rejection.
 
 The native adapter that binds this facade to Bun/JSC internals is the next
 implementation layer.
+
+## Vendored Bun
+
+Bun source is tracked at `vendor/bun`. The snapshot is created from upstream
+Git history with `git archive`, so it excludes nested `.git` metadata and local
+build artifacts.
+
+Update to a new upstream ref:
+
+```sh
+scripts/update-vendored-bun.sh <ref>
+```
+
+Verify the vendored snapshot:
+
+```sh
+scripts/verify-vendored-bun.sh
+```

@@ -3,10 +3,10 @@
 Status: In Progress
 Date: 2026-05-18
 
-`libbun` is a sibling repository that owns a hostable Bun embedding facade.
-The facade must not call Bun CLI `main`, `Cli::start`, or process-global command
-dispatch. Bun provider failures must return structured errors rather than
-terminating the host process.
+`libbun` is a sibling repository that owns a hostable Bun embedding facade and a
+vendored upstream Bun source snapshot. The facade must not call Bun CLI `main`,
+`Cli::start`, or process-global command dispatch. Bun provider failures must
+return structured errors rather than terminating the host process.
 
 The initial implementation in this repository defines:
 
@@ -22,7 +22,11 @@ The initial implementation in this repository defines:
   control flow.
 
 The current Bun source target is recorded in `BUN_SOURCE_COMMIT`.
+The source snapshot lives in `vendor/bun`, and `scripts/update-vendored-bun.sh`
+recreates it from an upstream Git ref without requiring a sibling `../bun`
+checkout. `scripts/verify-vendored-bun.sh` checks that the source pin, metadata,
+and expected Bun source layout are present.
 
 Next work is to bind the facade to reusable non-CLI Bun/JSC internals from the
-sibling Bun checkout without linking the CLI-shaped `bun_bin` staticlib as the
+vendored Bun source without linking the CLI-shaped `bun_bin` staticlib as the
 embedding boundary.

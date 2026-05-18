@@ -1,0 +1,7 @@
+{
+  "upstream": "git@github.com:oven-sh/bun.git",
+  "ref": "9ecb985ad0f06fa12cbd8eede2404589992527d5",
+  "commit": "9ecb985ad0f06fa12cbd8eede2404589992527d5",
+  "vendoredPath": "vendor/bun",
+  "updatedAt": "2026-05-18T00:00:00Z"
+}
