@@ -1,24 +1,18 @@
 [package]
-name = "libbun"
+name = "libbun-plugin-native"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
+build = "build.rs"
 
 [lib]
 path = "src/lib.rs"
+crate-type = ["cdylib"]
 doctest = false
 
 [dependencies]
-libloading = { version = "0.8", optional = true }
+libbun = { path = ".." }
+libbun-native = { path = "../native", features = ["internal-adapter"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
-thiserror = "2"
-
-[dev-dependencies]
-tempfile = "3"
-
-[features]
-default = []
-dynamic-loading = ["dep:libloading"]

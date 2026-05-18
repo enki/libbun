@@ -6,10 +6,14 @@ use libbun::{
 use libbun_native::NativeBunRuntime;
 use serde_json::json;
 
+const OVERLAY_ENV_KEY: &str = "LIBBUN_NATIVE_OVERLAY_TEST";
+
 fn host() -> BunHost<NativeBunRuntime> {
     let tempdir = tempfile::tempdir().expect("tempdir creates");
     let path = tempdir.keep();
-    BunHost::initialize(BunRuntimeConfig::new("native-test-host", path)).expect("host initializes")
+    let config = BunRuntimeConfig::new("native-test-host", path)
+        .with_environment_overlay([(OVERLAY_ENV_KEY, "overlay-value")]);
+    BunHost::initialize(config).expect("host initializes")
 }
 
 fn contract() -> ProviderContractIdentity {
@@ -107,8 +111,27 @@ fn assert_structured_provider_error(
     }
 }
 
+fn assert_environment_overlay(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleHandle) {
+    let result = host
+        .call_export(module, "readEnv", StructuralValue::null())
+        .expect("env export succeeds");
+    assert_eq!(
+        result,
+        libbun::ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+            "processEnv": "overlay-value",
+            "bunEnv": "overlay-value"
+        }))))
+    );
+    assert!(std::env::var_os(OVERLAY_ENV_KEY).is_none());
+}
+
 #[test]
 fn native_runtime_provider_flows() {
+    assert!(
+        std::env::var_os(OVERLAY_ENV_KEY).is_none(),
+        "test requires {OVERLAY_ENV_KEY} to be unset in the process environment"
+    );
+
     let mut host = host();
     let module = host
         .load_module(BunModuleSpec::Source {
@@ -128,6 +151,13 @@ fn native_runtime_provider_flows() {
                 export function throws() {
                     throw new Error("provider boom");
                 }
+
+                export function readEnv() {
+                    return {
+                        processEnv: process.env.LIBBUN_NATIVE_OVERLAY_TEST,
+                        bunEnv: Bun.env.LIBBUN_NATIVE_OVERLAY_TEST,
+                    };
+                }
             "#
             .to_string(),
         })
@@ -136,4 +166,8 @@ fn native_runtime_provider_flows() {
     assert_sync_export(&mut host, &module);
     assert_async_export(&mut host, &module);
     assert_structured_provider_error(&mut host, &module);
+    assert_environment_overlay(&mut host, &module);
+    assert!(host.captured_output().iter().any(|record| {
+        record.stream == OutputStream::Log && record.text.contains("loading module module-1")
+    }));
 }

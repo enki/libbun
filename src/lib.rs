@@ -13,7 +13,56 @@ use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest;
 
+#[cfg(feature = "dynamic-loading")]
+pub mod dynamic;
+
 pub type LibbunResult<T> = Result<T, LibbunError>;
+
+pub mod plugin_abi {
+    pub const LIBBUN_PLUGIN_ABI_VERSION: u32 = 1;
+
+    pub const LIBBUN_PLUGIN_STATUS_OK: u32 = 0;
+    pub const LIBBUN_PLUGIN_STATUS_ERROR: u32 = 1;
+
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy)]
+    pub struct LibbunPluginBuffer {
+        pub data: *mut u8,
+        pub len: usize,
+    }
+
+    impl LibbunPluginBuffer {
+        pub const fn empty() -> Self {
+            Self {
+                data: std::ptr::null_mut(),
+                len: 0,
+            }
+        }
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy)]
+    pub struct LibbunPluginStatus {
+        pub code: u32,
+        pub payload: LibbunPluginBuffer,
+    }
+
+    impl LibbunPluginStatus {
+        pub const fn ok(payload: LibbunPluginBuffer) -> Self {
+            Self {
+                code: LIBBUN_PLUGIN_STATUS_OK,
+                payload,
+            }
+        }
+
+        pub const fn error(payload: LibbunPluginBuffer) -> Self {
+            Self {
+                code: LIBBUN_PLUGIN_STATUS_ERROR,
+                payload,
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -21,6 +70,7 @@ pub struct BunRuntimeConfig {
     pub host_id: String,
     pub bun_revision: String,
     pub working_directory: PathBuf,
+    pub environment: BTreeMap<String, String>,
     pub stdout: SinkPolicy,
     pub stderr: SinkPolicy,
     pub log: SinkPolicy,
@@ -32,10 +82,22 @@ impl BunRuntimeConfig {
             host_id: host_id.into(),
             bun_revision: env!("LIBBUN_BUN_SOURCE_COMMIT").to_string(),
             working_directory: working_directory.into(),
+            environment: BTreeMap::new(),
             stdout: SinkPolicy::Capture,
             stderr: SinkPolicy::Capture,
             log: SinkPolicy::Capture,
         }
+    }
+
+    pub fn with_environment_overlay(
+        mut self,
+        environment: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
+    ) -> Self {
+        self.environment = environment
+            .into_iter()
+            .map(|(key, value)| (key.into(), value.into()))
+            .collect();
+        self
     }
 }
 

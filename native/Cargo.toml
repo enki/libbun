@@ -10,6 +10,9 @@ build = "build.rs"
 path = "src/lib.rs"
 doctest = false
 
+[features]
+internal-adapter = []
+
 [dependencies]
 bun_ast = { path = "../vendor/bun/src/ast" }
 bun_core = { path = "../vendor/bun/src/bun_core" }

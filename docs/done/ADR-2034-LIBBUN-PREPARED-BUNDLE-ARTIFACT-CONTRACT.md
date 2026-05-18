@@ -1,6 +1,6 @@
 # ADR-2034: libbun Prepared Bundle Artifact Contract
 
-Status: Implemented
+Status: Done
 Date: 2026-05-18
 
 `BunModuleSpec::PreparedBundle` names an embedding capability, but accepting

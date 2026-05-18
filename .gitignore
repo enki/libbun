@@ -1,3 +1,5 @@
 /target/
 /native/target/
+/plugin/target/
+/dist/
 /.DS_Store

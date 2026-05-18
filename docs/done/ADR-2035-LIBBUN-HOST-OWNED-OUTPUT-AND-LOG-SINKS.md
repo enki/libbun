@@ -1,6 +1,6 @@
 # ADR-2035: libbun Host-Owned Output and Log Sinks
 
-Status: Implemented
+Status: Done
 Date: 2026-05-18
 
 The native adapter can capture Bun stdout/stderr by initializing Bun's output
@@ -22,21 +22,14 @@ write through `bun_core::Output`.
 - the native adapter also applies stdout/stderr policies before records leave
   the adapter, so dropped provider output is not retained by the native runtime.
 
-Out-of-scope follow-up:
-
-- `OutputStream::Log` is a first-class facade stream for adapters that can
-  produce host logs, but the native Bun scoped/debug logger does not yet have a
-  dedicated hook separate from stderr. ADR-2036 tracks that native observability
-  enhancement.
+`OutputStream::Log` is a first-class facade stream. ADR-2036 completes the
+native Bun scoped/debug logger integration so Bun internal logs can be captured
+or dropped independently from provider stderr.
 
 Evidence:
 
 - `tests/conformance.rs` covers host callback delivery and host-side draining.
 - `tests/conformance.rs` covers host-side log drop policy enforcement.
-- `native/tests/native_runtime.rs` covers native stdout/stderr capture.
-- `native/tests/native_output_policy.rs` covers native stdout/stderr drop
+- `native/tests/native_runtime.rs` covers native stdout/stderr/log capture.
+- `native/tests/native_output_policy.rs` covers native stdout/stderr/log drop
   policy.
-
-Until ADR-2036 is resolved, `libbun` should describe native output capture as
-stdout/stderr capture plus host-owned delivery, not as a complete dedicated Bun
-internal logging substrate.

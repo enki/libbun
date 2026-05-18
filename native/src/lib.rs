@@ -4,6 +4,12 @@
 //! upstream Bun currently requires its pinned nightly toolchain and generated
 //! codegen inputs.
 
+#[cfg(not(feature = "internal-adapter"))]
+compile_error!(
+    "`libbun-native` is an internal implementation crate. Build the dynamic \
+     plugin instead of statically linking this crate into a downstream host."
+);
+
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom};
@@ -34,6 +40,7 @@ pub struct NativeBunRuntime {
     output: Vec<OutputRecord>,
     stdout: OutputCapture,
     stderr: OutputCapture,
+    log: OutputCapture,
     tempdir: tempfile::TempDir,
     next_module: u64,
     next_async: u64,
@@ -153,6 +160,7 @@ impl NativeBunRuntime {
         bun_core::Output::flush();
         self.stdout.drain_into(&mut self.output)?;
         self.stderr.drain_into(&mut self.output)?;
+        self.log.drain_into(&mut self.output)?;
         Ok(())
     }
 
@@ -189,6 +197,8 @@ impl NativeBunRuntime {
         Ok(bundle_dir.join(bundle.entry_module))
     }
 }
+
+bun_core::declare_scope!(LibbunNative, visible);
 
 impl OutputCapture {
     fn create(
@@ -280,6 +290,35 @@ fn js_value_to_string(global: &JSGlobalObject, value: JSValue) -> Option<String>
     }
 }
 
+fn apply_environment_overlay(
+    vm: &mut VirtualMachine,
+    environment: &BTreeMap<String, String>,
+) -> LibbunResult<()> {
+    if environment.is_empty() {
+        return Ok(());
+    }
+
+    let env = vm.transpiler.env_mut();
+    for (key, value) in environment {
+        validate_environment_key(key)?;
+        env.map
+            .put_alloc_key_and_value(key.as_bytes(), value.as_bytes())
+            .map_err(|err| {
+                LibbunError::initialize(format!("environment overlay apply failed: {err:?}"))
+            })?;
+    }
+    Ok(())
+}
+
+fn validate_environment_key(key: &str) -> LibbunResult<()> {
+    if key.is_empty() || key.contains('=') || key.contains('\0') {
+        return Err(LibbunError::initialize(format!(
+            "invalid environment overlay key `{key}`"
+        )));
+    }
+    Ok(())
+}
+
 impl BunEmbeddingRuntime for NativeBunRuntime {
     fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
         ensure_macos_compat_symbols();
@@ -301,7 +340,14 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             OutputStream::Stderr,
             config.stderr,
         )?;
+        let log =
+            OutputCapture::create(tempdir.path(), "log.capture", OutputStream::Log, config.log)?;
         bun_core::Output::Source::set_init(stdout.bun_file(), stderr.bun_file());
+        bun_core::Output::init_scoped_debug_writer_at_startup();
+        unsafe {
+            bun_core::Output::scoped_debug_writer::SCOPED_FILE_WRITER
+                .write(bun_core::Output::output_sink().quiet_writer_from_fd(log.bun_file().0));
+        }
 
         bun_jsc::initialize(false);
         bun_ast::initialize_store();
@@ -312,15 +358,21 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             ..Default::default()
         })
         .map_err(|err| LibbunError::initialize(format!("{err:?}")))?;
+        let vm =
+            NonNull::new(vm).ok_or_else(|| LibbunError::initialize("Bun VM init returned null"))?;
+        apply_environment_overlay(
+            unsafe { vm.as_ptr().as_mut().expect("vm pointer checked") },
+            &config.environment,
+        )?;
 
         Ok(Self {
-            vm: NonNull::new(vm)
-                .ok_or_else(|| LibbunError::initialize("Bun VM init returned null"))?,
+            vm,
             modules: BTreeMap::new(),
             pending: BTreeMap::new(),
             output: Vec::new(),
             stdout,
             stderr,
+            log,
             tempdir,
             next_module: 1,
             next_async: 1,
@@ -335,6 +387,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
 
         let id = format!("module-{}", self.next_module);
         self.next_module += 1;
+        bun_core::scoped_log!(LibbunNative, "loading module {}", id);
 
         let module_path = match spec {
             BunModuleSpec::Source { source, .. } => {

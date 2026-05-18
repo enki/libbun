@@ -12,6 +12,7 @@ fn native_runtime_honors_drop_output_policy() {
     let mut config = BunRuntimeConfig::new("native-output-policy-test-host", path);
     config.stdout = SinkPolicy::Drop;
     config.stderr = SinkPolicy::Drop;
+    config.log = SinkPolicy::Drop;
 
     let mut host = BunHost::<NativeBunRuntime>::initialize(config).expect("host initializes");
     let module = host

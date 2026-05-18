@@ -1,0 +1,72 @@
+name: Release native plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version or tag name to publish, for example v0.1.0
+        required: true
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos-plugin:
+    name: Build macOS native plugin
+    runs-on: macos-latest
+    env:
+      LIBBUN_NATIVE_BUILD_JOBS: "8"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install release tools
+        run: brew install zstd
+
+      - name: Install Rust toolchains
+        run: |
+          rustup toolchain install stable
+          rustup toolchain install nightly-2026-05-06
+
+      - name: Verify facade
+        run: |
+          cargo test
+          cargo check --features dynamic-loading
+
+      - name: Prepare native Bun link manifest
+        run: scripts/prepare-native-bun-link.sh
+
+      - name: Build native plugin
+        run: LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+
+      - name: Verify dynamic plugin loading
+        run: |
+          plugin_path="$(find plugin/target/debug -maxdepth 1 -name 'liblibbun_plugin_native.dylib' -print -quit)"
+          test -n "$plugin_path"
+          LIBBUN_PLUGIN_PATH="$plugin_path" cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+
+      - name: Verify replacement plugin build path
+        run: LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 check --manifest-path plugin/Cargo.toml
+
+      - name: Package release assets
+        run: |
+          version="${{ inputs.version || github.ref_name }}"
+          plugin_path="$(find plugin/target/debug -maxdepth 1 -name 'liblibbun_plugin_native.dylib' -print -quit)"
+          scripts/package-native-plugin-release.sh "$version" "$plugin_path"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libbun-native-plugin-release-assets
+          path: dist/native-plugin/*
+          if-no-files-found: error
+
+      - name: Attach assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version || github.ref_name }}
+          files: dist/native-plugin/*
+          fail_on_unmatched_files: true
