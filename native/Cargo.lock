@@ -15,10 +15,80 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "arrayref"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb"
+
+[[package]]
+name = "arrayvec"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
+
+[[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
+name = "bcrypt"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24ae5479c93d3720e4c1dbd6b945b97457c50cb672781104768190371df1a905"
+dependencies = [
+ "base64",
+ "blowfish",
+ "getrandom",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4512299f36f043ab09a583e57bceb5a5aab7a73db1805848e8fef3c9e8c78b3"
+
+[[package]]
+name = "blake2"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
+dependencies = [
+ "digest",
+]
+
+[[package]]
+name = "blake2b_simd"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b79834656f71332577234b50bfc009996f7449e0c056884e6a02492ded0ca2f3"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "constant_time_eq",
+]
+
+[[package]]
+name = "block-buffer"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
+dependencies = [
+ "generic-array",
+]
+
+[[package]]
+name = "blowfish"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62ce3946557b35e71d1bbe07ec385073ce9eda05043f95de134eb578fcf1a298"
+dependencies = [
+ "byteorder",
+ "cipher",
+]
 
 [[package]]
 name = "bstr"
@@ -119,6 +189,25 @@ dependencies = [
  "scopeguard",
  "strum",
  "typed-arena",
+]
+
+[[package]]
+name = "bun_ast_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_ast",
+ "bun_core",
+ "bun_jsc",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
 ]
 
 [[package]]
@@ -266,6 +355,35 @@ dependencies = [
  "strum",
  "thiserror",
  "typed-arena",
+]
+
+[[package]]
+name = "bun_bundler_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_ast",
+ "bun_bundler",
+ "bun_core",
+ "bun_io",
+ "bun_jsc",
+ "bun_opaque",
+ "bun_options_types",
+ "bun_paths",
+ "bun_ptr",
+ "bun_resolver",
+ "bun_sys",
+ "bun_threading",
+ "bun_transpiler",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
 ]
 
 [[package]]
@@ -432,6 +550,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "bun_csrf"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_base64",
+ "bun_boringssl_sys",
+ "bun_core",
+ "bun_sha_hmac",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+]
+
+[[package]]
 name = "bun_css"
 version = "0.0.0"
 dependencies = [
@@ -465,6 +602,30 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "bun_css_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_ast",
+ "bun_collections",
+ "bun_core",
+ "bun_css",
+ "bun_js_parser",
+ "bun_jsc",
+ "bun_options_types",
+ "bun_ptr",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
 ]
 
 [[package]]
@@ -672,6 +833,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "bun_http_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_analytics",
+ "bun_base64",
+ "bun_boringssl",
+ "bun_collections",
+ "bun_core",
+ "bun_highway",
+ "bun_http",
+ "bun_http_types",
+ "bun_io",
+ "bun_jsc",
+ "bun_libdeflate_sys",
+ "bun_opaque",
+ "bun_picohttp",
+ "bun_ptr",
+ "bun_sha_hmac",
+ "bun_uws",
+ "bun_uws_sys",
+ "bun_zlib",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+ "thiserror",
+]
+
+[[package]]
 name = "bun_http_types"
 version = "0.0.0"
 dependencies = [
@@ -778,6 +974,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "bun_install_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_api",
+ "bun_ast",
+ "bun_ast_jsc",
+ "bun_core",
+ "bun_dotenv",
+ "bun_ini",
+ "bun_install",
+ "bun_js_parser_jsc",
+ "bun_jsc",
+ "bun_paths",
+ "bun_semver",
+ "bun_sys",
+ "bun_url",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+]
+
+[[package]]
 name = "bun_install_types"
 version = "0.0.0"
 dependencies = [
@@ -825,6 +1050,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "bun_js"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+]
+
+[[package]]
 name = "bun_js_parser"
 version = "0.0.0"
 dependencies = [
@@ -855,6 +1095,36 @@ dependencies = [
  "smallvec",
  "strum",
  "typed-arena",
+]
+
+[[package]]
+name = "bun_js_parser_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_ast",
+ "bun_base64",
+ "bun_bundler",
+ "bun_collections",
+ "bun_core",
+ "bun_dotenv",
+ "bun_http",
+ "bun_js_parser",
+ "bun_jsc",
+ "bun_options_types",
+ "bun_parsers",
+ "bun_ptr",
+ "bun_resolver",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+ "thiserror",
 ]
 
 [[package]]
@@ -1156,6 +1426,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "bun_patch_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_core",
+ "bun_jsc",
+ "bun_patch",
+ "bun_sys",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+]
+
+[[package]]
 name = "bun_paths"
 version = "0.0.0"
 dependencies = [
@@ -1313,6 +1602,106 @@ dependencies = [
 ]
 
 [[package]]
+name = "bun_runtime"
+version = "0.0.0"
+dependencies = [
+ "bcrypt",
+ "bitflags",
+ "blake2",
+ "bstr",
+ "bun_alloc",
+ "bun_analytics",
+ "bun_ast",
+ "bun_ast_jsc",
+ "bun_base64",
+ "bun_boringssl",
+ "bun_boringssl_sys",
+ "bun_brotli",
+ "bun_bundler",
+ "bun_bundler_jsc",
+ "bun_bunfig",
+ "bun_cares_sys",
+ "bun_clap",
+ "bun_collections",
+ "bun_core",
+ "bun_crash_handler",
+ "bun_csrf",
+ "bun_css",
+ "bun_css_jsc",
+ "bun_dns",
+ "bun_dotenv",
+ "bun_event_loop",
+ "bun_glob",
+ "bun_hash",
+ "bun_http",
+ "bun_http_jsc",
+ "bun_http_types",
+ "bun_install",
+ "bun_install_jsc",
+ "bun_install_types",
+ "bun_io",
+ "bun_js",
+ "bun_js_parser",
+ "bun_js_parser_jsc",
+ "bun_js_printer",
+ "bun_jsc",
+ "bun_libarchive",
+ "bun_libdeflate_sys",
+ "bun_libuv_sys",
+ "bun_lolhtml_sys",
+ "bun_md",
+ "bun_opaque",
+ "bun_options_types",
+ "bun_output",
+ "bun_parsers",
+ "bun_patch_jsc",
+ "bun_paths",
+ "bun_picohttp",
+ "bun_ptr",
+ "bun_resolve_builtins",
+ "bun_resolver",
+ "bun_router",
+ "bun_s3_signing",
+ "bun_safety",
+ "bun_semver",
+ "bun_semver_jsc",
+ "bun_sha_hmac",
+ "bun_shell_parser",
+ "bun_simdutf_sys",
+ "bun_sourcemap",
+ "bun_sourcemap_jsc",
+ "bun_spawn",
+ "bun_sql_jsc",
+ "bun_standalone_graph",
+ "bun_sys",
+ "bun_sys_jsc",
+ "bun_tcc_sys",
+ "bun_threading",
+ "bun_transpiler",
+ "bun_url",
+ "bun_uws",
+ "bun_uws_sys",
+ "bun_valkey",
+ "bun_watcher",
+ "bun_which",
+ "bun_wyhash",
+ "bun_zlib",
+ "bun_zstd",
+ "bytemuck",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "getrandom",
+ "libc",
+ "phf 0.11.3",
+ "rust-argon2",
+ "scopeguard",
+ "sha3",
+ "strum",
+ "thiserror",
+]
+
+[[package]]
 name = "bun_s3_signing"
 version = "0.0.0"
 dependencies = [
@@ -1375,6 +1764,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "bun_semver_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_core",
+ "bun_jsc",
+ "bun_semver",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+]
+
+[[package]]
 name = "bun_sha_hmac"
 version = "0.0.0"
 dependencies = [
@@ -1391,6 +1798,28 @@ dependencies = [
  "phf 0.11.3",
  "scopeguard",
  "strum",
+]
+
+[[package]]
+name = "bun_shell_parser"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bumpalo",
+ "bun_alloc",
+ "bun_collections",
+ "bun_core",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "smallvec",
+ "strum",
+ "thiserror",
+ "typed-arena",
 ]
 
 [[package]]
@@ -1441,6 +1870,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "bun_sourcemap_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_ast",
+ "bun_collections",
+ "bun_core",
+ "bun_io",
+ "bun_jsc",
+ "bun_opaque",
+ "bun_options_types",
+ "bun_paths",
+ "bun_sourcemap",
+ "bun_wyhash",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+]
+
+[[package]]
 name = "bun_spawn"
 version = "0.0.0"
 dependencies = [
@@ -1474,6 +1929,58 @@ dependencies = [
  "bun_windows_sys",
  "enumset",
  "libc",
+ "scopeguard",
+ "strum",
+]
+
+[[package]]
+name = "bun_sql"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_boringssl",
+ "bun_collections",
+ "bun_core",
+ "bun_ptr",
+ "bun_sha_hmac",
+ "bun_sys",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
+ "scopeguard",
+ "strum",
+]
+
+[[package]]
+name = "bun_sql_jsc"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_base64",
+ "bun_boringssl",
+ "bun_boringssl_sys",
+ "bun_collections",
+ "bun_core",
+ "bun_event_loop",
+ "bun_io",
+ "bun_jsc",
+ "bun_opaque",
+ "bun_ptr",
+ "bun_sha_hmac",
+ "bun_sql",
+ "bun_uws",
+ "bun_uws_sys",
+ "bun_wyhash",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
  "scopeguard",
  "strum",
 ]
@@ -1539,6 +2046,35 @@ dependencies = [
  "memchr",
  "phf 0.11.3",
  "rustix 0.38.44",
+ "scopeguard",
+ "strum",
+ "thiserror",
+]
+
+[[package]]
+name = "bun_sys_jsc"
+version = "0.0.0"
+dependencies = [
+ "bun_core",
+ "bun_jsc",
+ "bun_sys",
+]
+
+[[package]]
+name = "bun_tcc_sys"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_alloc",
+ "bun_core",
+ "bun_opaque",
+ "bun_ptr",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "phf 0.11.3",
  "scopeguard",
  "strum",
  "thiserror",
@@ -1645,6 +2181,21 @@ dependencies = [
  "scopeguard",
  "strum",
  "thiserror",
+]
+
+[[package]]
+name = "bun_valkey"
+version = "0.0.0"
+dependencies = [
+ "bitflags",
+ "bstr",
+ "bun_core",
+ "const_format",
+ "enum-map",
+ "enumset",
+ "libc",
+ "scopeguard",
+ "strum",
 ]
 
 [[package]]
@@ -1766,10 +2317,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8efb64bd706a16a1bdde310ae86b351e4d21550d98d056f22f8a7f7a2183fec"
 
 [[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
+
+[[package]]
+name = "cipher"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e34d8227fe1ba289043aeb13792056ff80fd6de1a9f49137a5f499de8e8c78ea"
+dependencies = [
+ "crypto-common 0.2.1",
+ "inout",
+]
 
 [[package]]
 name = "const_format"
@@ -1790,6 +2357,46 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "constant_time_eq"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
+
+[[package]]
+name = "cpufeatures"
+version = "0.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
+
+[[package]]
+name = "crypto-common"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
+dependencies = [
+ "generic-array",
+ "typenum",
+]
+
+[[package]]
+name = "crypto-common"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77727bb15fa921304124b128af125e7e3b968275d1b108b379190264f4423710"
+dependencies = [
+ "hybrid-array",
 ]
 
 [[package]]
@@ -1867,6 +2474,28 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version",
+ "syn",
+]
+
+[[package]]
+name = "digest"
+version = "0.10.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
+dependencies = [
+ "block-buffer",
+ "crypto-common 0.1.7",
+ "subtle",
+]
+
+[[package]]
+name = "displaydoc"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
+dependencies = [
+ "proc-macro2",
+ "quote",
  "syn",
 ]
 
@@ -1976,6 +2605,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
+name = "form_urlencoded"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+dependencies = [
+ "percent-encoding",
+]
+
+[[package]]
+name = "generic-array"
+version = "0.14.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
+dependencies = [
+ "typenum",
+ "version_check",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2022,6 +2670,97 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "hybrid-array"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9155a582abd142abc056962c29e3ce5ff2ad5469f4246b537ed42c5deba857da"
+dependencies = [
+ "typenum",
+]
+
+[[package]]
+name = "icu_collections"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2984d1cd16c883d7935b9e07e44071dca8d917fd52ecc02c04d5fa0b5a3f191c"
+dependencies = [
+ "displaydoc",
+ "potential_utf",
+ "utf8_iter",
+ "yoke",
+ "zerofrom",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_locale_core"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92219b62b3e2b4d88ac5119f8904c10f8f61bf7e95b640d25ba3075e6cac2c29"
+dependencies = [
+ "displaydoc",
+ "litemap",
+ "tinystr",
+ "writeable",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_normalizer"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c56e5ee99d6e3d33bd91c5d85458b6005a22140021cc324cea84dd0e72cff3b4"
+dependencies = [
+ "icu_collections",
+ "icu_normalizer_data",
+ "icu_properties",
+ "icu_provider",
+ "smallvec",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_normalizer_data"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da3be0ae77ea334f4da67c12f149704f19f81d1adf7c51cf482943e84a2bad38"
+
+[[package]]
+name = "icu_properties"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bee3b67d0ea5c2cca5003417989af8996f8604e34fb9ddf96208a033901e70de"
+dependencies = [
+ "icu_collections",
+ "icu_locale_core",
+ "icu_properties_data",
+ "icu_provider",
+ "zerotrie",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_properties_data"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e2bbb201e0c04f7b4b3e14382af113e17ba4f63e2c9d2ee626b720cbce54a14"
+
+[[package]]
+name = "icu_provider"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "139c4cf31c8b5f33d7e199446eff9c1e02decfc2f0eec2c8d71f65befa45b421"
+dependencies = [
+ "displaydoc",
+ "icu_locale_core",
+ "writeable",
+ "yoke",
+ "zerofrom",
+ "zerotrie",
+ "zerovec",
+]
+
+[[package]]
 name = "id-arena"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2032,6 +2771,27 @@ name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
+name = "idna"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de"
+dependencies = [
+ "idna_adapter",
+ "smallvec",
+ "utf8_iter",
+]
+
+[[package]]
+name = "idna_adapter"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714"
+dependencies = [
+ "icu_normalizer",
+ "icu_properties",
+]
 
 [[package]]
 name = "indexmap"
@@ -2046,10 +2806,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "inout"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4250ce6452e92010fdf7268ccc5d14faa80bb12fc741938534c58f16804e03c7"
+dependencies = [
+ "hybrid-array",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
+name = "keccak"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
+dependencies = [
+ "cpufeatures",
+]
 
 [[package]]
 name = "konst"
@@ -2088,9 +2866,11 @@ dependencies = [
  "bun_ast",
  "bun_core",
  "bun_jsc",
+ "bun_runtime",
  "libbun",
  "serde_json",
  "tempfile",
+ "url",
 ]
 
 [[package]]
@@ -2110,6 +2890,12 @@ name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
+
+[[package]]
+name = "litemap"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92daf443525c4cce67b150400bc2316076100ce0b3686209eb8cf3c31612e6f0"
 
 [[package]]
 name = "log"
@@ -2173,6 +2959,12 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "percent-encoding"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phf"
@@ -2270,6 +3062,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "potential_utf"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0103b1cef7ec0cf76490e969665504990193874ea05c85ff9bab8b911d0a0564"
+dependencies = [
+ "zerovec",
+]
+
+[[package]]
 name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2323,6 +3124,18 @@ name = "rand_core"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+
+[[package]]
+name = "rust-argon2"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ae76b7506744d254fd0eb2c0ff5c5d108201ccbb083111ac04a44eeda105680"
+dependencies = [
+ "base64",
+ "blake2b_simd",
+ "constant_time_eq",
+ "crossbeam-utils",
+]
 
 [[package]]
 name = "rustc-hash"
@@ -2455,6 +3268,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha3"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77fd7028345d415a4034cf8777cd4f8ab1851274233b45f84e3d955502d93874"
+dependencies = [
+ "digest",
+ "keccak",
+]
+
+[[package]]
 name = "siphasher"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2495,6 +3318,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "subtle"
+version = "2.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+
+[[package]]
 name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2503,6 +3332,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "synstructure"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -2539,6 +3379,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinystr"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8323304221c2a851516f22236c5722a72eaa19749016521d6dff0824447d96d"
+dependencies = [
+ "displaydoc",
+ "zerovec",
+]
+
+[[package]]
 name = "twox-hash"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2551,6 +3401,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
 
 [[package]]
+name = "typenum"
+version = "1.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40ce102ab67701b8526c123c1bab5cbe42d7040ccfd0f64af1a385808d2f43de"
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2561,6 +3417,30 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "url"
+version = "2.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+dependencies = [
+ "form_urlencoded",
+ "idna",
+ "percent-encoding",
+ "serde",
+]
+
+[[package]]
+name = "utf8_iter"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+
+[[package]]
+name = "version_check"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "wasip2"
@@ -2794,6 +3674,95 @@ dependencies = [
  "serde_json",
  "unicode-xid",
  "wasmparser",
+]
+
+[[package]]
+name = "writeable"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
+
+[[package]]
+name = "yoke"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abe8c5fda708d9ca3df187cae8bfb9ceda00dd96231bed36e445a1a48e66f9ca"
+dependencies = [
+ "stable_deref_trait",
+ "yoke-derive",
+ "zerofrom",
+]
+
+[[package]]
+name = "yoke-derive"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de844c262c8848816172cef550288e7dc6c7b7814b4ee56b3e1553f275f1858e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "synstructure",
+]
+
+[[package]]
+name = "zerofrom"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ec05a11813ea801ff6d75110ad09cd0824ddba17dfe17128ea0d5f68e6c5272"
+dependencies = [
+ "zerofrom-derive",
+]
+
+[[package]]
+name = "zerofrom-derive"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11532158c46691caf0f2593ea8358fed6bbf68a0315e80aae9bd41fbade684a1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "synstructure",
+]
+
+[[package]]
+name = "zeroize"
+version = "1.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
+
+[[package]]
+name = "zerotrie"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f9152d31db0792fa83f70fb2f83148effb5c1f5b8c7686c3459e361d9bc20bf"
+dependencies = [
+ "displaydoc",
+ "yoke",
+ "zerofrom",
+]
+
+[[package]]
+name = "zerovec"
+version = "0.11.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90f911cbc359ab6af17377d242225f4d75119aec87ea711a880987b18cd7b239"
+dependencies = [
+ "yoke",
+ "zerofrom",
+ "zerovec-derive",
+]
+
+[[package]]
+name = "zerovec-derive"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "625dc425cab0dca6dc3c3319506e6593dcb08a9f387ea3b284dbd52a92c40555"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

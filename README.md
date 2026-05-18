@@ -19,8 +19,10 @@ The initial crate defines the embedding ABI, provider-host receipts, structural
 value carriers, explicit event-loop pumping, output capture, deterministic
 shutdown, and Rust-substrate rejection.
 
-The native adapter that binds this facade to Bun/JSC internals is the next
-implementation layer.
+The native adapter binds this facade to Bun/JSC internals and has a real linked
+integration flow for source module load, synchronous export calls, async export
+parking/resolution, structured provider errors, event-loop pumping, and
+shutdown. Output sink wiring and prepared bundle loading are still open.
 
 ## Vendored Bun
 
@@ -58,3 +60,15 @@ toolchain.
 over vendored Bun/JSC crates. It is kept out of the default crate so downstream
 users can depend on the stable facade without pulling Bun's build toolchain into
 their normal Rust build.
+
+Run native adapter integration tests against Bun's C++/JSC objects:
+
+```sh
+scripts/prepare-native-bun-link.sh
+LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 test --manifest-path native/Cargo.toml
+```
+
+The native link manifest intentionally records Bun's C/C++ object archive and
+prebuilt WebKit/JSC static libraries, but not Bun's Rust staticlib. The adapter
+depends on the vendored Rust crates directly so Rust global state is not linked
+twice into the test host.

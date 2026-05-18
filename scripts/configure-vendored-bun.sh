@@ -7,6 +7,7 @@ commit="$(tr -d '[:space:]' < "$repo_root/BUN_SOURCE_COMMIT")"
 build_options="$bun_dir/build/debug/codegen/build_options.rs"
 
 (cd "$bun_dir" && bun run build --configure-only "$@")
+"$repo_root/scripts/apply-vendored-bun-patches.sh" >&2
 "$repo_root/scripts/vendor-bun-deps.sh" >&2
 (cd "$bun_dir" && ninja -C build/debug codegen)
 "$repo_root/scripts/verify-vendored-bun.sh" >&2

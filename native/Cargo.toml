@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
+build = "build.rs"
 
 [lib]
 path = "src/lib.rs"
@@ -13,6 +14,8 @@ doctest = false
 bun_ast = { path = "../vendor/bun/src/ast" }
 bun_core = { path = "../vendor/bun/src/bun_core" }
 bun_jsc = { path = "../vendor/bun/src/jsc" }
+bun_runtime = { path = "../vendor/bun/src/runtime" }
 libbun = { path = ".." }
 serde_json = "1"
 tempfile = "3"
+url = "2"

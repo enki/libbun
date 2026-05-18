@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_url="${BUN_UPSTREAM_REPO:-https://github.com/oven-sh/bun.git}"
+lolhtml_repo="${LOLHTML_UPSTREAM_REPO:-https://github.com/cloudflare/lol-html.git}"
 ref="${1:-main}"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,6 +24,7 @@ rm -rf "$vendor_dir"
 mkdir -p "$vendor_dir"
 git -C "$tmp_dir/bun" archive --format=tar "$commit" | tar -x -C "$vendor_dir"
 
+"$repo_root/scripts/apply-vendored-bun-patches.sh" >&2
 "$repo_root/scripts/vendor-bun-deps.sh" >&2
 lolhtml_commit="$(tr -d '[:space:]' < "$vendor_dir/vendor/lolhtml/.ref")"
 

@@ -5,13 +5,17 @@
 //! codegen inputs.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::Path;
 use std::ptr::NonNull;
 
-use bun_core::String as BunString;
+use bun_core::{String as BunString, ZigString};
 use bun_jsc::js_promise::Status as PromiseStatus;
 use bun_jsc::virtual_machine::{InitOptions, VirtualMachine};
-use bun_jsc::{AnyPromise, JSInternalPromise, JSModuleLoader, JSValue, JSPromise};
+use bun_jsc::{
+    AnyPromise, BuiltinName, JSGlobalObject, JSInternalPromise, JSModuleLoader, JSPromise,
+    JSValue, JSType, ZigStringJsc,
+};
+use bun_runtime as _;
 use libbun::{
     BunAsyncHandle, BunEmbeddingRuntime, BunModuleHandle, BunModuleSpec, BunRuntimeConfig,
     ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, ProviderError,
@@ -46,32 +50,15 @@ impl NativeBunRuntime {
     fn evaluate_json(&self, value: &StructuralValue) -> LibbunResult<JSValue> {
         let json = serde_json::to_string(&value.0)
             .map_err(|err| LibbunError::export_call(format!("input JSON encode failed: {err}")))?;
-        let json_literal = serde_json::to_string(&json).map_err(|err| {
-            LibbunError::export_call(format!("input JSON literal encode failed: {err}"))
-        })?;
-        self.evaluate_expression(&format!("JSON.parse({json_literal})"))
-    }
-
-    fn evaluate_expression(&self, source: &str) -> LibbunResult<JSValue> {
-        let global = self.vm().global();
-        let mut exception = JSValue::ZERO;
-        let value = JSModuleLoader::evaluate(
-            global,
-            source.as_ptr(),
-            source.len(),
-            b"libbun://eval".as_ptr(),
-            b"libbun://eval".len(),
-            b"libbun://host".as_ptr(),
-            b"libbun://host".len(),
-            JSValue::UNDEFINED,
-            &mut exception,
-        );
-        if !exception.is_empty() {
-            return Err(LibbunError::export_call(
-                self.js_error_to_string(exception, "JavaScript evaluation failed"),
-            ));
-        }
-        Ok(value)
+        let json = ZigString::init(json.as_bytes());
+        self.vm().run_with_api_lock(|| {
+            let value = json.to_json_object(self.vm().global());
+            if value.is_empty() {
+                Err(LibbunError::export_call("input JSON parse failed"))
+            } else {
+                Ok(value)
+            }
+        })
     }
 
     fn value_to_result(&self, value: JSValue) -> LibbunResult<ProviderCallResult> {
@@ -80,8 +67,8 @@ impl NativeBunRuntime {
         }
 
         let mut out = BunString::empty();
-        value
-            .json_stringify_fast(self.vm().global(), &mut out)
+        self.vm()
+            .run_with_api_lock(|| value.json_stringify_fast(self.vm().global(), &mut out))
             .map_err(|_| LibbunError::export_call("JSON.stringify threw"))?;
         let bytes = out.to_utf8_bytes();
         out.deref();
@@ -97,6 +84,7 @@ impl NativeBunRuntime {
     }
 
     fn rejected_to_result(&self, value: JSValue) -> ProviderCallResult {
+        let value = value.to_error().unwrap_or(value);
         ProviderCallResult::Err(ProviderError {
             code: "provider_rejected".to_string(),
             message: self.js_error_to_string(value, "provider promise rejected"),
@@ -104,13 +92,27 @@ impl NativeBunRuntime {
     }
 
     fn js_error_to_string(&self, value: JSValue, fallback: &str) -> String {
-        match value.to_slice_or_null(self.vm().global()) {
-            Ok(text) => {
-                let bytes = text.into_vec();
-                String::from_utf8_lossy(&bytes).into_owned()
+        let global = self.vm().global();
+        if value.is_object() {
+            if let Ok(Some(message)) = value.get(global, "message") {
+                if let Some(text) = js_value_to_string(global, message) {
+                    return text;
+                }
             }
-            _ => fallback.to_string(),
+            if let Ok(Some(message)) = value.fast_get(global, BuiltinName::Message) {
+                if let Some(text) = js_value_to_string(global, message) {
+                    return text;
+                }
+            }
+            if let Ok(Some(name)) = value.fast_get(global, BuiltinName::name) {
+                if let Some(text) = js_value_to_string(global, name) {
+                    return text;
+                }
+            }
+            return fallback.to_string();
         }
+
+        js_value_to_string(global, value).unwrap_or_else(|| fallback.to_string())
     }
 
     fn promise_result(&self, promise: *mut JSInternalPromise) -> LibbunResult<Option<ProviderCallResult>> {
@@ -128,8 +130,25 @@ impl NativeBunRuntime {
     }
 }
 
+fn js_value_to_string(global: &JSGlobalObject, value: JSValue) -> Option<String> {
+    if !value.is_string() {
+        return None;
+    }
+
+    match value.to_slice_clone(global) {
+        Ok(text) => {
+            let bytes = text.into_vec();
+            Some(String::from_utf8_lossy(&bytes).into_owned())
+        }
+        _ => None,
+    }
+}
+
 impl BunEmbeddingRuntime for NativeBunRuntime {
     fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
+        ensure_macos_compat_symbols();
+        bun_core::Output::init_test();
+        bun_core::StackCheck::configure_thread();
         bun_jsc::initialize(false);
         bun_ast::initialize_store();
 
@@ -162,9 +181,12 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             return Err(LibbunError::RuntimeShutdown);
         }
 
+        let id = format!("module-{}", self.next_module);
+        self.next_module += 1;
+
         let module_path = match spec {
-            BunModuleSpec::Source { module_id, source } => {
-                let path = self.tempdir.path().join(format!("{module_id}.mjs"));
+            BunModuleSpec::Source { source, .. } => {
+                let path = self.tempdir.path().join(format!("{id}.mjs"));
                 std::fs::write(&path, source)
                     .map_err(|err| LibbunError::module_load(format!("source write failed: {err}")))?;
                 path
@@ -177,10 +199,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             }
         };
 
-        let id = format!("module-{}", self.next_module);
-        self.next_module += 1;
-
-        let specifier = path_to_file_specifier(module_path)?;
+        let specifier = path_to_file_specifier(&module_path)?;
         let specifier = BunString::from_bytes(specifier.as_bytes());
         let promise = JSModuleLoader::import_ptr(self.vm().global, &specifier)
             .map_err(|_| LibbunError::module_load("module import threw"))?;
@@ -194,7 +213,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             ProviderCallResult::Ok(_) => {
                 let namespace =
                     JSInternalPromise::opaque_mut(promise.as_ptr()).result(unsafe { &*self.vm().jsc_vm });
-                namespace.protect();
+                self.vm().run_with_api_lock(|| namespace.protect());
                 self.modules.insert(id.clone(), namespace);
                 Ok(BunModuleHandle { id })
             }
@@ -230,14 +249,23 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         }
 
         let arg = self.evaluate_json(&input)?;
-        let result = function
-            .call(self.vm().global(), namespace, &[arg])
-            .map_err(|_| LibbunError::export_call(format!("export `{export}` threw")))?;
+        let result = match self
+            .vm()
+            .run_with_api_lock(|| match function.call(self.vm().global(), namespace, &[arg]) {
+                Ok(result) => Ok(result),
+                Err(error) => {
+                    let exception = self.vm().global().take_exception(error);
+                    Err(self.rejected_to_result(exception))
+                }
+            }) {
+            Ok(result) => result,
+            Err(error) => return Ok(ExportCallResult::Ready(error)),
+        };
 
-        if let Some(_promise) = result.as_internal_promise() {
+        if result.is_cell() && result.js_type() == JSType::JSPromise {
             let id = format!("async-{}", self.next_async);
             self.next_async += 1;
-            result.protect();
+            self.vm().run_with_api_lock(|| result.protect());
             self.pending.insert(id.clone(), result);
             return Ok(ExportCallResult::Pending(BunAsyncHandle { id }));
         }
@@ -273,6 +301,11 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             .ok_or_else(|| LibbunError::UnknownAsyncHandle {
                 handle: handle.id.clone(),
             })?;
+        if !(value.is_cell() && value.js_type() == JSType::JSPromise) {
+            return Err(LibbunError::UnknownAsyncHandle {
+                handle: handle.id.clone(),
+            });
+        }
         let promise = value
             .as_internal_promise()
             .ok_or_else(|| LibbunError::UnknownAsyncHandle {
@@ -280,7 +313,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             })?;
         let result = self.promise_result(promise)?;
         if result.is_some() {
-            value.unprotect();
+            self.vm().run_with_api_lock(|| value.unprotect());
             self.pending.remove(&handle.id);
         }
         Ok(result)
@@ -295,10 +328,10 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             return Ok(());
         }
         for (_, value) in std::mem::take(&mut self.pending) {
-            value.unprotect();
+            self.vm().run_with_api_lock(|| value.unprotect());
         }
         for (_, value) in std::mem::take(&mut self.modules) {
-            value.unprotect();
+            self.vm().run_with_api_lock(|| value.unprotect());
         }
         self.vm_mut().destroy();
         self.shutdown = true;
@@ -306,9 +339,74 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
     }
 }
 
-fn path_to_file_specifier(path: PathBuf) -> LibbunResult<String> {
+fn path_to_file_specifier(path: &Path) -> LibbunResult<String> {
     let path = path
         .canonicalize()
         .map_err(|err| LibbunError::module_load(format!("canonicalize failed: {err}")))?;
-    Ok(format!("file://{}", path.to_string_lossy()))
+    url::Url::from_file_path(&path)
+        .map(|url| url.to_string())
+        .map_err(|()| {
+            LibbunError::module_load(format!(
+                "path cannot be represented as a file URL: {}",
+                path.display()
+            ))
+        })
+}
+
+#[cfg(target_os = "macos")]
+fn ensure_macos_compat_symbols() {
+    let symbol = libbun_libcxx_hash_memory_compat as extern "C" fn(*const std::ffi::c_void, usize) -> usize;
+    std::hint::black_box(symbol);
+}
+
+#[cfg(not(target_os = "macos"))]
+fn ensure_macos_compat_symbols() {}
+
+#[cfg(target_os = "macos")]
+#[unsafe(export_name = "_ZNSt3__113__hash_memoryEPKvm")]
+pub extern "C" fn libbun_libcxx_hash_memory_compat(
+    data: *const std::ffi::c_void,
+    len: usize,
+) -> usize {
+    if len == 0 || data.is_null() {
+        return 0;
+    }
+
+    // Bun's static C++/WebKit objects may be built against an SDK whose libc++
+    // expects this ABI helper, while older macOS runtime dylibs do not export it.
+    let bytes = unsafe { std::slice::from_raw_parts(data.cast::<u8>(), len) };
+    if usize::BITS == 64 {
+        let mut hash = 0xcbf29ce484222325_u64;
+        for byte in bytes {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+        hash as usize
+    } else {
+        let mut hash = 0x811c9dc5_u32;
+        for byte in bytes {
+            hash ^= u32::from(*byte);
+            hash = hash.wrapping_mul(0x01000193);
+        }
+        hash as usize
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Bun__panic(msg: *const u8, len: usize) -> ! {
+    let bytes = if msg.is_null() {
+        &[][..]
+    } else {
+        unsafe { std::slice::from_raw_parts(msg, len) }
+    };
+    bun_core::Output::panic(format_args!("{}", String::from_utf8_lossy(bytes)));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Bun__VM__scriptExecutionStatus(vm: *const VirtualMachine) -> i32 {
+    if vm.is_null() {
+        return 1;
+    }
+    let vm = unsafe { &*vm };
+    vm.script_execution_status() as i32
 }

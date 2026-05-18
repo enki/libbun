@@ -38,11 +38,20 @@ The native adapter lives in `native/` so the default `libbun` crate remains a
 generic stable facade. The adapter implements `BunEmbeddingRuntime` using the
 vendored `bun_jsc` and `bun_runtime` crates rather than the CLI-shaped
 `bun_bin` staticlib boundary.
+`scripts/prepare-native-bun-link.sh` builds the vendored Bun no-ASAN debug
+target, archives the native C/C++ object set used by Bun's own link, records the
+prebuilt WebKit/JSC static libraries, and lets `native/build.rs` link them for
+integration tests when `LIBBUN_NATIVE_LINK_BUN=1` is set. The manifest
+intentionally excludes Bun's Rust staticlib; the native adapter links the
+vendored Rust crates directly to avoid duplicate Rust runtime and VM state.
+
+The native linked integration test currently covers a source module loaded
+through Bun's module loader, synchronous export calls, async export parking and
+resolution, event-loop pumping, structured provider errors, and shutdown
+against the real Bun C++ / JSC object set.
 
 Remaining work before this ADR can move to `docs/done/`:
 
-- native integration tests that link and execute the adapter against Bun's C++ /
-  JSC objects, not only `cargo check`;
 - stdout/stderr/log sink hooks wired into Bun output rather than only preserving
   the facade capture shape;
 - prepared bundle loading semantics;
