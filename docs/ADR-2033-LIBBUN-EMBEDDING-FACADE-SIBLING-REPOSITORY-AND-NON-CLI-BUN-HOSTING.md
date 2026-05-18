@@ -60,15 +60,14 @@ Known follow-up ADRs:
   sink constraints.
 - ADR-2036 tracks a dedicated native Bun internal log stream separate from
   provider stderr.
-- ADR-2037 tracks native support for the `BunRuntimeConfig.environment` host
-  overlay without mutating process-global environment state.
+- ADR-2037 tracks future host environment overlay support without mutating
+  process-global environment state; the unused config field has been removed
+  from the active facade.
 
 Remaining work before this ADR can move to `docs/done/`:
 
 - decide whether ADR-2036 is required for the ADR-2033 completion boundary or a
   later native observability enhancement;
-- resolve ADR-2037 or remove/de-scope `BunRuntimeConfig.environment` from the
-  claimed native embedding contract;
 - a completion audit proving the non-CLI native adapter covers the provider
   success, async, structured error, event-loop pump, output, and shutdown cases
   end to end.

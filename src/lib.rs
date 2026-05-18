@@ -21,8 +21,6 @@ pub struct BunRuntimeConfig {
     pub host_id: String,
     pub bun_revision: String,
     pub working_directory: PathBuf,
-    #[serde(default)]
-    pub environment: BTreeMap<String, String>,
     pub stdout: SinkPolicy,
     pub stderr: SinkPolicy,
     pub log: SinkPolicy,
@@ -34,7 +32,6 @@ impl BunRuntimeConfig {
             host_id: host_id.into(),
             bun_revision: env!("LIBBUN_BUN_SOURCE_COMMIT").to_string(),
             working_directory: working_directory.into(),
-            environment: BTreeMap::new(),
             stdout: SinkPolicy::Capture,
             stderr: SinkPolicy::Capture,
             log: SinkPolicy::Capture,

@@ -25,8 +25,8 @@ synchronous export calls, async export parking/resolution, structured provider
 errors, event-loop pumping, and shutdown. It captures Bun stdout/stderr into
 `OutputRecord`s and supports host-owned output draining plus callback delivery.
 Dedicated native Bun internal log stream semantics are tracked in ADR-2036.
-Native support for `BunRuntimeConfig.environment` host overlays is tracked in
-ADR-2037.
+Native support for host environment overlays is tracked in ADR-2037 and is not
+part of the active facade yet.
 
 ## Vendored Bun
 

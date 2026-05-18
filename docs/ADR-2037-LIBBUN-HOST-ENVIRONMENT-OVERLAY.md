@@ -3,10 +3,11 @@
 Status: Proposed
 Date: 2026-05-18
 
-`BunRuntimeConfig` exposes an `environment` map, but the native adapter does not
-currently apply it. Leaving that field unused would be misleading for embedding
-hosts because providers may observe environment variables through Bun APIs,
-process shims, or package/runtime code.
+An earlier `BunRuntimeConfig` shape exposed an `environment` map, but the native
+adapter did not apply it. That field has been removed from the active facade
+until the embedding semantics are defined. Leaving it in place unused would be
+misleading for embedding hosts because providers may observe environment
+variables through Bun APIs, process shims, or package/runtime code.
 
 A naive implementation that mutates process-global environment variables during
 VM initialization would not be a strong substrate: it would leak across host
@@ -24,5 +25,6 @@ This ADR should define and implement:
 - tests proving provider-visible environment values come from the configured
   host overlay and do not require mutating global process state.
 
-Until this ADR is resolved, `environment` is part of the facade contract but the
-native adapter should not be described as supporting host environment overlays.
+Until this ADR is resolved, host environment overlays are deliberately absent
+from the active facade and the native adapter should not be described as
+supporting them.
