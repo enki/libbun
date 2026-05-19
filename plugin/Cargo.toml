@@ -16,8 +16,12 @@ libbun = { path = ".." }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+[features]
+linux-in-process = ["dep:libbun-native"]
+
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 libbun-native = { path = "../native", features = ["internal-adapter"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
+libbun-native = { path = "../native", features = ["internal-adapter"], optional = true }

@@ -9,7 +9,8 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LIBBUN_NATIVE_BUN_BUILD_DIR");
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    if target_os == "linux" {
+    let linux_in_process = env::var_os("CARGO_FEATURE_LINUX_IN_PROCESS").is_some();
+    if target_os == "linux" && !linux_in_process {
         println!("cargo:warning=building Linux libbun-plugin-native in helper-process mode");
         return;
     }
@@ -60,6 +61,11 @@ fn main() {
         println!("cargo:rustc-link-lib=icucore");
         println!("cargo:rustc-link-lib=resolv");
     } else if target_os == "linux" {
+        if let Some(ubsan) = find_toolchain_library("libubsan.so") {
+            let ubsan_dir = ubsan.parent().expect("ubsan library has parent");
+            println!("cargo:rustc-link-search=native={}", ubsan_dir.display());
+            println!("cargo:rustc-link-lib=ubsan");
+        }
         println!("cargo:rustc-link-lib=stdc++");
         println!("cargo:rustc-link-lib=dl");
         println!("cargo:rustc-link-lib=pthread");
@@ -78,6 +84,27 @@ fn find_compiler_rt(library: &str) -> Option<PathBuf> {
     let path = String::from_utf8(output.stdout).ok()?;
     let path = PathBuf::from(path.trim());
     path.exists().then_some(path)
+}
+
+fn find_toolchain_library(library: &str) -> Option<PathBuf> {
+    for compiler in ["cc", "gcc", "clang"] {
+        let Some(output) = Command::new(compiler)
+            .arg(format!("-print-file-name={library}"))
+            .output()
+            .ok()
+        else {
+            continue;
+        };
+        if !output.status.success() {
+            continue;
+        }
+        let path = String::from_utf8(output.stdout).ok()?;
+        let path = PathBuf::from(path.trim());
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    None
 }
 
 fn default_manifest_path() -> PathBuf {

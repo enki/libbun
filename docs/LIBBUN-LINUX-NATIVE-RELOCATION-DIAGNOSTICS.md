@@ -111,3 +111,70 @@ local WebKit CMake path. Linux plugin publication therefore requires
 PIC-compatible WebKit artifacts: either build WebKit from source in the plugin
 PIC mode, or consume an upstream WebKit prebuilt release that is explicitly
 compatible with shared-object embedding.
+
+## 2026-05-19 PIC Artifact Verification
+
+GitHub Actions artifacts from `enki/WebKit` run `26077123752` produced
+PIC-compatible debug WebKit bundles for:
+
+- `bun-webkit-linux-amd64-pic-debug`;
+- `bun-webkit-linux-arm64-pic-debug`.
+
+Those artifacts were promoted to durable `enki/WebKit` GitHub Release assets:
+
+```text
+https://github.com/enki/WebKit/releases/tag/libbun-webkit-pic-5488984d-20260519
+```
+
+The release targets the `libbun-pic-5488984d` branch and includes the amd64 and
+arm64 PIC WebKit archives, `checksums.txt`, and `metadata.json`.
+
+The arm64 bundle was tested locally inside an Ubuntu 24.04 `smolvm` machine
+using the mounted libbun checkout and the existing Bun native object archive.
+The native link manifest was rewritten to use the extracted PIC WebKit
+archives, then `scripts/inspect-linux-native-relocations.sh` passed with no
+known shared-object-hostile TLS relocations.
+
+The first full plugin link with GNU `ld` was killed by the kernel during the
+large final link. Re-running the same link with `lld` succeeded and produced a
+normal dynamically loadable Linux arm64 plugin:
+
+```text
+/work/target-smolvm-plugin-pic/debug/liblibbun_plugin_native.so:
+ELF 64-bit LSB shared object, ARM aarch64, dynamically linked
+```
+
+Two runtime-loader issues were found and fixed in the libbun plugin/native
+crates:
+
+- the PIC debug WebKit inputs reference UBSan handlers, so Linux plugin builds
+  must link the toolchain `libubsan` runtime when it is available;
+- Bun's Linux `sys_epoll_pwait2` platform shim must be force-linked into the
+  native adapter, matching Bun's own binary crate behavior.
+
+With those fixes and `RUSTFLAGS="-C link-arg=-fuse-ld=lld"`, the dynamic
+loader smoke test passed on Linux arm64:
+
+```text
+LIBBUN_PLUGIN_PATH=/work/target-smolvm-plugin-pic/debug/liblibbun_plugin_native.so
+cargo +nightly-2026-05-06 test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+```
+
+The test completed successfully, but emitted one shutdown-time diagnostic:
+
+```text
+mimalloc: error: mi_free: invalid pointer: 0xFFFF94003600
+```
+
+This means PIC WebKit artifacts can make the Linux in-process dynamic plugin
+viable at least on arm64. Linux release publication still needs the same proof
+for x86_64, a clean release workflow using `lld`, and investigation of the
+`mimalloc` diagnostic before replacing the helper-backed Linux bundle as the
+default release shape.
+
+`scripts/fetch-webkit-pic-artifact.sh` now makes the WebKit PIC input step
+reproducible: it downloads the pinned `enki/WebKit` release asset, verifies the
+published checksum, extracts it, and rewrites a libbun native link manifest to
+point WebKit/JSC/WTF static entries at the PIC archives. The non-publishing
+`.github/workflows/verify-linux-pic-plugin.yml` workflow uses that script to
+verify both Linux targets before any release-matrix promotion.

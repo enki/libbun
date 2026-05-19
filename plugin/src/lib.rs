@@ -223,7 +223,7 @@ fn read_bytes<'a>(data: *const u8, len: usize) -> libbun::LibbunResult<&'a [u8]>
     })
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(any(not(target_os = "linux"), feature = "linux-in-process"))]
 mod transport {
     use libbun::BunHost;
     use libbun::{
@@ -279,7 +279,7 @@ mod transport {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", not(feature = "linux-in-process")))]
 mod transport {
     use std::ffi::c_void;
     use std::io::BufReader;

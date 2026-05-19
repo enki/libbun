@@ -17,6 +17,7 @@ internal-adapter = []
 bun_ast = { path = "../vendor/bun/src/ast" }
 bun_core = { path = "../vendor/bun/src/bun_core" }
 bun_jsc = { path = "../vendor/bun/src/jsc" }
+bun_platform = { path = "../vendor/bun/src/platform" }
 bun_runtime = { path = "../vendor/bun/src/runtime" }
 libbun = { path = ".." }
 serde_json = "1"

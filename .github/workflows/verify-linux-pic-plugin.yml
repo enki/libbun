@@ -1,0 +1,98 @@
+name: Verify Linux PIC plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      webkit_pic_tag:
+        description: WebKit PIC release tag from enki/WebKit
+        required: true
+        default: libbun-webkit-pic-5488984d-20260519
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-linux-pic-plugin:
+    name: Verify Linux PIC plugin (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            plugin_name: liblibbun_plugin_native.so
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            plugin_name: liblibbun_plugin_native.so
+    env:
+      LIBBUN_NATIVE_BUILD_JOBS: "8"
+      LIBBUN_NATIVE_BUN_BUILD_DIR: ${{ github.workspace }}/vendor/bun/build/pic-${{ matrix.target }}
+      BUN_CODEGEN_DIR: ${{ github.workspace }}/vendor/bun/build/pic-${{ matrix.target }}/codegen
+      LIBBUN_WEBKIT_PIC_REPO: enki/WebKit
+      LIBBUN_WEBKIT_PIC_TAG: ${{ inputs.webkit_pic_tag }}
+      LIBBUN_WEBKIT_PIC_TARGET: ${{ matrix.target }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zstd ninja-build cmake g++ lld
+
+      - name: Install Rust toolchains
+        run: |
+          rustup toolchain install stable
+          rustup toolchain install nightly-2026-05-06
+
+      - name: Verify facade
+        run: |
+          cargo test
+          cargo check --features dynamic-loading
+
+      - name: Prepare native Bun link manifest
+        run: |
+          base_manifest="$LIBBUN_NATIVE_BUN_BUILD_DIR/libbun_native_link_manifest.txt"
+          pic_manifest="$LIBBUN_NATIVE_BUN_BUILD_DIR/libbun_native_link_manifest.pic.txt"
+          LIBBUN_NATIVE_LINK_MANIFEST="$base_manifest" LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST=1 scripts/prepare-native-bun-link.sh
+          scripts/fetch-webkit-pic-artifact.sh \
+            --target "${{ matrix.target }}" \
+            --manifest "$base_manifest" \
+            --out "$pic_manifest"
+          echo "LIBBUN_NATIVE_LINK_MANIFEST=$pic_manifest" >> "$GITHUB_ENV"
+          df -h /
+
+      - name: Inspect Linux native relocations
+        run: scripts/inspect-linux-native-relocations.sh "$LIBBUN_NATIVE_LINK_MANIFEST"
+
+      - name: Build Linux in-process plugin
+        run: |
+          LIBBUN_NATIVE_LINK_BUN=1 \
+          CARGO_INCREMENTAL=0 \
+          CARGO_PROFILE_DEV_DEBUG=0 \
+          RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
+          cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+
+      - name: Verify dynamic plugin loading
+        run: |
+          plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+          test -n "$plugin_path"
+          env -u LIBBUN_RUNTIME_NATIVE_PATH \
+            LIBBUN_PLUGIN_PATH="$plugin_path" \
+            cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+
+      - name: Upload verified plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libbun-linux-pic-plugin-${{ matrix.target }}
+          path: |
+            plugin/target/debug/${{ matrix.plugin_name }}
+            vendor/bun/build/pic-${{ matrix.target }}/libbun_native_link_manifest.pic.txt
+            vendor/bun/build/pic-${{ matrix.target }}/libbun_webkit_pic_artifact.json
+          if-no-files-found: error

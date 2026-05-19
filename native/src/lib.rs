@@ -24,6 +24,7 @@ use bun_jsc::{
     AnyPromise, BuiltinName, JSGlobalObject, JSInternalPromise, JSModuleLoader, JSPromise, JSType,
     JSValue, ZigStringJsc,
 };
+use bun_platform as _;
 use bun_runtime as _;
 use libbun::OutputStream;
 use libbun::{
