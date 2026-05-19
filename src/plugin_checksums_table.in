@@ -1,1 +1,5 @@
-&[]
+&[
+    ("v0.1.2", "aarch64-apple-darwin", "a39f0f2d6d35d6018eb10e9f5bcd6952c08eee8cbf63be97786418a5bec60132"),
+    ("v0.1.2", "x86_64-unknown-linux-gnu", "2053716102fd0bf4851d2b46be14059be87d6603f9e5b17d6b732ad6388d4855"),
+    ("v0.1.2", "aarch64-unknown-linux-gnu", "d9b755385f3cf1e3992c9341bf54c9b44f242b51314752743472d2b03432c6ca"),
+]
