@@ -17,6 +17,7 @@ include = [
     "/README.md",
     "/build.rs",
     "/src/**",
+    "/src/plugin_checksums_table.in",
     "/tests/**",
 ]
 
@@ -39,5 +40,6 @@ tempfile = "3"
 
 [features]
 default = []
+download-plugin = []
 dynamic-loading = ["dep:libloading"]
 plugin-installer = ["dep:tar", "dep:ureq", "dep:zstd"]

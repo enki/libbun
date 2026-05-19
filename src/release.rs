@@ -27,6 +27,7 @@ pub struct NativePluginAsset {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativePluginSource {
     Environment,
+    BuildTime,
     Cache,
 }
 
@@ -37,10 +38,21 @@ pub struct ResolvedNativePlugin {
     pub asset: NativePluginAsset,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct NativePluginResolver {
     plugin_path: Option<PathBuf>,
     cache_root: Option<PathBuf>,
+    use_build_time_plugin: bool,
+}
+
+impl Default for NativePluginResolver {
+    fn default() -> Self {
+        Self {
+            plugin_path: None,
+            cache_root: None,
+            use_build_time_plugin: true,
+        }
+    }
 }
 
 impl NativePluginAsset {
@@ -125,6 +137,7 @@ impl NativePluginResolver {
         Self {
             plugin_path: std::env::var_os(LIBBUN_PLUGIN_PATH_ENV).map(PathBuf::from),
             cache_root: std::env::var_os(LIBBUN_HOME_ENV).map(PathBuf::from),
+            use_build_time_plugin: true,
         }
     }
 
@@ -135,6 +148,11 @@ impl NativePluginResolver {
 
     pub fn with_cache_root(mut self, cache_root: impl Into<PathBuf>) -> Self {
         self.cache_root = Some(cache_root.into());
+        self
+    }
+
+    pub fn with_build_time_plugin(mut self, enabled: bool) -> Self {
+        self.use_build_time_plugin = enabled;
         self
     }
 
@@ -152,6 +170,18 @@ impl NativePluginResolver {
                 "{LIBBUN_PLUGIN_PATH_ENV} points to `{}`, but no plugin file exists there",
                 plugin_path.display()
             )));
+        }
+
+        if self.use_build_time_plugin
+            && let Some(build_plugin_path) = build_time_plugin_path()
+        {
+            if build_plugin_path.is_file() {
+                return Ok(ResolvedNativePlugin {
+                    path: build_plugin_path,
+                    source: NativePluginSource::BuildTime,
+                    asset,
+                });
+            }
         }
 
         let cache_root = self
@@ -178,6 +208,14 @@ pub fn current_native_plugin_asset() -> LibbunResult<NativePluginAsset> {
 
 pub fn resolve_native_plugin() -> LibbunResult<ResolvedNativePlugin> {
     NativePluginResolver::from_env().resolve()
+}
+
+pub fn build_time_plugin_path() -> Option<PathBuf> {
+    option_env!("LIBBUN_BUILD_PLUGIN_PATH").map(PathBuf::from)
+}
+
+pub fn build_time_plugin_dir() -> Option<PathBuf> {
+    option_env!("LIBBUN_BUILD_PLUGIN_DIR").map(PathBuf::from)
 }
 
 pub fn default_cache_root() -> Option<PathBuf> {

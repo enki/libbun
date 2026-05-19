@@ -60,11 +60,26 @@ fn resolver_uses_standard_release_cache() {
 
     let resolved = NativePluginResolver::new()
         .with_cache_root(tempdir.path())
+        .with_build_time_plugin(false)
         .resolve()
         .expect("cached plugin resolves");
 
     assert_eq!(resolved.path, cached_plugin);
     assert_eq!(resolved.source, NativePluginSource::Cache);
+}
+
+#[cfg(libbun_download_plugin)]
+#[test]
+fn resolver_uses_build_time_plugin_after_explicit_path() {
+    let build_path =
+        libbun::release::build_time_plugin_path().expect("download-plugin emitted plugin path");
+
+    let resolved = NativePluginResolver::new()
+        .resolve()
+        .expect("build-time plugin resolves");
+
+    assert_eq!(resolved.path, build_path);
+    assert_eq!(resolved.source, NativePluginSource::BuildTime);
 }
 
 #[test]
@@ -73,6 +88,7 @@ fn resolver_missing_plugin_error_is_actionable() {
     let tempdir = tempfile::tempdir().expect("tempdir");
     let error = NativePluginResolver::new()
         .with_cache_root(tempdir.path())
+        .with_build_time_plugin(false)
         .resolve()
         .expect_err("missing plugin should fail");
     let message = error.to_string();

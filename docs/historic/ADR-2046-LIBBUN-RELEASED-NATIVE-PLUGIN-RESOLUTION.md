@@ -1,7 +1,18 @@
 # ADR-2046: libbun Released Native Plugin Resolution
 
-Status: Done
+Status: Superseded
 Date: 2026-05-19
+Superseded: 2026-05-19 by ADR-2047
+
+This ADR implemented release metadata, cache resolution, and an optional
+runtime installer, but it treated explicit installation or pre-populated cache
+state as the primary downstream path. That was not good enough for the desired
+Cargo dependency experience: depending on `libbun` should be able to make the
+matching native plugin available automatically without a sibling checkout or a
+separate user step.
+
+ADR-2047 supersedes this with an opt-in `download-plugin` build feature owned
+by `libbun`.
 
 ADR-2038 requires downstream hosts to consume Bun/JSC/WebKit native code only
 through a replaceable dynamic plugin. ADR-2039 requires official plugin

@@ -32,11 +32,19 @@ statically link `libbun-native`.
 Downstream Rust applications depend on the facade crate and load the native Bun
 implementation from a GitHub Release plugin asset.
 
-Add the facade:
+Add the facade with automatic native plugin acquisition during Cargo build:
 
 ```sh
-cargo add libbun --features dynamic-loading
+cargo add libbun --features dynamic-loading,download-plugin
 ```
+
+With `download-plugin`, `libbun` downloads the matching native plugin release
+asset for the Cargo target, verifies its committed checksum, extracts it under
+Cargo's `OUT_DIR`, and loads it automatically. Set `LIBBUN_PLUGIN_PATH` to use
+an explicit replacement plugin instead. Set `LIBBUN_PLUGIN_BUNDLE_DIR` or
+`LIBBUN_PLUGIN_ARCHIVE` for package-manager/offline builds that pre-fetch the
+official asset. Set `LIBBUN_DOWNLOAD_PLUGIN=0` to forbid network downloads
+during the build.
 
 Download the plugin asset that matches the host platform from the same
 `libbun` GitHub Release as the facade version. The supported native plugin
@@ -74,9 +82,10 @@ WebKit/JSC/WTF inputs, the Linux tarball can switch to an in-process plugin
 without changing facade code or `LIBBUN_PLUGIN_PATH` setup.
 
 Hosts should prefer `libbun::release::resolve_native_plugin()` or
-`DynamicBunRuntime::initialize(...)` so they can honor `LIBBUN_PLUGIN_PATH` and
-the standard release cache without probing a sibling checkout. The default cache
-layout is:
+`DynamicBunRuntime::initialize(...)` so they can honor `LIBBUN_PLUGIN_PATH`, the
+build-time downloaded plugin, and the standard release cache without probing a
+sibling checkout. The default cache layout for manual or installer-managed
+plugins is:
 
 ```text
 ~/.cache/libbun/vX.Y.Z/<target>/
@@ -85,7 +94,7 @@ layout is:
 Set `LIBBUN_HOME` to override the cache root. Set `LIBBUN_PLUGIN_PATH` to point
 at an explicit replacement plugin.
 
-Manual macOS installation example:
+Manual macOS installation example when `download-plugin` is not used:
 
 ```sh
 version=v0.1.2
