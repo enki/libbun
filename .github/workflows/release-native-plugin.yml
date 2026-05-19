@@ -105,6 +105,12 @@ jobs:
             echo "dynamic plugin smoke emitted a mimalloc diagnostic" >&2
             exit 1
           fi
+          LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
+            cargo test --features dynamic-loading dynamic_plugin_facade_conformance -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-conformance.log
+          if grep -q "mimalloc: error" /tmp/libbun-dynamic-plugin-conformance.log; then
+            echo "dynamic plugin conformance emitted a mimalloc diagnostic" >&2
+            exit 1
+          fi
 
       - name: Verify replacement plugin build path
         run: |

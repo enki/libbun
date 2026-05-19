@@ -174,11 +174,18 @@ that hot path; it converts them to absolute file URLs without calling
 `realpath`. The Linux PIC smoke workflow now greps test output and fails if a
 `mimalloc: error` diagnostic is emitted.
 
+The workflow also runs
+`tests/dynamic_conformance.rs::dynamic_plugin_facade_conformance` through
+`LIBBUN_PLUGIN_PATH`. That single-process dynamic conformance test covers
+source module loading, prepared bundle loading, sync and async exports,
+structured provider errors, captured output/log handling, host environment
+overlays, Rust-substrate provider rejection, and deterministic shutdown.
+
 This means PIC WebKit artifacts can make the Linux in-process dynamic plugin
 viable at least on arm64. Linux release publication still needs the full
-promotion gate set, including broader conformance, replacement-build
-verification, and packaging/release promotion before replacing the
-helper-backed Linux bundle as the default release shape.
+promotion gate set, including replacement-build verification and
+packaging/release promotion before replacing the helper-backed Linux bundle as
+the default release shape.
 
 `scripts/fetch-webkit-pic-artifact.sh` now makes the WebKit PIC input step
 reproducible: it downloads the pinned `enki/WebKit` release asset, verifies the

@@ -121,6 +121,16 @@ if grep -q "mimalloc: error" "$smoke_log"; then
   exit 1
 fi
 
+echo "==> preflight ${release_version}: dynamic plugin conformance test"
+conformance_log="$(mktemp)"
+LIBBUN_PLUGIN_PATH="$plugin_path" \
+  LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
+  cargo test --features dynamic-loading dynamic_plugin_facade_conformance -- --exact --nocapture 2>&1 | tee "$conformance_log"
+if grep -q "mimalloc: error" "$conformance_log"; then
+  echo "dynamic plugin conformance emitted a mimalloc diagnostic" >&2
+  exit 1
+fi
+
 if [[ "${LIBBUN_RELEASE_SKIP_NATIVE_TEST:-0}" != "1" && "$runtime_mode" == "in-process" ]]; then
   echo "==> preflight ${release_version}: native adapter integration tests"
   LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 test --manifest-path native/Cargo.toml --features internal-adapter

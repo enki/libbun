@@ -196,6 +196,14 @@ surface required from the native runtime:
 
 The test suite may share the same facade-level tests used by macOS and helper
 runtime paths, but the Linux lane must run them against the in-process `.so`.
+The concrete dynamic conformance entrypoint is:
+
+```text
+cargo test --features dynamic-loading dynamic_plugin_facade_conformance -- --exact --nocapture
+```
+
+Like the smoke test, CI must run it through `LIBBUN_PLUGIN_PATH` and fail if
+the log contains `mimalloc: error`.
 
 ### Shutdown Cleanliness
 
@@ -424,8 +432,8 @@ only after the in-process `.so` passes the broader facade behavior.
 
 Required work:
 
-- make the facade conformance tests runnable against a dynamic plugin path;
-- run conformance on both Linux targets with `LIBBUN_PLUGIN_PATH`;
+- keep `tests/dynamic_conformance.rs::dynamic_plugin_facade_conformance`
+  running on both Linux targets with `LIBBUN_PLUGIN_PATH`;
 - keep the fixed `mimalloc` diagnostic covered by CI log checks;
 - add a replacement-build check that rebuilds the plugin from the source bundle
   plus pinned WebKit PIC inputs, then loads that replacement through

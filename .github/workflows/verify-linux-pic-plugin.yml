@@ -96,6 +96,19 @@ jobs:
             exit 1
           fi
 
+      - name: Verify dynamic facade conformance
+        run: |
+          set -o pipefail
+          plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+          test -n "$plugin_path"
+          env -u LIBBUN_RUNTIME_NATIVE_PATH \
+            LIBBUN_PLUGIN_PATH="$plugin_path" \
+            cargo test --features dynamic-loading dynamic_plugin_facade_conformance -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-conformance.log
+          if grep -q "mimalloc: error" /tmp/libbun-dynamic-plugin-conformance.log; then
+            echo "dynamic plugin conformance emitted a mimalloc diagnostic" >&2
+            exit 1
+          fi
+
       - name: Upload verified plugin artifact
         uses: actions/upload-artifact@v4
         with:
