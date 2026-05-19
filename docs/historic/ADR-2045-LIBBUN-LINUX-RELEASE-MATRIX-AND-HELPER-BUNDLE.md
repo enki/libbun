@@ -1,7 +1,13 @@
 # ADR-2045: Linux Release Matrix and Helper Bundle
 
-Status: Done
+Status: Superseded by ADR-2048
 Date: 2026-05-18
+
+Superseded: 2026-05-19
+
+ADR-2048 promoted Linux PIC in-process plugin releases for both Linux targets.
+The helper bundle release matrix described here is retained only as historic
+context for the fallback design and older helper-backed bundles.
 
 ## Context
 

@@ -23,7 +23,7 @@ fn main() {
 
 fn configure_downloaded_plugin() {
     let target = env::var("TARGET").expect("TARGET is set by cargo");
-    let release_tag = "v0.1.2".to_string();
+    let release_tag = "v0.1.3".to_string();
     let plugin_name = plugin_filename(&target).unwrap_or_else(|| {
         panic!("libbun download-plugin does not support Cargo target `{target}`")
     });
@@ -115,7 +115,7 @@ fn emit_plugin(plugin_path: &Path, bundle_dir: Option<&Path>) {
         "cargo:rustc-env=LIBBUN_BUILD_PLUGIN_TARGET={}",
         env::var("TARGET").unwrap_or_default()
     );
-    println!("cargo:rustc-env=LIBBUN_BUILD_PLUGIN_VERSION=v0.1.2");
+    println!("cargo:rustc-env=LIBBUN_BUILD_PLUGIN_VERSION=v0.1.3");
 }
 
 fn plugin_filename(target: &str) -> Option<&'static str> {

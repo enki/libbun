@@ -1,6 +1,6 @@
 # ADR-2048: Linux PIC In-Process Promotion Gates
 
-Status: Proposed
+Status: Done
 Date: 2026-05-19
 
 ## Context
@@ -43,11 +43,11 @@ enough that it should be treated as an upstream producer repository, not as
 part of libbun's normal local or CI checkout. That fork already has GitHub
 Actions capable of producing the PIC WebKit builds libbun needs. Those
 workflow artifacts are the right channel for proving whether the PIC inputs
-are usable, but they are not a release boundary because they expire and are
-not addressable as stable dependency inputs. Once a WebKit PIC snapshot is
-close to usable for libbun's Linux plugin release path, the WebKit workflow
-must publish durable GitHub Release assets that libbun can fetch by tag,
-filename, and checksum.
+are usable in `smolvm`, local experiments, and non-publishing libbun CI, but
+they are not a release boundary because they expire and are not addressable as
+stable dependency inputs. Once a WebKit PIC snapshot is close to usable for
+libbun's Linux plugin release path, the WebKit workflow must publish durable
+GitHub Release assets that libbun can fetch by tag, filename, and checksum.
 
 Phase 1 has started: the artifacts from run `26077123752` were promoted to the
 durable `enki/WebKit` release tag
@@ -68,9 +68,8 @@ aarch64-unknown-linux-gnu
 ```
 
 That proves the in-process runtime shape is viable on the mature Linux matrix.
-The remaining work is to make the publishing lane and release/compliance
-artifacts enforce the same constraints, including replacement-build
-verification from released source inputs.
+The publishing lane now enforces the same constraints, including
+replacement-build verification from released source inputs.
 
 Future WebKit PIC updates should follow the same producer/consumer split:
 develop and build PIC WebKit in `enki/WebKit`; use Actions artifacts only for
@@ -87,8 +86,9 @@ x86_64-unknown-linux-gnu
 aarch64-unknown-linux-gnu
 ```
 
-Until those gates pass, the helper-backed bundle remains the conservative Linux
-release strategy from ADR-2044 and ADR-2045.
+The gates have passed for release `v0.1.3`, so helper-backed Linux is no longer
+the default release strategy. ADR-2044 and ADR-2045 are retained only as
+historic records of the fallback design.
 
 The downstream contract must not change during promotion. Consumers still use:
 
@@ -446,10 +446,9 @@ Exit criteria:
 - both Linux in-process CI rows are green;
 - helper-backed rows remain available until the promotion decision is made.
 
-Current status: complete for the proof workflow. Run `26085651709` passed both
-Linux targets. The release workflow has been updated to consume the same
-pinned WebKit PIC inputs and publish in-process Linux target tarballs, but it
-still needs a tagged-release run before this ADR can be closed.
+Current status: complete. Run `26085651709` passed both Linux proof targets.
+Release workflow run `26087032331` then consumed the same pinned WebKit PIC
+inputs and published in-process Linux target tarballs for release `v0.1.3`.
 
 ### Phase 5: Expand Runtime and Replacement Verification
 
@@ -471,13 +470,13 @@ Exit criteria:
 - the result is not dependent on sibling checkouts or local-only artifact
   paths.
 
-Current status: implemented in the release workflow, pending a tagged release
-run. Smoke, conformance, shutdown diagnostic checks, and no-sibling plugin
-loading are green in the proof workflow. The release workflow now packages the
-source archive before replacement verification; Linux in-process rows extract
-that generated source archive, regenerate the Bun native manifest, fetch the
-pinned WebKit PIC release input, inspect relocations, rebuild the plugin from
-the extracted source, and load the replacement through `LIBBUN_PLUGIN_PATH`.
+Current status: complete. Smoke, conformance, shutdown diagnostic checks, and
+no-sibling plugin loading are green in the proof workflow. Release workflow run
+`26087032331` packaged the source archive before replacement verification; the
+Linux in-process rows extracted that generated source archive, regenerated the
+Bun native manifest, fetched the pinned WebKit PIC release input, inspected
+relocations, rebuilt the plugin from the extracted source, and loaded the
+replacement through `LIBBUN_PLUGIN_PATH`.
 
 ### Phase 6: Update Packaging for In-Process Linux
 
@@ -514,12 +513,13 @@ Exit criteria:
 - the release verifier rejects missing metadata, missing checksums, or an
   unexpected helper/runtime-mode mismatch.
 
-Current status: complete except for validation by a tagged release run.
-Packaging now accepts explicit runtime mode, allows Linux in-process bundles
-without a helper, and records WebKit PIC metadata in bundle/source/license
-assets. The release verifier opens target tarballs and rejects missing bundle
-metadata, missing plugin files, unsupported runtime modes, helper declarations
-in in-process bundles, and missing helpers in helper-process bundles.
+Current status: complete. Packaging now accepts explicit runtime mode, allows
+Linux in-process bundles without a helper, and records WebKit PIC metadata in
+bundle/source/license assets. The release verifier opens target tarballs and
+rejects missing bundle metadata, missing plugin files, unsupported runtime
+modes, helper declarations in in-process bundles, and missing helpers in
+helper-process bundles. `scripts/verify-release-assets.sh --version v0.1.3`
+passed against the published GitHub Release assets.
 
 ### Phase 7: Promote and Retire Helper as the Default
 
@@ -538,10 +538,11 @@ Required work:
 - keep helper-backed code only if there is an explicit maintenance reason, such
   as fallback diagnostics or older-release support.
 
-Current status: in progress. The release workflow's default Linux rows now use
-`runtime_mode: in-process` and no longer build the helper for those rows. A
-tagged release must still prove asset publication and release verification
-before helper-backed Linux can be documented as retired from the default path.
+Current status: complete. The release workflow's default Linux rows now use
+`runtime_mode: in-process` and no longer build the helper for those rows.
+Release `v0.1.3` published macOS arm64, Linux x86_64, and Linux arm64 assets,
+and release verification passed. Helper-backed Linux is retired from the
+default release path.
 
 Exit criteria:
 

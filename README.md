@@ -99,9 +99,11 @@ No-download consumers can use the GitHub Release assets directly, the optional
 `plugin-installer` API, or their own packaging system. The important rule is
 that the plugin remains dynamically loaded and user-replaceable.
 
-Download the plugin asset that matches the host platform from the same
-`libbun` GitHub Release as the facade version. The supported native plugin
-release targets are:
+Download the plugin asset that matches the host platform from the native plugin
+release tag selected by the `libbun` facade crate. Facade patch releases may
+reuse an existing native plugin release when the native bytes do not change.
+The selected tag is exposed by `libbun::release::RELEASE_TAG` and in missing
+plugin errors. The supported native plugin release targets are:
 
 ```text
 libbun-plugin-native-vX.Y.Z-aarch64-apple-darwin.tar.zst
@@ -152,21 +154,21 @@ at an explicit replacement plugin.
 Manual macOS installation example when `download-plugin` is not used:
 
 ```sh
-version=v0.1.2
+native_version=v0.1.3
 target=aarch64-apple-darwin
-curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
-mkdir -p "$HOME/.cache/libbun/${version}/${target}"
-tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst" -C "$HOME/.cache/libbun/${version}/${target}"
+curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
+mkdir -p "$HOME/.cache/libbun/${native_version}/${target}"
+tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C "$HOME/.cache/libbun/${native_version}/${target}"
 ```
 
 Linux setup is the same except for the target name and `.so` filename:
 
 ```sh
-version=v0.1.2
+native_version=v0.1.3
 target=aarch64-unknown-linux-gnu
-curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
-mkdir -p "$HOME/.cache/libbun/${version}/${target}"
-tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst" -C "$HOME/.cache/libbun/${version}/${target}"
+curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
+mkdir -p "$HOME/.cache/libbun/${native_version}/${target}"
+tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C "$HOME/.cache/libbun/${native_version}/${target}"
 ```
 
 Hosts that want an in-process installer can enable the optional
@@ -334,7 +336,7 @@ instructions, and checksum files.
 Before creating a release tag, run the local preflight:
 
 ```sh
-scripts/preflight-native-plugin-release.sh v0.1.2
+scripts/preflight-native-plugin-release.sh v0.1.3
 ```
 
 On Linux, set `LIBBUN_NATIVE_RUNTIME_MODE=in-process` to preflight the PIC
@@ -347,7 +349,7 @@ release tag:
 ```sh
 git add .
 git commit -m "Prepare native plugin release"
-scripts/create-native-plugin-release.sh v0.1.2
+scripts/create-native-plugin-release.sh v0.1.3
 ```
 
 Pushing the tag triggers `.github/workflows/release-native-plugin.yml`. Inspect

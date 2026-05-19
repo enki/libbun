@@ -1,7 +1,13 @@
 # ADR-2044: Linux Helper-Backed Native Runtime
 
-Status: Done
+Status: Superseded by ADR-2048
 Date: 2026-05-18
+
+Superseded: 2026-05-19
+
+ADR-2048 promoted Linux PIC in-process plugin releases for the default Linux
+release path. This ADR is retained as the historic helper-backed fallback
+design and as context for older helper-backed bundles.
 
 ## Context
 
