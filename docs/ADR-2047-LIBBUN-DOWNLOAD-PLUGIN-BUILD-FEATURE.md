@@ -44,6 +44,52 @@ during Cargo builds can depend on `libbun` without `download-plugin`, install
 the plugin through their own package manager/release process, or set
 `LIBBUN_PLUGIN_PATH`.
 
+## Upstream Consumption Modes
+
+`libbun` supports two upstream consumption modes.
+
+### Download Mode
+
+Download mode is for upstream crates whose Cargo builds are allowed to fetch
+verified release artifacts. They depend on:
+
+```toml
+libbun = { version = "0.1.2", features = ["dynamic-loading", "download-plugin"] }
+```
+
+In this mode, `libbun` owns target selection, release asset naming, checksum
+verification, extraction, and runtime path emission. The upstream crate should
+not know the `libbun` repository layout or probe development build
+directories. If the network is unavailable, the upstream build can provide
+`LIBBUN_PLUGIN_ARCHIVE`, `LIBBUN_PLUGIN_BUNDLE_DIR`, or `LIBBUN_PLUGIN_PATH`
+instead.
+
+### No-Download Mode
+
+No-download mode is for upstream crates, package managers, hermetic CI systems,
+or app release processes that fetch native artifacts outside Cargo. They depend
+on:
+
+```toml
+libbun = { version = "0.1.2", features = ["dynamic-loading"] }
+```
+
+In this mode, `libbun` never downloads during the Cargo build. The upstream
+package must arrange for one of the documented runtime paths:
+
+```text
+LIBBUN_PLUGIN_PATH
+LIBBUN_HOME/vX.Y.Z/<target>/
+~/.cache/libbun/vX.Y.Z/<target>/
+```
+
+This mode is the right fit when a package manager wants all downloads declared
+with external hashes, when an application bundles the plugin beside its own
+binary, or when CI installs the native plugin as a separate setup step.
+
+Both modes share the same runtime resolver and both preserve
+`LIBBUN_PLUGIN_PATH` as the first-priority user replacement override.
+
 ## Build-Time Behavior
 
 The `download-plugin` build path must:

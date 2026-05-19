@@ -30,21 +30,74 @@ statically link `libbun-native`.
 ## Downstream Use
 
 Downstream Rust applications depend on the facade crate and load the native Bun
-implementation from a GitHub Release plugin asset.
+implementation through a replaceable plugin. There are two supported upstream
+consumption modes.
 
-Add the facade with automatic native plugin acquisition during Cargo build:
+### Automatic Cargo Build Download
+
+Use this mode for local development and upstream crates whose Cargo builds are
+allowed to download verified release artifacts.
+
+Add `libbun` with `dynamic-loading` and `download-plugin`:
 
 ```sh
 cargo add libbun --features dynamic-loading,download-plugin
 ```
 
-With `download-plugin`, `libbun` downloads the matching native plugin release
-asset for the Cargo target, verifies its committed checksum, extracts it under
-Cargo's `OUT_DIR`, and loads it automatically. Set `LIBBUN_PLUGIN_PATH` to use
-an explicit replacement plugin instead. Set `LIBBUN_PLUGIN_BUNDLE_DIR` or
-`LIBBUN_PLUGIN_ARCHIVE` for package-manager/offline builds that pre-fetch the
-official asset. Set `LIBBUN_DOWNLOAD_PLUGIN=0` to forbid network downloads
-during the build.
+With `download-plugin`, `libbun`'s build script selects the Cargo `TARGET`,
+downloads the matching native plugin release asset for the crate version,
+verifies its committed checksum, extracts it under Cargo's `OUT_DIR`, and emits
+the plugin path for `DynamicBunRuntime::initialize(...)`.
+
+`download-plugin` is intentionally opt-in because it makes Cargo builds depend
+on network access unless an override is provided. Use these overrides when the
+artifact is pre-fetched by CI, a package manager, or an app release process:
+
+```text
+LIBBUN_PLUGIN_PATH=/absolute/path/to/liblibbun_plugin_native.dylib
+LIBBUN_PLUGIN_BUNDLE_DIR=/absolute/path/to/extracted/libbun/bundle
+LIBBUN_PLUGIN_ARCHIVE=/absolute/path/to/libbun-plugin-native-vX.Y.Z-<target>.tar.zst
+LIBBUN_DOWNLOAD_PLUGIN=0
+```
+
+`LIBBUN_PLUGIN_PATH` is also the user replacement path and always wins at
+runtime.
+
+### No-Download Integration
+
+Use this mode for package-manager builds, hermetic CI, app bundles, or any
+upstream crate that wants to control native artifact fetching outside Cargo.
+
+Depend on the facade without `download-plugin`:
+
+```sh
+cargo add libbun --features dynamic-loading
+```
+
+Then arrange for one of these runtime paths:
+
+```text
+LIBBUN_PLUGIN_PATH=/absolute/path/to/replacement/plugin
+LIBBUN_HOME=/cache/root/containing/vX.Y.Z/<target>/<plugin>
+~/.cache/libbun/vX.Y.Z/<target>/<plugin>
+```
+
+The cache layout is:
+
+```text
+<cache-root>/vX.Y.Z/<target>/
+  liblibbun_plugin_native.dylib or liblibbun_plugin_native.so
+  libbun-runtime-native             # Linux helper-backed bundles only
+  libbun-native-bundle.json
+  SOURCE.txt
+  NOTICE.txt
+  licenses.json
+  checksums.txt
+```
+
+No-download consumers can use the GitHub Release assets directly, the optional
+`plugin-installer` API, or their own packaging system. The important rule is
+that the plugin remains dynamically loaded and user-replaceable.
 
 Download the plugin asset that matches the host platform from the same
 `libbun` GitHub Release as the facade version. The supported native plugin
@@ -59,7 +112,7 @@ libbun-plugin-native-vX.Y.Z-aarch64-unknown-linux-gnu.tar.zst
 The consumer contract is the same on every platform:
 
 ```text
-consumer app -> LIBBUN_PLUGIN_PATH or libbun release cache -> native plugin
+consumer app -> LIBBUN_PLUGIN_PATH, build-time plugin, or libbun release cache -> native plugin
 ```
 
 The implementation behind that plugin differs by platform today:
@@ -84,7 +137,7 @@ without changing facade code or `LIBBUN_PLUGIN_PATH` setup.
 Hosts should prefer `libbun::release::resolve_native_plugin()` or
 `DynamicBunRuntime::initialize(...)` so they can honor `LIBBUN_PLUGIN_PATH`, the
 build-time downloaded plugin, and the standard release cache without probing a
-sibling checkout. The default cache layout for manual or installer-managed
+sibling checkout. The default cache root for manual or installer-managed
 plugins is:
 
 ```text
