@@ -35,7 +35,7 @@ The intended downstream dependency for applications that want automatic native
 plugin availability is:
 
 ```toml
-libbun = { version = "0.1.2", features = ["dynamic-loading", "download-plugin"] }
+libbun = { version = "0.1.3", features = ["dynamic-loading", "download-plugin"] }
 ```
 
 The default feature set should remain conservative until the networked build
@@ -54,7 +54,7 @@ Download mode is for upstream crates whose Cargo builds are allowed to fetch
 verified release artifacts. They depend on:
 
 ```toml
-libbun = { version = "0.1.2", features = ["dynamic-loading", "download-plugin"] }
+libbun = { version = "0.1.3", features = ["dynamic-loading", "download-plugin"] }
 ```
 
 In this mode, `libbun` owns target selection, release asset naming, checksum
@@ -71,7 +71,7 @@ or app release processes that fetch native artifacts outside Cargo. They depend
 on:
 
 ```toml
-libbun = { version = "0.1.2", features = ["dynamic-loading"] }
+libbun = { version = "0.1.3", features = ["dynamic-loading"] }
 ```
 
 In this mode, `libbun` never downloads during the Cargo build. The upstream
@@ -267,6 +267,16 @@ Verification performed:
 - `scripts/verify-release-assets.sh --version v0.1.2`;
 - `git diff --check`;
 - successful crates.io publication of `libbun 0.1.2`.
+
+Follow-up correction:
+
+`libbun 0.1.2` was published with checksums from an earlier `v0.1.2` native
+release run. The final `v0.1.2` GitHub Release assets were regenerated after
+the checksum table commit, so the published crate's `download-plugin` feature
+rejected the final macOS arm64 asset. Because crates.io packages are immutable,
+`libbun 0.1.3` is a facade-only patch release that points at the already
+published `v0.1.2` native plugin release and records the final release asset
+checksums.
 
 ## Acceptance Criteria
 
