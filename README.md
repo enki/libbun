@@ -76,7 +76,7 @@ without changing facade code or `LIBBUN_PLUGIN_PATH` setup.
 For example:
 
 ```sh
-version=v0.1.0
+version=v0.1.1
 target=aarch64-apple-darwin
 curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
 tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst"
@@ -86,7 +86,7 @@ export LIBBUN_PLUGIN_PATH="$PWD/liblibbun_plugin_native.dylib"
 Linux setup is the same except for the target name and `.so` filename:
 
 ```sh
-version=v0.1.0
+version=v0.1.1
 target=aarch64-unknown-linux-gnu
 curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
 tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst"
@@ -236,7 +236,7 @@ instructions, and checksum files.
 Before creating a release tag, run the local preflight:
 
 ```sh
-scripts/preflight-native-plugin-release.sh v0.1.0
+scripts/preflight-native-plugin-release.sh v0.1.1
 ```
 
 After the preflight passes, commit the release changes and push the annotated
@@ -245,7 +245,7 @@ release tag:
 ```sh
 git add .
 git commit -m "Prepare native plugin release"
-scripts/create-native-plugin-release.sh v0.1.0
+scripts/create-native-plugin-release.sh v0.1.1
 ```
 
 Pushing the tag triggers `.github/workflows/release-native-plugin.yml`. Inspect
