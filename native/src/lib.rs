@@ -411,13 +411,28 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         self.vm_mut()
             .wait_for_promise(AnyPromise::Internal(promise.as_ptr()));
 
-        let Some(result) = self.promise_result(promise.as_ptr())? else {
-            return Err(LibbunError::module_load(
-                "module import remained pending after wait",
-            ));
-        };
-        match result {
-            ProviderCallResult::Ok(_) => {
+        match JSPromise::status_ptr(promise.as_ptr()) {
+            PromiseStatus::Pending => {
+                return Err(LibbunError::module_load(
+                    "module import remained pending after wait",
+                ));
+            }
+            PromiseStatus::Rejected => {
+                let value = JSInternalPromise::opaque_mut(promise.as_ptr())
+                    .result(unsafe { &*self.vm().jsc_vm });
+                JSInternalPromise::opaque_mut(promise.as_ptr()).set_handled();
+                let error = self.rejected_to_result(value);
+                return match error {
+                    ProviderCallResult::Err(error) => Err(LibbunError::module_load(format!(
+                        "{}: {}",
+                        error.code, error.message
+                    ))),
+                    ProviderCallResult::Ok(_) => {
+                        Err(LibbunError::module_load("module import rejected"))
+                    }
+                };
+            }
+            _ => {
                 let namespace = JSInternalPromise::opaque_mut(promise.as_ptr())
                     .result(unsafe { &*self.vm().jsc_vm });
                 self.vm().run_with_api_lock(|| namespace.protect());
@@ -425,10 +440,6 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
                 self.drain_output()?;
                 Ok(BunModuleHandle { id })
             }
-            ProviderCallResult::Err(error) => Err(LibbunError::module_load(format!(
-                "{}: {}",
-                error.code, error.message
-            ))),
         }
     }
 
@@ -556,16 +567,26 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             self.vm().run_with_api_lock(|| value.unprotect());
         }
         self.drain_output()?;
-        self.vm_mut().destroy();
+        // `VirtualMachine::destroy` is Bun's worker-thread teardown path. The
+        // embedded libbun runtime initializes a main-thread VM, matching Bun's
+        // process-lifetime CLI shape, so leave VM-owned native state live until
+        // process exit.
         self.shutdown = true;
         Ok(())
     }
 }
 
 fn path_to_file_specifier(path: &Path) -> LibbunResult<String> {
-    let path = path
-        .canonicalize()
-        .map_err(|err| LibbunError::module_load(format!("canonicalize failed: {err}")))?;
+    // Avoid `std::fs::canonicalize` here. On Linux, Bun's linked mimalloc
+    // symbols can interpose the free path for libc `realpath` allocations,
+    // which makes canonicalize report a mimalloc invalid-pointer diagnostic.
+    let path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|err| LibbunError::module_load(format!("current_dir failed: {err}")))?
+            .join(path)
+    };
     url::Url::from_file_path(&path)
         .map(|url| url.to_string())
         .map_err(|()| {

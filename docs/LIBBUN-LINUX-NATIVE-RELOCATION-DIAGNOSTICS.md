@@ -157,20 +157,28 @@ loader smoke test passed on Linux arm64:
 
 ```text
 LIBBUN_PLUGIN_PATH=/work/target-smolvm-plugin-pic/debug/liblibbun_plugin_native.so
-cargo +nightly-2026-05-06 test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+cargo +nightly-2026-05-06 test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture
 ```
 
-The test completed successfully, but emitted one shutdown-time diagnostic:
+The first version completed successfully, but emitted one allocator diagnostic:
 
 ```text
 mimalloc: error: mi_free: invalid pointer: 0xFFFF94003600
 ```
 
+The diagnostic was traced with GDB to `std::fs::canonicalize` inside
+`path_to_file_specifier`: Rust's Unix canonicalization path called libc
+`realpath`, then the process-local Bun mimalloc symbols interposed the free
+path for that libc allocation. libbun no longer canonicalizes module paths on
+that hot path; it converts them to absolute file URLs without calling
+`realpath`. The Linux PIC smoke workflow now greps test output and fails if a
+`mimalloc: error` diagnostic is emitted.
+
 This means PIC WebKit artifacts can make the Linux in-process dynamic plugin
-viable at least on arm64. Linux release publication still needs the same proof
-for x86_64, a clean release workflow using `lld`, and investigation of the
-`mimalloc` diagnostic before replacing the helper-backed Linux bundle as the
-default release shape.
+viable at least on arm64. Linux release publication still needs the full
+promotion gate set, including broader conformance, replacement-build
+verification, and packaging/release promotion before replacing the
+helper-backed Linux bundle as the default release shape.
 
 `scripts/fetch-webkit-pic-artifact.sh` now makes the WebKit PIC input step
 reproducible: it downloads the pinned `enki/WebKit` release asset, verifies the

@@ -41,12 +41,16 @@ still emitted a shutdown-time `mimalloc` invalid-pointer diagnostic.
 
 The intended WebKit source for this work is the `enki/WebKit` fork's
 `libbun-pic-5488984d` branch, not a fresh ad hoc WebKit build inside the
-libbun release workflow. That fork already has GitHub Actions capable of
-producing the PIC WebKit builds libbun needs. WebKit is large enough that
-libbun should avoid making every release job clone or rebuild it directly.
-Once the fork's PIC outputs are proven usable for both Linux targets, the
-WebKit workflow should publish durable GitHub Release assets that libbun can
-fetch by tag, filename, and checksum.
+libbun release workflow. The sibling checkout at `../WebKit` is large
+enough that it should be treated as an upstream producer repository, not as
+part of libbun's normal local or CI checkout. That fork already has GitHub
+Actions capable of producing the PIC WebKit builds libbun needs. Those
+workflow artifacts are the right channel for proving whether the PIC inputs
+are usable, but they are not a release boundary because they expire and are
+not addressable as stable dependency inputs. Once a WebKit PIC snapshot is
+close to usable for libbun's Linux plugin release path, the WebKit workflow
+must publish durable GitHub Release assets that libbun can fetch by tag,
+filename, and checksum.
 
 Phase 1 has started: the artifacts from run `26077123752` were promoted to the
 durable `enki/WebKit` release tag
@@ -55,6 +59,11 @@ durable `enki/WebKit` release tag
 native link manifest reproducibly. `.github/workflows/verify-linux-pic-plugin.yml`
 is the non-publishing CI lane for proving both Linux targets before release
 promotion.
+
+Future WebKit PIC updates should follow the same producer/consumer split:
+develop and build PIC WebKit in `enki/WebKit`; use Actions artifacts only for
+trial validation; promote a proven artifact set to a WebKit GitHub Release;
+then update libbun to pin that release tag, asset names, and checksums.
 
 ## Decision
 
@@ -100,6 +109,19 @@ for both Linux targets.
 PIC-compatible WebKit/JSC/WTF artifacts must be durable release inputs from
 the `enki/WebKit` fork's `libbun-pic-5488984d` branch, not expiring Actions
 artifacts.
+
+The `enki/WebKit` workflow has two distinct responsibilities:
+
+- proof builds: produce Actions artifacts for local, `smolvm`, or
+  non-publishing libbun CI validation;
+- release builds: attach the same target-specific artifact shape to a stable
+  WebKit GitHub Release once a snapshot is selected for libbun release
+  consumption.
+
+libbun may consume proof-build artifacts only in explicit experiments. Any
+published libbun release, replacement-build check, or compliance source bundle
+must consume a WebKit GitHub Release asset or another durable publication
+channel with equivalent immutability and checksums.
 
 Each WebKit PIC artifact must have:
 
@@ -149,12 +171,13 @@ For each Linux target, CI must set `LIBBUN_PLUGIN_PATH` to the produced `.so`
 and run the dynamic provider smoke test:
 
 ```text
-cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture
 ```
 
 The test must load the plugin through the public dynamic loader path. It must
 not use sibling checkout discovery, helper-process fallback, or host-specific
-native path overrides.
+native path overrides. CI must also fail the lane if the smoke test emits a
+`mimalloc: error` diagnostic even when the Rust test exits successfully.
 
 ### Facade Conformance
 
@@ -182,9 +205,14 @@ The arm64 proof emitted:
 mimalloc: error: mi_free: invalid pointer
 ```
 
-That diagnostic must be resolved, suppressed with a documented root cause, or
-accepted by an explicit follow-up ADR before in-process Linux becomes the
-default release path.
+That diagnostic was traced to `std::fs::canonicalize` in libbun's module
+specifier path. On Linux, the embedded Bun/JSC/WebKit image brings mimalloc
+symbols into the process; Rust's Unix canonicalization path called libc
+`realpath` and then freed that libc-owned allocation through the interposed
+mimalloc free path. libbun must not use libc APIs with malloc/free ownership
+ambiguity in the dynamic plugin hot path. The fixed path converts module paths
+to absolute file URLs without calling `realpath`, and the Linux smoke lane must
+grep for `mimalloc: error` so a diagnostic cannot pass unnoticed.
 
 The default expectation is clean shutdown with no allocator diagnostics,
 crashes, sanitizer failures, or leaked helper fallback processes.
@@ -289,6 +317,10 @@ Required work:
 
 - use the existing `enki/WebKit` `libbun-pic-5488984d` branch/workflow as the
   producer for these artifacts;
+- keep the WebKit checkout and build logic in the WebKit fork; libbun CI must
+  not clone the full WebKit repository just to assemble a plugin release;
+- use WebKit Actions artifacts only for trial validation while deciding
+  whether a snapshot is usable for libbun;
 - add or run a WebKit release publication job in that fork that attaches
   `bun-webkit-linux-amd64-pic-debug` and
   `bun-webkit-linux-arm64-pic-debug` archives to a stable tag;
@@ -377,6 +409,7 @@ Required work in `.github/workflows/release-native-plugin.yml`:
 - do not build `runtime/Cargo.toml` for in-process rows;
 - run dynamic loading tests with `LIBBUN_PLUGIN_PATH` only and
   `LIBBUN_RUNTIME_NATIVE_PATH` unset;
+- fail the lane if the dynamic loading test emits `mimalloc: error`;
 - upload these as workflow artifacts only, not GitHub Release assets.
 
 Exit criteria:
@@ -393,10 +426,7 @@ Required work:
 
 - make the facade conformance tests runnable against a dynamic plugin path;
 - run conformance on both Linux targets with `LIBBUN_PLUGIN_PATH`;
-- investigate the `mimalloc` invalid-pointer diagnostic from the arm64 smoke
-  test;
-- either fix the shutdown issue or write a follow-up ADR that explains why it
-  is acceptable for release;
+- keep the fixed `mimalloc` diagnostic covered by CI log checks;
 - add a replacement-build check that rebuilds the plugin from the source bundle
   plus pinned WebKit PIC inputs, then loads that replacement through
   `LIBBUN_PLUGIN_PATH`.

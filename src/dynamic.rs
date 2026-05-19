@@ -1,4 +1,5 @@
 use std::ffi::c_void;
+use std::mem::ManuallyDrop;
 use std::path::Path;
 
 use libloading::Library;
@@ -47,7 +48,7 @@ pub struct DynamicBunRuntime {
 
 #[derive(Debug)]
 struct DynamicPlugin {
-    _library: Library,
+    _library: ManuallyDrop<Library>,
     buffer_free: PluginBufferFreeFn,
     runtime_create: RuntimeCreateFn,
     runtime_destroy: RuntimeDestroyFn,
@@ -231,7 +232,10 @@ impl DynamicPlugin {
         let runtime_shutdown = load_symbol(&library, b"libbun_plugin_runtime_shutdown")?;
 
         Ok(Self {
-            _library: library,
+            // Bun/JSC/WebKit own process-lifetime native state and are not
+            // safe to tear down through `dlclose` after a runtime is created.
+            // Keep the plugin image loaded until process exit.
+            _library: ManuallyDrop::new(library),
             buffer_free,
             runtime_create,
             runtime_destroy,

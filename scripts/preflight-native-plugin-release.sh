@@ -112,9 +112,14 @@ if [[ "$runtime_mode" == "helper-process" ]]; then
 fi
 
 echo "==> preflight ${release_version}: dynamic plugin loading test"
+smoke_log="$(mktemp)"
 LIBBUN_PLUGIN_PATH="$plugin_path" \
   LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
-  cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+  cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee "$smoke_log"
+if grep -q "mimalloc: error" "$smoke_log"; then
+  echo "dynamic plugin smoke emitted a mimalloc diagnostic" >&2
+  exit 1
+fi
 
 if [[ "${LIBBUN_RELEASE_SKIP_NATIVE_TEST:-0}" != "1" && "$runtime_mode" == "in-process" ]]; then
   echo "==> preflight ${release_version}: native adapter integration tests"

@@ -91,6 +91,7 @@ jobs:
 
       - name: Verify dynamic plugin loading
         run: |
+          set -o pipefail
           plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
           test -n "$plugin_path"
           helper_path=""
@@ -98,16 +99,27 @@ jobs:
             helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
             test -n "$helper_path"
           fi
-          LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+          LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
+            cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-smoke.log
+          if grep -q "mimalloc: error" /tmp/libbun-dynamic-plugin-smoke.log; then
+            echo "dynamic plugin smoke emitted a mimalloc diagnostic" >&2
+            exit 1
+          fi
 
       - name: Verify replacement plugin build path
         run: |
+          set -o pipefail
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
             helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
             replacement_dir="$(mktemp -d)"
             cp "$helper_path" "$replacement_dir/${{ matrix.helper_name }}"
             plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
-            LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$replacement_dir/${{ matrix.helper_name }}" cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+            LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$replacement_dir/${{ matrix.helper_name }}" \
+              cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee /tmp/libbun-replacement-plugin-smoke.log
+            if grep -q "mimalloc: error" /tmp/libbun-replacement-plugin-smoke.log; then
+              echo "replacement plugin smoke emitted a mimalloc diagnostic" >&2
+              exit 1
+            fi
           else
             LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 check --manifest-path plugin/Cargo.toml
           fi
