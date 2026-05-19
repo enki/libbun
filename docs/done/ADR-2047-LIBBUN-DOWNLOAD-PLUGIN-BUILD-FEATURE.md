@@ -1,6 +1,6 @@
 # ADR-2047: libbun download-plugin Build Feature
 
-Status: Proposed
+Status: Done
 Date: 2026-05-19
 
 `libbun` should be usable as a Cargo dependency without requiring downstream
@@ -227,6 +227,46 @@ making the developer experience match the crate name.
    "download-plugin"] }` as the automatic local-use path.
 8. Update release scripts to enforce the native-assets-before-crate-publish
    sequence.
+
+## Implementation
+
+This ADR is implemented by:
+
+- the `download-plugin` feature in `Cargo.toml`;
+- `build.rs`, which selects the plugin by Cargo `TARGET`, accepts
+  `LIBBUN_PLUGIN_PATH`, `LIBBUN_PLUGIN_BUNDLE_DIR`,
+  `LIBBUN_PLUGIN_ARCHIVE`, and `LIBBUN_DOWNLOAD_PLUGIN=0` overrides,
+  verifies release archives against committed checksums, extracts the plugin
+  bundle into `OUT_DIR`, downloads/verifies release metadata, and emits
+  `LIBBUN_BUILD_PLUGIN_*` environment variables;
+- `src/plugin_checksums.rs` and `src/plugin_checksums_table.in`, which provide
+  the committed checksum table used by the build script;
+- `libbun::release::build_time_plugin_path`,
+  `libbun::release::build_time_plugin_dir`, and resolver support for the
+  `BuildTime` source after `LIBBUN_PLUGIN_PATH` and before cache lookup;
+- README documentation for the automatic download mode and no-download mode;
+- `scripts/update-plugin-checksums.sh`, which records release asset checksums
+  from the GitHub Release checksum file before crate publication.
+
+Release `v0.1.2` was produced in two phases:
+
+1. native plugin assets were built by GitHub Actions from commit `5a1cce5`;
+2. checksums were recorded in commit `d002399`;
+3. the `v0.1.2` tag was force-moved to `d002399`;
+4. the final GitHub Actions release workflow completed successfully from
+   `d002399`;
+5. `libbun 0.1.2` was published to crates.io from the same commit.
+
+Verification performed:
+
+- `cargo test`;
+- `cargo test --features dynamic-loading,plugin-installer`;
+- `cargo test --features download-plugin --test release` against the real
+  `v0.1.2` GitHub Release asset;
+- `cargo publish --dry-run`;
+- `scripts/verify-release-assets.sh --version v0.1.2`;
+- `git diff --check`;
+- successful crates.io publication of `libbun 0.1.2`.
 
 ## Acceptance Criteria
 
