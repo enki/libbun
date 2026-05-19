@@ -50,7 +50,7 @@ git -C "$repo_root" ls-files -z vendor/bun |
   git -C "$repo_root" checkout-index -z --stdin --prefix="$current/"
 
 if ! git -C "$repo_root" diff --quiet -- vendor/bun; then
-  git -C "$repo_root" diff --binary -- vendor/bun | (cd "$current" && patch -p1) >&2
+  git -C "$repo_root" diff --binary -- vendor/bun | (cd "$current" && git apply --binary -p1) >&2
 fi
 
 diff_out="$tmp_dir/diff.txt"

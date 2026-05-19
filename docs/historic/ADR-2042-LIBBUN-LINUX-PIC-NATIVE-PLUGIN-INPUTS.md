@@ -1,6 +1,6 @@
 # ADR-2042: Linux PIC Native Plugin Inputs
 
-Status: Accepted
+Status: Superseded
 Date: 2026-05-18
 
 ADR-2041 established the desired publication shape for `libbun`: a small
@@ -21,6 +21,18 @@ This is not a GitHub Actions packaging problem. It is a native input format
 problem. Linux `.so` plugin releases require Bun/WebKit/native dependency
 objects that are compiled as position-independent code and use a TLS model
 compatible with shared libraries.
+
+Supersession note, 2026-05-18: this ADR proved that libbun can inspect and
+reject Linux shared-object-hostile native inputs, and it added a reproducible
+PIC mode for Bun-owned C/C++ objects and direct/native dependency builds.
+However, the default Bun build consumes upstream prebuilt WebKit/JSC/WTF
+archives from `~/.bun/build-cache`, and those archives still contain
+local-exec TLS relocations. Linux release publication therefore cannot be made
+complete by release-matrix plumbing or direct-dependency flag patches alone.
+The next Linux publication attempt must start from PIC-compatible WebKit
+artifacts: either a local WebKit source build configured for the plugin PIC
+mode, or an upstream WebKit prebuilt release that is explicitly built for
+shared-object embedding.
 
 ## Decision
 
@@ -158,7 +170,9 @@ blocked, provided documentation is explicit about the platform limit.
 
 ## Acceptance Criteria
 
-This ADR can move to `docs/done/` when:
+This ADR was superseded before completion. The partial implementation remains
+useful, but Linux release publication is still blocked. The original completion
+criteria were:
 
 - a Linux native input inspection script exists and fails on shared-object-
   hostile TLS relocations;

@@ -12,6 +12,13 @@ if [[ -z "$lolhtml_commit" ]]; then
   exit 1
 fi
 
+if [[ -f "$lolhtml_dir/.ref" ]] &&
+   [[ "$(tr -d '[:space:]' < "$lolhtml_dir/.ref")" == "$lolhtml_commit" ]] &&
+   [[ -f "$lolhtml_dir/c-api/Cargo.toml" ]]; then
+  echo "Vendored lolhtml already present at $lolhtml_commit"
+  exit 0
+fi
+
 tmp_dir="$(mktemp -d)"
 cleanup() {
   rm -rf "$tmp_dir"

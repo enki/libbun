@@ -3,9 +3,15 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bun_dir="$repo_root/vendor/bun"
-build_dir="$bun_dir/build/debug"
+build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$bun_dir/build/debug"}"
+case "$build_dir" in
+  /*) ;;
+  *) build_dir="$repo_root/$build_dir" ;;
+esac
 archive="$build_dir/libbun_native_objects.a"
 objects_file="$build_dir/libbun_native_objects.txt"
+static_libs_file="$build_dir/libbun_native_static_libs.txt"
+build_inputs_file="$build_dir/libbun_native_build_inputs.txt"
 manifest="$build_dir/libbun_native_link_manifest.txt"
 
 if [[ "$(uname -s)" == "Linux" ]]; then
@@ -13,7 +19,6 @@ if [[ "$(uname -s)" == "Linux" ]]; then
 fi
 
 "$repo_root/scripts/configure-vendored-bun.sh" --profile=debug-no-asan >&2
-ninja -C "$build_dir" bun -j"${LIBBUN_NATIVE_BUILD_JOBS:-8}" >&2
 
 ninja -C "$build_dir" -t query bun-debug |
   awk '
@@ -22,10 +27,29 @@ ninja -C "$build_dir" -t query bun-debug |
     in_input && $1 ~ /\.o$/ { print $1 }
   ' > "$objects_file"
 
+ninja -C "$build_dir" -t query bun-debug |
+  awk '
+    /^  input:/ { in_input = 1; next }
+    /^  outputs:/ { in_input = 0; next }
+    in_input && $1 ~ /\.a$/ && $1 !~ /rust-target/ { print $1 }
+  ' > "$static_libs_file"
+
 if [[ ! -s "$objects_file" ]]; then
   echo "no Bun native object files found from ninja query" >&2
   exit 1
 fi
+
+cat "$objects_file" "$static_libs_file" > "$build_inputs_file"
+build_inputs=()
+while IFS= read -r input; do
+  build_inputs+=("$input")
+done < "$build_inputs_file"
+if [[ ${#build_inputs[@]} -eq 0 ]]; then
+  echo "no Bun native link inputs found from ninja query" >&2
+  exit 1
+fi
+
+ninja -C "$build_dir" -j"${LIBBUN_NATIVE_BUILD_JOBS:-8}" "${build_inputs[@]}" >&2
 
 case "$(uname -s)" in
   Darwin)
@@ -42,12 +66,7 @@ esac
 
 {
   printf 'archive=%s\n' "$archive"
-  ninja -C "$build_dir" -t query bun-debug |
-    awk '
-      /^  input:/ { in_input = 1; next }
-      /^  outputs:/ { in_input = 0; next }
-      in_input && $1 ~ /\.a$/ && $1 !~ /rust-target/ { print $1 }
-    ' |
+  cat "$static_libs_file" |
     while IFS= read -r static_lib; do
       case "$static_lib" in
         /*) printf 'static=%s\n' "$static_lib" ;;

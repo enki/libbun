@@ -79,9 +79,35 @@ suitable for a Linux shared object:
 - WebKit/JSC/WTF CMake flags use `-fPIC` and
   `CMAKE_POSITION_INDEPENDENT_CODE=ON` instead of the static-executable
   `-fno-pic`/`CMAKE_POSITION_INDEPENDENT_CODE=OFF` path;
+- direct and nested native dependency builds receive `-fPIC` when the plugin
+  PIC mode is enabled;
 - mimalloc uses `-ftls-model=local-dynamic` instead of the
   static-executable-oriented `initial-exec` TLS model.
 
 This mode still must be proven by an actual Linux plugin build. If the
 relocation scanner or final `.so` link continues to fail, the failing object
 owners should be added to this diagnostic note before the next patch.
+
+## 2026-05-18 Follow-up Findings
+
+Linux arm64 preparation now avoids linking Bun's final executable when it only
+needs plugin link inputs. That sidesteps the non-PIC `libbun_rust.a` failure
+from Bun's executable link, which is not part of the plugin manifest.
+
+After regenerating the build, direct/native dependency objects such as
+`libjpeg-turbo` are compiled with `-fPIC`; `turbojpeg.c.o` is no longer the
+first relocation scanner failure.
+
+The remaining scanner failures come from upstream prebuilt WebKit/JSC/WTF
+archives under Bun's shared build cache, for example:
+
+```text
+libWTF.a(MallocCommon.cpp.o): R_AARCH64_TLSLE_ADD_TPREL_HI12
+libbmalloc.a(pas_thread_local_cache.c.o): R_AARCH64_TLSLE_ADD_TPREL_HI12
+```
+
+Those archives are downloaded prebuilt artifacts, not outputs of the patched
+local WebKit CMake path. Linux plugin publication therefore requires
+PIC-compatible WebKit artifacts: either build WebKit from source in the plugin
+PIC mode, or consume an upstream WebKit prebuilt release that is explicitly
+compatible with shared-object embedding.

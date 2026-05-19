@@ -15,7 +15,7 @@ apply_patch_file_once() {
     exit 1
   fi
 
-  if rg -q "$marker" "$bun_dir"; then
+  if grep -R -F -q "$marker" "$bun_dir" 2>/dev/null; then
     echo "Vendored Bun patch already applied: $(basename "$patch_file")"
     return
   fi
@@ -32,7 +32,7 @@ fi
 
 perl -0pi -e 's/#\[link\(name = "([^"]+)"\)\]/#[cfg_attr(windows, link(name = "$1"))]/g' "$externs"
 
-if rg '#\[link\(name =' "$externs" >/dev/null; then
+if grep -q '#\[link(name =' "$externs"; then
   echo "unconditional Windows link attributes remain in $externs" >&2
   exit 1
 fi

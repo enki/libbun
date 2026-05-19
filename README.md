@@ -46,10 +46,10 @@ plugin release target is:
 libbun-plugin-native-vX.Y.Z-aarch64-apple-darwin.tar.zst
 ```
 
-Linux plugin binaries are not published yet. Current vendored Bun/WebKit static
-inputs contain TLS relocations that cannot be linked into a Linux shared
-object; Linux plugin releases require future PIC/shared-library-compatible
-native inputs.
+Linux plugin binaries are not published yet. Current upstream WebKit/JSC/WTF
+prebuilt static archives contain TLS relocations that cannot be linked into a
+Linux shared object. Linux plugin releases require PIC-compatible WebKit
+artifacts built from source or provided by an upstream PIC release.
 
 For example:
 
@@ -176,6 +176,10 @@ Build the plugin after preparing the native link manifest:
 scripts/prepare-native-bun-link.sh
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 ```
+
+Use `LIBBUN_NATIVE_BUN_BUILD_DIR=vendor/bun/build/native-$(uname -m)-$(uname -s)`
+to keep platform-specific Bun native build products outside the default
+`vendor/bun/build/debug` directory.
 
 Rust hosts can enable the facade's `dynamic-loading` feature and load the plugin
 at runtime with `libbun::dynamic::DynamicBunRuntime`. `BunHost` initialization

@@ -25,11 +25,13 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             plugin_name: liblibbun_plugin_native.dylib
-    # Linux plugin releases require PIC/shared-library-compatible Bun/WebKit
-    # native inputs. Current static inputs contain TLS relocations that cannot
-    # be linked into a .so.
+    # Linux plugin releases remain blocked on PIC-compatible WebKit/JSC/WTF
+    # artifacts. The scanner catches this before packaging when a Linux lane
+    # is re-enabled.
     env:
       LIBBUN_NATIVE_BUILD_JOBS: "8"
+      LIBBUN_NATIVE_BUN_BUILD_DIR: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}
+      LIBBUN_NATIVE_LINK_MANIFEST: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}/libbun_native_link_manifest.txt
     steps:
       - uses: actions/checkout@v4
 

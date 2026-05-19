@@ -2,7 +2,12 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-manifest="${LIBBUN_NATIVE_LINK_MANIFEST:-"$repo_root/vendor/bun/build/debug/libbun_native_link_manifest.txt"}"
+build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}"
+case "$build_dir" in
+  /*) ;;
+  *) build_dir="$repo_root/$build_dir" ;;
+esac
+manifest="${LIBBUN_NATIVE_LINK_MANIFEST:-"$build_dir/libbun_native_link_manifest.txt"}"
 
 usage() {
   cat >&2 <<'USAGE'

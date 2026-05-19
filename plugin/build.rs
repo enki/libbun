@@ -6,6 +6,7 @@ use std::process::Command;
 fn main() {
     println!("cargo:rerun-if-env-changed=LIBBUN_NATIVE_LINK_BUN");
     println!("cargo:rerun-if-env-changed=LIBBUN_NATIVE_LINK_MANIFEST");
+    println!("cargo:rerun-if-env-changed=LIBBUN_NATIVE_BUN_BUILD_DIR");
 
     if env::var("LIBBUN_NATIVE_LINK_BUN").as_deref() != Ok("1") {
         println!(
@@ -80,8 +81,18 @@ fn find_compiler_rt(library: &str) -> Option<PathBuf> {
 
 fn default_manifest_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    manifest_dir
+    let repo_root = manifest_dir
         .parent()
-        .expect("plugin crate has repo parent")
-        .join("vendor/bun/build/debug/libbun_native_link_manifest.txt")
+        .expect("plugin crate has repo parent");
+    env::var_os("LIBBUN_NATIVE_BUN_BUILD_DIR")
+        .map(PathBuf::from)
+        .map(|path| {
+            if path.is_absolute() {
+                path
+            } else {
+                repo_root.join(path)
+            }
+        })
+        .unwrap_or_else(|| repo_root.join("vendor/bun/build/debug"))
+        .join("libbun_native_link_manifest.txt")
 }

@@ -31,6 +31,8 @@ import type { Ninja } from "./ninja.ts";
 import { quote, quoteArgs, slash } from "./shell.ts";
 import { streamPath } from "./stream.ts";
 
+const libbunNativePluginPic = process.env.LIBBUN_NATIVE_PLUGIN_PIC === "1";
+
 /**
  * If the source dir exists with a stale (or missing) identity stamp,
  * delete it. Called at configure time so ninja's startup stat sees the
@@ -1201,7 +1203,8 @@ function emitNestedCmake(
   //
   // Windows has no PIC concept (all code is relocatable), so both branches
   // are guarded — no-op there.
-  if (spec.pic) {
+  const usePic = spec.pic || (libbunNativePluginPic && cfg.unix && cfg.abi !== "android");
+  if (usePic) {
     if (!cfg.windows) {
       cflags += " -fPIC";
       cxxflags += " -fPIC";
@@ -1489,7 +1492,8 @@ function emitDirect(
   // codegen as cmake deps would. spec.pic → -fPIC; otherwise on darwin
   // undo apple-clang's PIC default to match the non-PIE final binary.
   const picFlags: string[] = [];
-  if (spec.pic) {
+  const usePic = spec.pic || (libbunNativePluginPic && cfg.unix && cfg.abi !== "android");
+  if (usePic) {
     if (!cfg.windows) picFlags.push("-fPIC");
   } else if (cfg.darwin) {
     picFlags.push("-fno-pic", "-fno-pie");

@@ -61,7 +61,12 @@ sha256() {
 bun_commit="$(tr -d '[:space:]' < "$repo_root/BUN_SOURCE_COMMIT")"
 git_commit="$(git -C "$repo_root" rev-parse HEAD)"
 plugin_checksum="$(sha256 "$plugin_binary")"
-manifest="${LIBBUN_NATIVE_LINK_MANIFEST:-"$repo_root/vendor/bun/build/debug/libbun_native_link_manifest.txt"}"
+build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}"
+case "$build_dir" in
+  /*) ;;
+  *) build_dir="$repo_root/$build_dir" ;;
+esac
+manifest="${LIBBUN_NATIVE_LINK_MANIFEST:-"$build_dir/libbun_native_link_manifest.txt"}"
 
 if [[ ! -f "$manifest" ]]; then
   echo "native link manifest not found: $manifest" >&2
