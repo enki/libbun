@@ -15,6 +15,7 @@ use sha2::Digest;
 
 #[cfg(feature = "dynamic-loading")]
 pub mod dynamic;
+pub mod helper_protocol;
 
 pub type LibbunResult<T> = Result<T, LibbunError>;
 

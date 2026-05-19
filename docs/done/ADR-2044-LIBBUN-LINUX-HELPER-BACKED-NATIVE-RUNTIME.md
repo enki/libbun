@@ -1,6 +1,6 @@
 # ADR-2044: Linux Helper-Backed Native Runtime
 
-Status: Accepted
+Status: Done
 Date: 2026-05-18
 
 ## Context

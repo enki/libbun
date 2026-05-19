@@ -14,6 +14,7 @@ Runs the local checks that mirror the native plugin GitHub Actions release job:
   - dynamic-loading check
   - native Bun link preparation
   - native plugin build
+  - Linux native helper build when running on Linux
   - dynamic plugin loading test
   - native adapter integration tests
   - release asset packaging smoke test
@@ -64,12 +65,14 @@ scripts/prepare-native-bun-link.sh
 
 case "$(uname -s)" in
   Linux)
-    echo "==> preflight ${release_version}: inspect Linux native relocations"
-    scripts/inspect-linux-native-relocations.sh
     plugin_name="liblibbun_plugin_native.so"
+    helper_name="libbun-runtime-native"
+    runtime_mode="helper-process"
     ;;
   Darwin)
     plugin_name="liblibbun_plugin_native.dylib"
+    helper_name=""
+    runtime_mode="in-process"
     ;;
   *)
     echo "unsupported native plugin preflight OS: $(uname -s)" >&2
@@ -78,7 +81,11 @@ case "$(uname -s)" in
 esac
 
 echo "==> preflight ${release_version}: build native plugin"
-LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+if [[ "$runtime_mode" == "helper-process" ]]; then
+  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+else
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+fi
 
 plugin_path="$(find plugin/target/debug -maxdepth 1 -name "$plugin_name" -print -quit)"
 if [[ -z "$plugin_path" || ! -f "$plugin_path" ]]; then
@@ -86,10 +93,23 @@ if [[ -z "$plugin_path" || ! -f "$plugin_path" ]]; then
   exit 1
 fi
 
-echo "==> preflight ${release_version}: dynamic plugin loading test"
-LIBBUN_PLUGIN_PATH="$plugin_path" cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+helper_path=""
+if [[ "$runtime_mode" == "helper-process" ]]; then
+  echo "==> preflight ${release_version}: build Linux native helper"
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
+  helper_path="$(find runtime/target/debug -maxdepth 1 -name "$helper_name" -print -quit)"
+  if [[ -z "$helper_path" || ! -f "$helper_path" ]]; then
+    echo "native helper binary was not produced under runtime/target/debug: $helper_name" >&2
+    exit 1
+  fi
+fi
 
-if [[ "${LIBBUN_RELEASE_SKIP_NATIVE_TEST:-0}" != "1" ]]; then
+echo "==> preflight ${release_version}: dynamic plugin loading test"
+LIBBUN_PLUGIN_PATH="$plugin_path" \
+  LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
+  cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+
+if [[ "${LIBBUN_RELEASE_SKIP_NATIVE_TEST:-0}" != "1" && "$runtime_mode" == "in-process" ]]; then
   echo "==> preflight ${release_version}: native adapter integration tests"
   LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 test --manifest-path native/Cargo.toml --features internal-adapter
 else
@@ -100,7 +120,7 @@ out_dir="${LIBBUN_RELEASE_OUT_DIR:-"$repo_root/dist/native-plugin-preflight/${re
 rm -rf "$out_dir"
 
 echo "==> preflight ${release_version}: package release assets"
-scripts/package-native-plugin-release.sh "$release_version" "$plugin_path" "$out_dir"
+LIBBUN_NATIVE_HELPER_BINARY="$helper_path" scripts/package-native-plugin-release.sh "$release_version" "$plugin_path" "$out_dir"
 
 echo "==> preflight ${release_version}: verify generated inventory"
 python3 -m json.tool "$out_dir/libbun-plugin-native-${release_version}-licenses.json" >/dev/null

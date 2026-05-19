@@ -39,17 +39,39 @@ cargo add libbun --features dynamic-loading
 ```
 
 Download the plugin asset that matches the host platform from the same
-`libbun` GitHub Release as the facade version. The currently supported native
-plugin release target is:
+`libbun` GitHub Release as the facade version. The supported native plugin
+release targets are:
 
 ```text
 libbun-plugin-native-vX.Y.Z-aarch64-apple-darwin.tar.zst
+libbun-plugin-native-vX.Y.Z-x86_64-unknown-linux-gnu.tar.zst
+libbun-plugin-native-vX.Y.Z-aarch64-unknown-linux-gnu.tar.zst
 ```
 
-Linux plugin binaries are not published yet. Current upstream WebKit/JSC/WTF
-prebuilt static archives contain TLS relocations that cannot be linked into a
-Linux shared object. Linux plugin releases require PIC-compatible WebKit
-artifacts built from source or provided by an upstream PIC release.
+The consumer contract is the same on every platform:
+
+```text
+consumer app -> LIBBUN_PLUGIN_PATH -> native plugin
+```
+
+The implementation behind that plugin differs by platform today:
+
+```text
+macOS:
+consumer app -> dynamically loaded .dylib -> in-process Bun/JSC/WebKit
+
+Linux:
+consumer app -> dynamically loaded .so -> helper process -> Bun/JSC/WebKit
+```
+
+Linux tarballs contain both `liblibbun_plugin_native.so` and
+`libbun-runtime-native`, plus `libbun-native-bundle.json`. Hosts still point
+`LIBBUN_PLUGIN_PATH` at the `.so`; the plugin starts the helper. To test or
+replace a modified helper build, set `LIBBUN_RUNTIME_NATIVE_PATH` to the helper
+executable path. The helper process is a current Linux implementation detail,
+not a downstream API commitment. If Linux later gains suitable PIC
+WebKit/JSC/WTF inputs, the Linux tarball can switch to an in-process plugin
+without changing facade code or `LIBBUN_PLUGIN_PATH` setup.
 
 For example:
 
@@ -59,6 +81,16 @@ target=aarch64-apple-darwin
 curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
 tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst"
 export LIBBUN_PLUGIN_PATH="$PWD/liblibbun_plugin_native.dylib"
+```
+
+Linux setup is the same except for the target name and `.so` filename:
+
+```sh
+version=v0.1.0
+target=aarch64-unknown-linux-gnu
+curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
+tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst"
+export LIBBUN_PLUGIN_PATH="$PWD/liblibbun_plugin_native.so"
 ```
 
 Minimal dynamic-loading example:
@@ -170,11 +202,20 @@ twice into the test host.
 `plugin/` builds `libbun-plugin-native` as a `cdylib`. This is the only supported
 way for downstream applications to use the native Bun/JSC implementation.
 
-Build the plugin after preparing the native link manifest:
+Build the macOS in-process plugin after preparing the native link manifest:
 
 ```sh
 scripts/prepare-native-bun-link.sh
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+```
+
+Build the Linux helper-backed bundle after preparing the same native link
+manifest:
+
+```sh
+scripts/prepare-native-bun-link.sh
+cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
 ```
 
 Use `LIBBUN_NATIVE_BUN_BUILD_DIR=vendor/bun/build/native-$(uname -m)-$(uname -s)`

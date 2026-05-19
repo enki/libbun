@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 version="${1:-${GITHUB_REF_NAME:-}}"
 plugin_binary="${2:-}"
 out_dir="${3:-"$repo_root/dist/native-plugin"}"
+helper_binary="${LIBBUN_NATIVE_HELPER_BINARY:-${4:-}}"
 
 if [[ -z "$version" ]]; then
   echo "usage: $0 <version> <plugin-binary> [out-dir]" >&2
@@ -61,6 +62,7 @@ sha256() {
 bun_commit="$(tr -d '[:space:]' < "$repo_root/BUN_SOURCE_COMMIT")"
 git_commit="$(git -C "$repo_root" rev-parse HEAD)"
 plugin_checksum="$(sha256 "$plugin_binary")"
+helper_checksum=""
 build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}"
 case "$build_dir" in
   /*) ;;
@@ -73,6 +75,18 @@ if [[ ! -f "$manifest" ]]; then
   exit 2
 fi
 
+runtime_mode="in-process"
+case "$platform" in
+  *-linux-gnu)
+    runtime_mode="helper-process"
+    if [[ -z "$helper_binary" || ! -f "$helper_binary" ]]; then
+      echo "Linux native plugin packages require LIBBUN_NATIVE_HELPER_BINARY or a fourth helper-binary argument" >&2
+      exit 2
+    fi
+    helper_checksum="$(sha256 "$helper_binary")"
+    ;;
+esac
+
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
@@ -81,6 +95,56 @@ source_stage="$tmpdir/source/libbun-${release_version}"
 mkdir -p "$binary_stage" "$source_stage"
 
 cp "$plugin_binary" "$binary_stage/"
+if [[ -n "$helper_binary" ]]; then
+  cp "$helper_binary" "$binary_stage/"
+fi
+python3 - "$binary_stage/libbun-native-bundle.json" "$platform" "$runtime_mode" "$release_version" "$git_commit" "$bun_commit" "$(basename "$plugin_binary")" "$plugin_checksum" "${helper_binary:+$(basename "$helper_binary")}" "$helper_checksum" <<'PY'
+import json
+import pathlib
+import sys
+
+(
+    out,
+    target,
+    runtime_mode,
+    release_version,
+    git_commit,
+    bun_commit,
+    plugin_name,
+    plugin_checksum,
+    helper_name,
+    helper_checksum,
+) = sys.argv[1:11]
+
+bundle = {
+    "target": target,
+    "runtimeMode": runtime_mode,
+    "pluginAbiVersion": 1,
+    "helperProtocolVersion": 1 if runtime_mode == "helper-process" else None,
+    "libbunReleaseVersion": release_version,
+    "libbunGitCommit": git_commit,
+    "bunSourceCommit": bun_commit,
+    "plugin": {
+        "filename": plugin_name,
+        "sha256": plugin_checksum,
+    },
+    "helper": None,
+    "sourceArchive": f"libbun-plugin-native-{release_version}-source.tar.zst",
+    "noticeFile": f"libbun-plugin-native-{release_version}-NOTICE.txt",
+    "licenseInventory": f"libbun-plugin-native-{release_version}-licenses.json",
+    "sourceInstructions": f"libbun-plugin-native-{release_version}-SOURCE.txt",
+    "checksums": f"libbun-plugin-native-{release_version}-checksums.txt",
+}
+
+if helper_name:
+    bundle["helper"] = {
+        "filename": helper_name,
+        "sha256": helper_checksum,
+        "overrideEnvironment": "LIBBUN_RUNTIME_NATIVE_PATH",
+    }
+
+pathlib.Path(out).write_text(json.dumps(bundle, indent=2, sort_keys=True) + "\n")
+PY
 tar -C "$binary_stage" -cf - . | zstd -19 -q -o "$binary_asset"
 
 git -C "$repo_root" archive --format=tar --prefix="libbun-${release_version}/" HEAD |
@@ -109,9 +173,13 @@ archive for the upstream notice text and dependency list.
 Users may replace this plugin with an interface-compatible modified build by
 building the source archive and configuring the host application to load that
 replacement plugin path.
+
+On Linux, the plugin asset is a native runtime bundle. The host still loads the
+plugin dynamically through LIBBUN_PLUGIN_PATH; the plugin then starts the
+replaceable libbun-runtime-native helper described by libbun-native-bundle.json.
 NOTICE
 
-python3 - "$repo_root" "$manifest" "$inventory_asset" "$release_version" "$git_commit" "$bun_commit" "$plugin_binary" "$plugin_checksum" "$platform" <<'PY'
+python3 - "$repo_root" "$manifest" "$inventory_asset" "$release_version" "$git_commit" "$bun_commit" "$plugin_binary" "$plugin_checksum" "$platform" "$runtime_mode" "$helper_binary" "$helper_checksum" <<'PY'
 import json
 import pathlib
 import sys
@@ -119,7 +187,7 @@ import sys
 repo = pathlib.Path(sys.argv[1])
 manifest = pathlib.Path(sys.argv[2])
 out = pathlib.Path(sys.argv[3])
-release_version, git_commit, bun_commit, plugin_binary, checksum, platform = sys.argv[4:10]
+release_version, git_commit, bun_commit, plugin_binary, checksum, platform, runtime_mode, helper_binary, helper_checksum = sys.argv[4:13]
 
 manifest_entries = []
 for line in manifest.read_text().splitlines():
@@ -134,9 +202,14 @@ inventory = {
     "gitCommit": git_commit,
     "bunSourceCommit": bun_commit,
     "pluginAbiVersion": 1,
+    "helperProtocolVersion": 1 if runtime_mode == "helper-process" else None,
     "platform": platform,
+    "runtimeMode": runtime_mode,
     "pluginBinary": pathlib.Path(plugin_binary).name,
     "pluginSha256": checksum,
+    "helperBinary": pathlib.Path(helper_binary).name if helper_binary else None,
+    "helperSha256": helper_checksum or None,
+    "bundleMetadata": "libbun-native-bundle.json",
     "sourceArchive": f"libbun-plugin-native-{release_version}-source.tar.zst",
     "noticeFile": f"libbun-plugin-native-{release_version}-NOTICE.txt",
     "sourceInstructions": f"libbun-plugin-native-{release_version}-SOURCE.txt",
@@ -166,6 +239,7 @@ inventory = {
         "noticesAndLicenses": "<same GitHub Release NOTICE and licenses.json URLs>",
         "checksums": "<same GitHub Release checksums URL>",
         "replacement": "Configure the host application to load an interface-compatible replacement plugin.",
+        "linuxHelperReplacement": "On Linux, replace the helper next to the plugin or set LIBBUN_RUNTIME_NATIVE_PATH.",
     },
 }
 
@@ -182,9 +256,11 @@ cat > "$source_txt_asset" <<SOURCE
 libbun native plugin ${release_version} source instructions
 
 Binary platform: ${platform}
+Runtime mode: ${runtime_mode}
 libbun commit: ${git_commit}
 Bun source commit: ${bun_commit}
 Plugin SHA-256: ${plugin_checksum}
+${helper_checksum:+Helper SHA-256: ${helper_checksum}}
 
 The corresponding source for this plugin binary is:
 
@@ -199,11 +275,20 @@ manifest used by the plugin build at:
 Build outline:
 
   scripts/prepare-native-bun-link.sh
-  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+
+For macOS in-process plugin builds, set LIBBUN_NATIVE_LINK_BUN=1 when building
+plugin/Cargo.toml.
+
+For Linux helper-backed bundle builds, build the plugin without
+LIBBUN_NATIVE_LINK_BUN and build the helper executable with:
+
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
 
 Host applications must keep the plugin replaceable. Users can build a modified
 compatible plugin from the corresponding source and configure the host to load
-that replacement path.
+that replacement path. On Linux, users can also replace the helper executable
+next to the plugin or set LIBBUN_RUNTIME_NATIVE_PATH.
 SOURCE
 
 (

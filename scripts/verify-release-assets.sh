@@ -16,6 +16,8 @@ local files. Without --dir, reads GitHub Release assets through gh.
 
 Default targets:
   aarch64-apple-darwin
+  x86_64-unknown-linux-gnu
+  aarch64-unknown-linux-gnu
 USAGE
 }
 
@@ -60,7 +62,7 @@ case "$version" in
 esac
 
 if [[ ${#targets[@]} -eq 0 ]]; then
-  targets=(aarch64-apple-darwin)
+  targets=(aarch64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu)
 fi
 
 assets=()

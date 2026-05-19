@@ -1,5 +1,7 @@
 /target/
+/target-smolvm*/
 /native/target/
 /plugin/target/
+/runtime/target/
 /dist/
 /.DS_Store

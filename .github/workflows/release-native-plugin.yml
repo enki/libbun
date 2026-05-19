@@ -25,9 +25,18 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             plugin_name: liblibbun_plugin_native.dylib
-    # Linux plugin releases remain blocked on PIC-compatible WebKit/JSC/WTF
-    # artifacts. The scanner catches this before packaging when a Linux lane
-    # is re-enabled.
+            runtime_mode: in-process
+            helper_name: ""
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            plugin_name: liblibbun_plugin_native.so
+            runtime_mode: helper-process
+            helper_name: libbun-runtime-native
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            plugin_name: liblibbun_plugin_native.so
+            runtime_mode: helper-process
+            helper_name: libbun-runtime-native
     env:
       LIBBUN_NATIVE_BUILD_JOBS: "8"
       LIBBUN_NATIVE_BUN_BUILD_DIR: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}
@@ -67,27 +76,50 @@ jobs:
           LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST=1 scripts/prepare-native-bun-link.sh
           df -h /
 
-      - name: Inspect Linux native relocations
-        if: runner.os == 'Linux'
-        run: scripts/inspect-linux-native-relocations.sh
-
       - name: Build native plugin
-        run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+        run: |
+          if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
+            CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+          else
+            LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+          fi
+
+      - name: Build Linux native helper
+        if: matrix.runtime_mode == 'helper-process'
+        run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
 
       - name: Verify dynamic plugin loading
         run: |
           plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
           test -n "$plugin_path"
-          LIBBUN_PLUGIN_PATH="$plugin_path" cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+          helper_path=""
+          if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
+            helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
+            test -n "$helper_path"
+          fi
+          LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
 
       - name: Verify replacement plugin build path
-        run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 check --manifest-path plugin/Cargo.toml
+        run: |
+          if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
+            helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
+            replacement_dir="$(mktemp -d)"
+            cp "$helper_path" "$replacement_dir/${{ matrix.helper_name }}"
+            plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+            LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$replacement_dir/${{ matrix.helper_name }}" cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --nocapture
+          else
+            LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 check --manifest-path plugin/Cargo.toml
+          fi
 
       - name: Package release assets
         run: |
           version="${{ inputs.version || github.ref_name }}"
           plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
-          scripts/package-native-plugin-release.sh "$version" "$plugin_path" "dist/native-plugin-${{ matrix.target }}"
+          helper_path=""
+          if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
+            helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
+          fi
+          LIBBUN_NATIVE_HELPER_BINARY="$helper_path" scripts/package-native-plugin-release.sh "$version" "$plugin_path" "dist/native-plugin-${{ matrix.target }}"
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
