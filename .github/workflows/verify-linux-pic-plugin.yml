@@ -44,7 +44,11 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y zstd ninja-build cmake g++ lld
+          sudo apt-get install -y zstd ninja-build cmake wget g++ gnupg
+          wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 21 all
+          echo "/usr/lib/llvm-21/bin" >> "$GITHUB_PATH"
 
       - name: Install Rust toolchains
         run: |
