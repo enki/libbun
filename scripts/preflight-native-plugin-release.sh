@@ -22,6 +22,7 @@ Runs the local checks that mirror the native plugin GitHub Actions release job:
 Environment:
   LIBBUN_RELEASE_SKIP_NATIVE_TEST=1   skip native adapter integration tests
   LIBBUN_RELEASE_OUT_DIR=<path>       override generated test asset directory
+  LIBBUN_NATIVE_RUNTIME_MODE=<mode>   override runtime mode, for example in-process
 USAGE
 }
 
@@ -74,12 +75,12 @@ case "$(uname -s)" in
   Linux)
     plugin_name="liblibbun_plugin_native.so"
     helper_name="libbun-runtime-native"
-    runtime_mode="helper-process"
+    runtime_mode="${LIBBUN_NATIVE_RUNTIME_MODE:-helper-process}"
     ;;
   Darwin)
     plugin_name="liblibbun_plugin_native.dylib"
     helper_name=""
-    runtime_mode="in-process"
+    runtime_mode="${LIBBUN_NATIVE_RUNTIME_MODE:-in-process}"
     ;;
   *)
     echo "unsupported native plugin preflight OS: $(uname -s)" >&2
@@ -87,9 +88,28 @@ case "$(uname -s)" in
     ;;
 esac
 
+case "$runtime_mode" in
+  in-process|helper-process) ;;
+  *)
+    echo "unsupported native plugin preflight runtime mode: $runtime_mode" >&2
+    exit 2
+    ;;
+esac
+
+if [[ "$(uname -s)" == "Linux" && "$runtime_mode" == "in-process" ]]; then
+  echo "==> preflight ${release_version}: fetch Linux PIC WebKit inputs"
+  base_manifest="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}/libbun_native_link_manifest.txt"
+  pic_manifest="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}/libbun_native_link_manifest.pic.txt"
+  scripts/fetch-webkit-pic-artifact.sh --manifest "$base_manifest" --out "$pic_manifest"
+  export LIBBUN_NATIVE_LINK_MANIFEST="$pic_manifest"
+  scripts/inspect-linux-native-relocations.sh "$LIBBUN_NATIVE_LINK_MANIFEST"
+fi
+
 echo "==> preflight ${release_version}: build native plugin"
 if [[ "$runtime_mode" == "helper-process" ]]; then
   cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+elif [[ "$(uname -s)" == "Linux" ]]; then
+  LIBBUN_NATIVE_LINK_BUN=1 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
 else
   LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 fi
@@ -142,7 +162,7 @@ out_dir="${LIBBUN_RELEASE_OUT_DIR:-"$repo_root/dist/native-plugin-preflight/${re
 rm -rf "$out_dir"
 
 echo "==> preflight ${release_version}: package release assets"
-LIBBUN_NATIVE_HELPER_BINARY="$helper_path" scripts/package-native-plugin-release.sh "$release_version" "$plugin_path" "$out_dir"
+LIBBUN_NATIVE_RUNTIME_MODE="$runtime_mode" LIBBUN_NATIVE_HELPER_BINARY="$helper_path" scripts/package-native-plugin-release.sh "$release_version" "$plugin_path" "$out_dir"
 
 echo "==> preflight ${release_version}: verify generated inventory"
 python3 -m json.tool "$out_dir/libbun-plugin-native-${release_version}-licenses.json" >/dev/null

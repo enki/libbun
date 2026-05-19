@@ -33,11 +33,8 @@ architecture:
 - two missing link requirements were identified: Linux `libubsan` for PIC debug
   WebKit inputs and Bun's `bun_platform` shims such as `sys_epoll_pwait2`.
 
-That is enough to reopen the in-process Linux strategy. It is not yet enough to
-retire the helper bundle or publish Linux assets as generally supported,
-because x86_64 is unproven, the WebKit PIC artifacts are currently Actions
-artifacts rather than durable release inputs, and the passing arm64 smoke test
-still emitted a shutdown-time `mimalloc` invalid-pointer diagnostic.
+That was enough to reopen the in-process Linux strategy, but not enough to
+retire the helper bundle or publish Linux assets as generally supported.
 
 The intended WebKit source for this work is the `enki/WebKit` fork's
 `libbun-pic-5488984d` branch, not a fresh ad hoc WebKit build inside the
@@ -59,6 +56,21 @@ durable `enki/WebKit` release tag
 native link manifest reproducibly. `.github/workflows/verify-linux-pic-plugin.yml`
 is the non-publishing CI lane for proving both Linux targets before release
 promotion.
+
+On 2026-05-19, libbun workflow run `26085651709` proved the current pinned
+WebKit PIC inputs on both Linux targets. The lane passed native relocation
+inspection, explicit `lld` plugin linking, dynamic loader smoke, facade
+conformance, `mimalloc` diagnostic checks, and artifact upload for:
+
+```text
+x86_64-unknown-linux-gnu
+aarch64-unknown-linux-gnu
+```
+
+That proves the in-process runtime shape is viable on the mature Linux matrix.
+The remaining work is to make the publishing lane and release/compliance
+artifacts enforce the same constraints, including replacement-build
+verification from released source inputs.
 
 Future WebKit PIC updates should follow the same producer/consumer split:
 develop and build PIC WebKit in `enki/WebKit`; use Actions artifacts only for
@@ -300,15 +312,15 @@ Release under the normal target tarball names until all promotion gates pass.
 
 ## Execution Plan
 
-The current repository is close to the right shape, but several pieces still
-encode helper-backed Linux as the only releasable Linux mode:
+The current repository is close to the right shape. Earlier revisions encoded
+helper-backed Linux as the only releasable Linux mode:
 
-- `.github/workflows/release-native-plugin.yml` sets both Linux matrix rows to
+- `.github/workflows/release-native-plugin.yml` set both Linux matrix rows to
   `runtime_mode: helper-process`;
-- `scripts/package-native-plugin-release.sh` treats every `*-linux-gnu`
-  package as `helper-process` and requires `LIBBUN_NATIVE_HELPER_BINARY`;
-- `scripts/verify-release-assets.sh` already expects Linux target tarballs by
-  default, but it does not distinguish helper-backed from in-process bundle
+- `scripts/package-native-plugin-release.sh` treated every `*-linux-gnu`
+  package as `helper-process` and required `LIBBUN_NATIVE_HELPER_BINARY`;
+- `scripts/verify-release-assets.sh` already expected Linux target tarballs by
+  default, but did not distinguish helper-backed from in-process bundle
   contents;
 - the source/compliance package records the native link manifest, but does not
   yet record WebKit PIC artifact identity as a first class input.
@@ -351,6 +363,9 @@ Exit criteria:
 - no libbun workflow depends on expiring Actions artifact IDs;
 - libbun release jobs do not clone or build the full WebKit repository.
 
+Current status: complete for the pinned `libbun-webkit-pic-5488984d-20260519`
+snapshot.
+
 ### Phase 2: Add a libbun WebKit PIC Input Resolver
 
 Add a small script or release-step helper that installs the pinned WebKit PIC
@@ -372,6 +387,9 @@ Exit criteria:
 
 - the current arm64 `smolvm` manifest rewrite can be reproduced by one script;
 - the same script can run in CI for both Linux targets.
+
+Current status: complete. `scripts/fetch-webkit-pic-artifact.sh` downloads,
+verifies, extracts, rewrites the manifest, and records metadata.
 
 ### Phase 3: Prove x86_64 Locally or in a Non-Publishing CI Lane
 
@@ -401,11 +419,14 @@ Exit criteria:
 - any x86_64-only linker/runtime failures are captured in
   `docs/LIBBUN-LINUX-NATIVE-RELOCATION-DIAGNOSTICS.md`.
 
+Current status: complete. Workflow run `26085651709` passed on
+`x86_64-unknown-linux-gnu`.
+
 ### Phase 4: Add Experimental In-Process Linux CI Lanes
 
 Add non-publishing Linux in-process lanes beside the helper-backed lanes.
 
-Required work in `.github/workflows/release-native-plugin.yml`:
+Required work in the non-publishing proof workflow:
 
 - add matrix rows with `runtime_mode: in-process` for both Linux targets;
 - install `lld` explicitly and set the Linux in-process linker flags
@@ -424,6 +445,11 @@ Exit criteria:
 
 - both Linux in-process CI rows are green;
 - helper-backed rows remain available until the promotion decision is made.
+
+Current status: complete for the proof workflow. Run `26085651709` passed both
+Linux targets. The release workflow has been updated to consume the same
+pinned WebKit PIC inputs and publish in-process Linux target tarballs, but it
+still needs a tagged-release run before this ADR can be closed.
 
 ### Phase 5: Expand Runtime and Replacement Verification
 
@@ -444,6 +470,11 @@ Exit criteria:
 - both Linux targets pass smoke, conformance, shutdown, and replacement checks;
 - the result is not dependent on sibling checkouts or local-only artifact
   paths.
+
+Current status: partially complete. Smoke, conformance, shutdown diagnostic
+checks, and no-sibling plugin loading are green in the proof workflow.
+Replacement-build verification still needs to be proven from the actual
+release source/compliance bundle, not only from the checked-out source tree.
 
 ### Phase 6: Update Packaging for In-Process Linux
 
@@ -480,6 +511,13 @@ Exit criteria:
 - the release verifier rejects missing metadata, missing checksums, or an
   unexpected helper/runtime-mode mismatch.
 
+Current status: complete except for validation by a tagged release run.
+Packaging now accepts explicit runtime mode, allows Linux in-process bundles
+without a helper, and records WebKit PIC metadata in bundle/source/license
+assets. The release verifier opens target tarballs and rejects missing bundle
+metadata, missing plugin files, unsupported runtime modes, helper declarations
+in in-process bundles, and missing helpers in helper-process bundles.
+
 ### Phase 7: Promote and Retire Helper as the Default
 
 Only after phases 1 through 6 pass should the release workflow switch the
@@ -496,6 +534,11 @@ Required work:
   longer the default release implementation;
 - keep helper-backed code only if there is an explicit maintenance reason, such
   as fallback diagnostics or older-release support.
+
+Current status: in progress. The release workflow's default Linux rows now use
+`runtime_mode: in-process` and no longer build the helper for those rows. A
+tagged release must still prove asset publication and release verification
+before helper-backed Linux can be documented as retired from the default path.
 
 Exit criteria:
 

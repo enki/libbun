@@ -115,24 +115,26 @@ The consumer contract is the same on every platform:
 consumer app -> LIBBUN_PLUGIN_PATH, build-time plugin, or libbun release cache -> native plugin
 ```
 
-The implementation behind that plugin differs by platform today:
+The implementation behind that plugin is recorded in
+`libbun-native-bundle.json`:
 
 ```text
 macOS:
 consumer app -> dynamically loaded .dylib -> in-process Bun/JSC/WebKit
 
-Linux:
+Linux in-process releases:
+consumer app -> dynamically loaded .so -> in-process Bun/JSC/WebKit
+
+Older Linux helper-backed releases:
 consumer app -> dynamically loaded .so -> helper process -> Bun/JSC/WebKit
 ```
 
-Linux tarballs contain both `liblibbun_plugin_native.so` and
-`libbun-runtime-native`, plus `libbun-native-bundle.json`. Hosts still point
-`LIBBUN_PLUGIN_PATH` at the `.so`; the plugin starts the helper. To test or
-replace a modified helper build, set `LIBBUN_RUNTIME_NATIVE_PATH` to the helper
-executable path. The helper process is a current Linux implementation detail,
-not a downstream API commitment. If Linux later gains suitable PIC
-WebKit/JSC/WTF inputs, the Linux tarball can switch to an in-process plugin
-without changing facade code or `LIBBUN_PLUGIN_PATH` setup.
+Linux in-process tarballs contain `liblibbun_plugin_native.so` plus
+`libbun-native-bundle.json`; helper-backed tarballs also contain
+`libbun-runtime-native`. Hosts always point `LIBBUN_PLUGIN_PATH` at the `.so`.
+For older helper-backed bundles, set `LIBBUN_RUNTIME_NATIVE_PATH` only when
+testing or replacing a modified helper build. The helper process is an
+implementation detail of those releases, not a downstream API commitment.
 
 Hosts should prefer `libbun::release::resolve_native_plugin()` or
 `DynamicBunRuntime::initialize(...)` so they can honor `LIBBUN_PLUGIN_PATH`, the
@@ -292,8 +294,21 @@ scripts/prepare-native-bun-link.sh
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 ```
 
-Build the Linux helper-backed bundle after preparing the same native link
-manifest:
+Build the Linux in-process plugin with PIC WebKit inputs:
+
+```sh
+scripts/prepare-native-bun-link.sh
+scripts/fetch-webkit-pic-artifact.sh --target x86_64-unknown-linux-gnu \
+  --manifest vendor/bun/build/debug/libbun_native_link_manifest.txt \
+  --out vendor/bun/build/debug/libbun_native_link_manifest.pic.txt
+LIBBUN_NATIVE_LINK_MANIFEST=vendor/bun/build/debug/libbun_native_link_manifest.pic.txt \
+  LIBBUN_NATIVE_LINK_BUN=1 \
+  RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
+  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+```
+
+Older helper-backed Linux bundles can still be built after preparing the same
+native link manifest:
 
 ```sh
 scripts/prepare-native-bun-link.sh
@@ -321,6 +336,10 @@ Before creating a release tag, run the local preflight:
 ```sh
 scripts/preflight-native-plugin-release.sh v0.1.2
 ```
+
+On Linux, set `LIBBUN_NATIVE_RUNTIME_MODE=in-process` to preflight the PIC
+single-plugin release path. Without that override, the preflight keeps the
+older helper-backed path available for diagnostics.
 
 After the preflight passes, commit the release changes and push the annotated
 release tag:

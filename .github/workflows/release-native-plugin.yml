@@ -30,18 +30,22 @@ jobs:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             plugin_name: liblibbun_plugin_native.so
-            runtime_mode: helper-process
-            helper_name: libbun-runtime-native
+            runtime_mode: in-process
+            helper_name: ""
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             plugin_name: liblibbun_plugin_native.so
-            runtime_mode: helper-process
-            helper_name: libbun-runtime-native
+            runtime_mode: in-process
+            helper_name: ""
     env:
       LIBBUN_NATIVE_BUILD_JOBS: "8"
       LIBBUN_NATIVE_BUN_BUILD_DIR: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}
       LIBBUN_NATIVE_LINK_MANIFEST: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}/libbun_native_link_manifest.txt
       BUN_CODEGEN_DIR: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}/codegen
+      LIBBUN_WEBKIT_PIC_REPO: enki/WebKit
+      LIBBUN_WEBKIT_PIC_TAG: libbun-webkit-pic-5488984d-20260519
+      LIBBUN_WEBKIT_PIC_TARGET: ${{ matrix.target }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,13 +78,32 @@ jobs:
 
       - name: Prepare native Bun link manifest
         run: |
-          LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST=1 scripts/prepare-native-bun-link.sh
+          base_manifest="$LIBBUN_NATIVE_BUN_BUILD_DIR/libbun_native_link_manifest.txt"
+          LIBBUN_NATIVE_LINK_MANIFEST="$base_manifest" LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST=1 scripts/prepare-native-bun-link.sh
+          if [[ "${{ runner.os }}" == "Linux" && "${{ matrix.runtime_mode }}" == "in-process" ]]; then
+            pic_manifest="$LIBBUN_NATIVE_BUN_BUILD_DIR/libbun_native_link_manifest.pic.txt"
+            scripts/fetch-webkit-pic-artifact.sh \
+              --target "${{ matrix.target }}" \
+              --manifest "$base_manifest" \
+              --out "$pic_manifest"
+            echo "LIBBUN_NATIVE_LINK_MANIFEST=$pic_manifest" >> "$GITHUB_ENV"
+          fi
           df -h /
+
+      - name: Inspect Linux native relocations
+        if: runner.os == 'Linux' && matrix.runtime_mode == 'in-process'
+        run: scripts/inspect-linux-native-relocations.sh "$LIBBUN_NATIVE_LINK_MANIFEST"
 
       - name: Build native plugin
         run: |
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
             CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+          elif [[ "${{ runner.os }}" == "Linux" ]]; then
+            LIBBUN_NATIVE_LINK_BUN=1 \
+            CARGO_INCREMENTAL=0 \
+            CARGO_PROFILE_DEV_DEBUG=0 \
+            RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
+            cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
           else
             LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
           fi
@@ -99,14 +122,24 @@ jobs:
             helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
             test -n "$helper_path"
           fi
-          LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
-            cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-smoke.log
+          if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
+            env LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
+              cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-smoke.log
+          else
+            env -u LIBBUN_RUNTIME_NATIVE_PATH LIBBUN_PLUGIN_PATH="$plugin_path" \
+              cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-smoke.log
+          fi
           if grep -q "mimalloc: error" /tmp/libbun-dynamic-plugin-smoke.log; then
             echo "dynamic plugin smoke emitted a mimalloc diagnostic" >&2
             exit 1
           fi
-          LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
-            cargo test --features dynamic-loading dynamic_plugin_facade_conformance -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-conformance.log
+          if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
+            env LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
+              cargo test --features dynamic-loading dynamic_plugin_facade_conformance -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-conformance.log
+          else
+            env -u LIBBUN_RUNTIME_NATIVE_PATH LIBBUN_PLUGIN_PATH="$plugin_path" \
+              cargo test --features dynamic-loading dynamic_plugin_facade_conformance -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-conformance.log
+          fi
           if grep -q "mimalloc: error" /tmp/libbun-dynamic-plugin-conformance.log; then
             echo "dynamic plugin conformance emitted a mimalloc diagnostic" >&2
             exit 1
@@ -127,7 +160,29 @@ jobs:
               exit 1
             fi
           else
-            LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 check --manifest-path plugin/Cargo.toml
+            replacement_target="$(mktemp -d)"
+            if [[ "${{ runner.os }}" == "Linux" ]]; then
+              LIBBUN_NATIVE_LINK_BUN=1 \
+              CARGO_TARGET_DIR="$replacement_target" \
+              CARGO_INCREMENTAL=0 \
+              CARGO_PROFILE_DEV_DEBUG=0 \
+              RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
+              cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+            else
+              LIBBUN_NATIVE_LINK_BUN=1 \
+              CARGO_TARGET_DIR="$replacement_target" \
+              CARGO_INCREMENTAL=0 \
+              CARGO_PROFILE_DEV_DEBUG=0 \
+              cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+            fi
+            replacement_plugin="$(find "$replacement_target/debug" -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+            test -n "$replacement_plugin"
+            env -u LIBBUN_RUNTIME_NATIVE_PATH LIBBUN_PLUGIN_PATH="$replacement_plugin" \
+              cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee /tmp/libbun-replacement-plugin-smoke.log
+            if grep -q "mimalloc: error" /tmp/libbun-replacement-plugin-smoke.log; then
+              echo "replacement plugin smoke emitted a mimalloc diagnostic" >&2
+              exit 1
+            fi
           fi
 
       - name: Package release assets
@@ -138,7 +193,9 @@ jobs:
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
             helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
           fi
-          LIBBUN_NATIVE_HELPER_BINARY="$helper_path" scripts/package-native-plugin-release.sh "$version" "$plugin_path" "dist/native-plugin-${{ matrix.target }}"
+          LIBBUN_NATIVE_RUNTIME_MODE="${{ matrix.runtime_mode }}" \
+          LIBBUN_NATIVE_HELPER_BINARY="$helper_path" \
+            scripts/package-native-plugin-release.sh "$version" "$plugin_path" "dist/native-plugin-${{ matrix.target }}"
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

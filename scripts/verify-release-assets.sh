@@ -5,6 +5,14 @@ version=""
 asset_dir=""
 repo="${LIBBUN_RELEASE_REPO:-enki/libbun}"
 targets=()
+tmpdir=""
+
+cleanup() {
+  if [[ -n "$tmpdir" ]]; then
+    rm -rf "$tmpdir"
+  fi
+}
+trap cleanup EXIT
 
 usage() {
   cat >&2 <<'USAGE'
@@ -79,9 +87,13 @@ else
     echo "missing required command for GitHub release verification: gh" >&2
     exit 2
   fi
+  tmpdir="$(mktemp -d)"
+  asset_dir="$tmpdir/assets"
+  mkdir -p "$asset_dir"
+  gh release download "$release_version" --repo "$repo" --dir "$asset_dir" --clobber
   while IFS= read -r asset; do
-    assets+=("$asset")
-  done < <(gh release view "$release_version" --repo "$repo" --json assets --jq '.assets[].name' | sort)
+    assets+=("$(basename "$asset")")
+  done < <(find "$asset_dir" -maxdepth 1 -type f -print | sort)
 fi
 
 has_asset() {
@@ -126,6 +138,58 @@ if [[ -n "$asset_dir" ]]; then
       echo "checksum file does not list $asset" >&2
       exit 1
     fi
+  done
+
+  if ! command -v zstd >/dev/null 2>&1; then
+    echo "missing required command for release tarball verification: zstd" >&2
+    exit 2
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "missing required command for bundle metadata verification: python3" >&2
+    exit 2
+  fi
+
+  for target in "${targets[@]}"; do
+    archive="$asset_dir/libbun-plugin-native-${release_version}-${target}.tar.zst"
+    extract_dir="$(mktemp -d)"
+    zstd -dc "$archive" | tar -C "$extract_dir" -xf -
+    bundle="$extract_dir/libbun-native-bundle.json"
+    if [[ ! -f "$bundle" ]]; then
+      echo "$archive does not contain libbun-native-bundle.json" >&2
+      exit 1
+    fi
+    python3 - "$bundle" "$target" <<'PY'
+import json
+import pathlib
+import sys
+
+bundle = pathlib.Path(sys.argv[1])
+expected_target = sys.argv[2]
+root = bundle.parent
+data = json.loads(bundle.read_text())
+
+target = data.get("target")
+if target != expected_target:
+    raise SystemExit(f"bundle target {target!r} did not match {expected_target!r}")
+
+plugin = data.get("plugin") or {}
+plugin_name = plugin.get("filename")
+if not plugin_name or not (root / plugin_name).is_file():
+    raise SystemExit(f"bundle plugin file is missing: {plugin_name!r}")
+
+runtime_mode = data.get("runtimeMode")
+helper = data.get("helper")
+if runtime_mode == "in-process":
+    if helper is not None:
+        raise SystemExit("in-process bundle unexpectedly declares a helper")
+elif runtime_mode == "helper-process":
+    helper_name = (helper or {}).get("filename")
+    if not helper_name or not (root / helper_name).is_file():
+        raise SystemExit(f"helper-process bundle helper file is missing: {helper_name!r}")
+else:
+    raise SystemExit(f"unsupported runtimeMode: {runtime_mode!r}")
+PY
+    rm -rf "$extract_dir"
   done
 fi
 

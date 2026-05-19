@@ -181,11 +181,22 @@ source module loading, prepared bundle loading, sync and async exports,
 structured provider errors, captured output/log handling, host environment
 overlays, Rust-substrate provider rejection, and deterministic shutdown.
 
-This means PIC WebKit artifacts can make the Linux in-process dynamic plugin
-viable at least on arm64. Linux release publication still needs the full
-promotion gate set, including replacement-build verification and
-packaging/release promotion before replacing the helper-backed Linux bundle as
-the default release shape.
+GitHub Actions run `26085651709` then proved the same PIC input strategy on
+both mature Linux targets:
+
+```text
+x86_64-unknown-linux-gnu
+aarch64-unknown-linux-gnu
+```
+
+Both jobs passed relocation inspection, explicit `lld` shared-object linking,
+dynamic loader smoke, facade conformance, `mimalloc` diagnostic greps, and
+artifact upload. This means PIC WebKit artifacts can make the Linux
+in-process dynamic plugin viable on the full intended Linux matrix. Linux
+release publication still needs the tagged release lane to pass with the same
+constraints, including replacement-build verification and packaging/release
+promotion before replacing the helper-backed Linux bundle as the default
+release shape.
 
 `scripts/fetch-webkit-pic-artifact.sh` now makes the WebKit PIC input step
 reproducible: it downloads the pinned `enki/WebKit` release asset, verifies the

@@ -6,6 +6,7 @@ version="${1:-${GITHUB_REF_NAME:-}}"
 plugin_binary="${2:-}"
 out_dir="${3:-"$repo_root/dist/native-plugin"}"
 helper_binary="${LIBBUN_NATIVE_HELPER_BINARY:-${4:-}}"
+runtime_mode="${LIBBUN_NATIVE_RUNTIME_MODE:-}"
 
 if [[ -z "$version" ]]; then
   echo "usage: $0 <version> <plugin-binary> [out-dir]" >&2
@@ -69,23 +70,42 @@ case "$build_dir" in
   *) build_dir="$repo_root/$build_dir" ;;
 esac
 manifest="${LIBBUN_NATIVE_LINK_MANIFEST:-"$build_dir/libbun_native_link_manifest.txt"}"
+webkit_pic_metadata="${LIBBUN_WEBKIT_PIC_METADATA:-"$build_dir/libbun_webkit_pic_artifact.json"}"
 
 if [[ ! -f "$manifest" ]]; then
   echo "native link manifest not found: $manifest" >&2
   exit 2
 fi
 
-runtime_mode="in-process"
-case "$platform" in
-  *-linux-gnu)
-    runtime_mode="helper-process"
+if [[ -z "$runtime_mode" ]]; then
+  runtime_mode="in-process"
+  case "$platform" in
+    *-linux-gnu) runtime_mode="helper-process" ;;
+  esac
+fi
+
+case "$runtime_mode" in
+  in-process)
+    helper_binary=""
+    helper_checksum=""
+    ;;
+  helper-process)
     if [[ -z "$helper_binary" || ! -f "$helper_binary" ]]; then
-      echo "Linux native plugin packages require LIBBUN_NATIVE_HELPER_BINARY or a fourth helper-binary argument" >&2
+      echo "helper-process native plugin packages require LIBBUN_NATIVE_HELPER_BINARY or a fourth helper-binary argument" >&2
       exit 2
     fi
     helper_checksum="$(sha256 "$helper_binary")"
     ;;
+  *)
+    echo "unsupported native runtime mode: $runtime_mode" >&2
+    exit 2
+    ;;
 esac
+
+webkit_pic_metadata_name=""
+if [[ -f "$webkit_pic_metadata" ]]; then
+  webkit_pic_metadata_name="libbun-webkit-pic-artifact.json"
+fi
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
@@ -98,7 +118,10 @@ cp "$plugin_binary" "$binary_stage/"
 if [[ -n "$helper_binary" ]]; then
   cp "$helper_binary" "$binary_stage/"
 fi
-python3 - "$binary_stage/libbun-native-bundle.json" "$platform" "$runtime_mode" "$release_version" "$git_commit" "$bun_commit" "$(basename "$plugin_binary")" "$plugin_checksum" "${helper_binary:+$(basename "$helper_binary")}" "$helper_checksum" <<'PY'
+if [[ -n "$webkit_pic_metadata_name" ]]; then
+  cp "$webkit_pic_metadata" "$binary_stage/$webkit_pic_metadata_name"
+fi
+python3 - "$binary_stage/libbun-native-bundle.json" "$platform" "$runtime_mode" "$release_version" "$git_commit" "$bun_commit" "$(basename "$plugin_binary")" "$plugin_checksum" "${helper_binary:+$(basename "$helper_binary")}" "$helper_checksum" "$webkit_pic_metadata_name" <<'PY'
 import json
 import pathlib
 import sys
@@ -114,7 +137,8 @@ import sys
     plugin_checksum,
     helper_name,
     helper_checksum,
-) = sys.argv[1:11]
+    webkit_pic_metadata,
+) = sys.argv[1:12]
 
 bundle = {
     "target": target,
@@ -129,6 +153,7 @@ bundle = {
         "sha256": plugin_checksum,
     },
     "helper": None,
+    "nativeInputMetadata": webkit_pic_metadata or None,
     "sourceArchive": f"libbun-plugin-native-{release_version}-source.tar.zst",
     "noticeFile": f"libbun-plugin-native-{release_version}-NOTICE.txt",
     "licenseInventory": f"libbun-plugin-native-{release_version}-licenses.json",
@@ -151,7 +176,46 @@ git -C "$repo_root" archive --format=tar --prefix="libbun-${release_version}/" H
   tar -C "$tmpdir/source" -xf -
 mkdir -p "$source_stage/release"
 cp "$manifest" "$source_stage/release/libbun-native-link-manifest.txt"
+if [[ -n "$webkit_pic_metadata_name" ]]; then
+  cp "$webkit_pic_metadata" "$source_stage/release/$webkit_pic_metadata_name"
+fi
 tar -C "$tmpdir/source" -cf - "libbun-${release_version}" | zstd -19 -q -o "$source_asset"
+
+if [[ "$runtime_mode" == "helper-process" ]]; then
+  linux_runtime_notice="On Linux, the plugin asset is a native runtime bundle. The host still loads the
+plugin dynamically through LIBBUN_PLUGIN_PATH; the plugin then starts the
+replaceable libbun-runtime-native helper described by libbun-native-bundle.json."
+  runtime_build_notes="For Linux helper-backed bundle builds, build the plugin without
+LIBBUN_NATIVE_LINK_BUN and build the helper executable with:
+
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
+
+Host applications must keep the plugin replaceable. Users can build a modified
+compatible plugin from the corresponding source and configure the host to load
+that replacement path. On Linux, users can also replace the helper executable
+next to the plugin or set LIBBUN_RUNTIME_NATIVE_PATH."
+else
+  linux_runtime_notice="On Linux in-process releases, the host loads the plugin dynamically through
+LIBBUN_PLUGIN_PATH and the plugin embeds Bun/JSC/WebKit in the host process.
+The plugin remains replaceable by user-controlled path or configuration."
+  if [[ -n "$webkit_pic_metadata_name" ]]; then
+    runtime_build_notes="For Linux in-process plugin builds, set LIBBUN_NATIVE_LINK_BUN=1, use the
+plugin crate's linux-in-process feature, and generate a PIC WebKit manifest
+from the pinned WebKit PIC release input:
+
+  scripts/fetch-webkit-pic-artifact.sh --target ${platform} --manifest <base-manifest> --out <pic-manifest>
+  LIBBUN_NATIVE_LINK_MANIFEST=<pic-manifest> LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process"
+  else
+    runtime_build_notes="For in-process plugin builds, set LIBBUN_NATIVE_LINK_BUN=1 when building
+plugin/Cargo.toml."
+  fi
+
+  runtime_build_notes="${runtime_build_notes}
+
+Host applications must keep the plugin replaceable. Users can build a modified
+compatible plugin from the corresponding source and configure the host to load
+that replacement path."
+fi
 
 cat > "$notice_asset" <<NOTICE
 libbun native plugin ${release_version}
@@ -174,12 +238,10 @@ Users may replace this plugin with an interface-compatible modified build by
 building the source archive and configuring the host application to load that
 replacement plugin path.
 
-On Linux, the plugin asset is a native runtime bundle. The host still loads the
-plugin dynamically through LIBBUN_PLUGIN_PATH; the plugin then starts the
-replaceable libbun-runtime-native helper described by libbun-native-bundle.json.
+${linux_runtime_notice}
 NOTICE
 
-python3 - "$repo_root" "$manifest" "$inventory_asset" "$release_version" "$git_commit" "$bun_commit" "$plugin_binary" "$plugin_checksum" "$platform" "$runtime_mode" "$helper_binary" "$helper_checksum" <<'PY'
+python3 - "$repo_root" "$manifest" "$inventory_asset" "$release_version" "$git_commit" "$bun_commit" "$plugin_binary" "$plugin_checksum" "$platform" "$runtime_mode" "$helper_binary" "$helper_checksum" "$webkit_pic_metadata_name" <<'PY'
 import json
 import pathlib
 import sys
@@ -187,7 +249,7 @@ import sys
 repo = pathlib.Path(sys.argv[1])
 manifest = pathlib.Path(sys.argv[2])
 out = pathlib.Path(sys.argv[3])
-release_version, git_commit, bun_commit, plugin_binary, checksum, platform, runtime_mode, helper_binary, helper_checksum = sys.argv[4:13]
+release_version, git_commit, bun_commit, plugin_binary, checksum, platform, runtime_mode, helper_binary, helper_checksum, webkit_pic_metadata = sys.argv[4:14]
 
 manifest_entries = []
 for line in manifest.read_text().splitlines():
@@ -209,6 +271,7 @@ inventory = {
     "pluginSha256": checksum,
     "helperBinary": pathlib.Path(helper_binary).name if helper_binary else None,
     "helperSha256": helper_checksum or None,
+    "nativeInputMetadata": f"release/{webkit_pic_metadata}" if webkit_pic_metadata else None,
     "bundleMetadata": "libbun-native-bundle.json",
     "sourceArchive": f"libbun-plugin-native-{release_version}-source.tar.zst",
     "noticeFile": f"libbun-plugin-native-{release_version}-NOTICE.txt",
@@ -239,7 +302,7 @@ inventory = {
         "noticesAndLicenses": "<same GitHub Release NOTICE and licenses.json URLs>",
         "checksums": "<same GitHub Release checksums URL>",
         "replacement": "Configure the host application to load an interface-compatible replacement plugin.",
-        "linuxHelperReplacement": "On Linux, replace the helper next to the plugin or set LIBBUN_RUNTIME_NATIVE_PATH.",
+        "linuxHelperReplacement": "For helper-process Linux bundles, replace the helper next to the plugin or set LIBBUN_RUNTIME_NATIVE_PATH.",
     },
 }
 
@@ -271,24 +334,19 @@ contains the libbun source tree at the release commit and the native link
 manifest used by the plugin build at:
 
   release/libbun-native-link-manifest.txt
+${webkit_pic_metadata_name:+
+For Linux PIC in-process builds, it also contains the pinned WebKit PIC release
+input metadata at:
+
+  release/${webkit_pic_metadata_name}
+}
 
 Build outline:
 
   scripts/prepare-native-bun-link.sh
   cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 
-For macOS in-process plugin builds, set LIBBUN_NATIVE_LINK_BUN=1 when building
-plugin/Cargo.toml.
-
-For Linux helper-backed bundle builds, build the plugin without
-LIBBUN_NATIVE_LINK_BUN and build the helper executable with:
-
-  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
-
-Host applications must keep the plugin replaceable. Users can build a modified
-compatible plugin from the corresponding source and configure the host to load
-that replacement path. On Linux, users can also replace the helper executable
-next to the plugin or set LIBBUN_RUNTIME_NATIVE_PATH.
+${runtime_build_notes}
 SOURCE
 
 (
