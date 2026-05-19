@@ -145,6 +145,18 @@ jobs:
             exit 1
           fi
 
+      - name: Package release assets
+        run: |
+          version="${{ inputs.version || github.ref_name }}"
+          plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+          helper_path=""
+          if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
+            helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
+          fi
+          LIBBUN_NATIVE_RUNTIME_MODE="${{ matrix.runtime_mode }}" \
+          LIBBUN_NATIVE_HELPER_BINARY="$helper_path" \
+            scripts/package-native-plugin-release.sh "$version" "$plugin_path" "dist/native-plugin-${{ matrix.target }}"
+
       - name: Verify replacement plugin build path
         run: |
           set -o pipefail
@@ -162,12 +174,42 @@ jobs:
           else
             replacement_target="$(mktemp -d)"
             if [[ "${{ runner.os }}" == "Linux" ]]; then
+              version="${{ inputs.version || github.ref_name }}"
+              source_asset="dist/native-plugin-${{ matrix.target }}/libbun-plugin-native-${version}-source.tar.zst"
+              replacement_src_root="$(mktemp -d)"
+              zstd -dc "$source_asset" | tar -C "$replacement_src_root" -xf -
+              replacement_src="$(find "$replacement_src_root" -mindepth 1 -maxdepth 1 -type d -name 'libbun-*' -print -quit)"
+              test -n "$replacement_src"
+              replacement_build_dir="$replacement_src/vendor/bun/build/replacement-${{ matrix.target }}"
+              base_manifest="$replacement_build_dir/libbun_native_link_manifest.txt"
+              pic_manifest="$replacement_build_dir/libbun_native_link_manifest.pic.txt"
+              (
+                cd "$replacement_src"
+                LIBBUN_NATIVE_BUN_BUILD_DIR="$replacement_build_dir" \
+                BUN_CODEGEN_DIR="$replacement_build_dir/codegen" \
+                LIBBUN_NATIVE_LINK_MANIFEST="$base_manifest" \
+                LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST=1 \
+                  scripts/prepare-native-bun-link.sh
+                LIBBUN_NATIVE_BUN_BUILD_DIR="$replacement_build_dir" \
+                BUN_CODEGEN_DIR="$replacement_build_dir/codegen" \
+                LIBBUN_WEBKIT_PIC_REPO="$LIBBUN_WEBKIT_PIC_REPO" \
+                LIBBUN_WEBKIT_PIC_TAG="$LIBBUN_WEBKIT_PIC_TAG" \
+                LIBBUN_WEBKIT_PIC_TARGET="${{ matrix.target }}" \
+                  scripts/fetch-webkit-pic-artifact.sh \
+                    --target "${{ matrix.target }}" \
+                    --manifest "$base_manifest" \
+                    --out "$pic_manifest"
+                scripts/inspect-linux-native-relocations.sh "$pic_manifest"
+              )
               LIBBUN_NATIVE_LINK_BUN=1 \
+              LIBBUN_NATIVE_BUN_BUILD_DIR="$replacement_build_dir" \
+              BUN_CODEGEN_DIR="$replacement_build_dir/codegen" \
+              LIBBUN_NATIVE_LINK_MANIFEST="$pic_manifest" \
               CARGO_TARGET_DIR="$replacement_target" \
               CARGO_INCREMENTAL=0 \
               CARGO_PROFILE_DEV_DEBUG=0 \
               RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
-              cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+                cargo +nightly-2026-05-06 build --manifest-path "$replacement_src/plugin/Cargo.toml" --features linux-in-process
             else
               LIBBUN_NATIVE_LINK_BUN=1 \
               CARGO_TARGET_DIR="$replacement_target" \
@@ -184,18 +226,6 @@ jobs:
               exit 1
             fi
           fi
-
-      - name: Package release assets
-        run: |
-          version="${{ inputs.version || github.ref_name }}"
-          plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
-          helper_path=""
-          if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
-            helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
-          fi
-          LIBBUN_NATIVE_RUNTIME_MODE="${{ matrix.runtime_mode }}" \
-          LIBBUN_NATIVE_HELPER_BINARY="$helper_path" \
-            scripts/package-native-plugin-release.sh "$version" "$plugin_path" "dist/native-plugin-${{ matrix.target }}"
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

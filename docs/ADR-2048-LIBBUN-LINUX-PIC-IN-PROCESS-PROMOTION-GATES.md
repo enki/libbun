@@ -471,10 +471,13 @@ Exit criteria:
 - the result is not dependent on sibling checkouts or local-only artifact
   paths.
 
-Current status: partially complete. Smoke, conformance, shutdown diagnostic
-checks, and no-sibling plugin loading are green in the proof workflow.
-Replacement-build verification still needs to be proven from the actual
-release source/compliance bundle, not only from the checked-out source tree.
+Current status: implemented in the release workflow, pending a tagged release
+run. Smoke, conformance, shutdown diagnostic checks, and no-sibling plugin
+loading are green in the proof workflow. The release workflow now packages the
+source archive before replacement verification; Linux in-process rows extract
+that generated source archive, regenerate the Bun native manifest, fetch the
+pinned WebKit PIC release input, inspect relocations, rebuild the plugin from
+the extracted source, and load the replacement through `LIBBUN_PLUGIN_PATH`.
 
 ### Phase 6: Update Packaging for In-Process Linux
 
