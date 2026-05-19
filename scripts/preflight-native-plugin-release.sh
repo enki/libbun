@@ -54,6 +54,13 @@ require zstd
 
 cd "$repo_root"
 
+native_build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}"
+case "$native_build_dir" in
+  /*) ;;
+  *) native_build_dir="$repo_root/$native_build_dir" ;;
+esac
+export BUN_CODEGEN_DIR="${BUN_CODEGEN_DIR:-"$native_build_dir/codegen"}"
+
 echo "==> preflight ${release_version}: facade tests"
 cargo test
 

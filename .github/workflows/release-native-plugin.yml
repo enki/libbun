@@ -41,6 +41,7 @@ jobs:
       LIBBUN_NATIVE_BUILD_JOBS: "8"
       LIBBUN_NATIVE_BUN_BUILD_DIR: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}
       LIBBUN_NATIVE_LINK_MANIFEST: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}/libbun_native_link_manifest.txt
+      BUN_CODEGEN_DIR: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}/codegen
     steps:
       - uses: actions/checkout@v4
 
