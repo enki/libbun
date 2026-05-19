@@ -65,6 +65,10 @@ jobs:
           LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST=1 scripts/prepare-native-bun-link.sh
           df -h /
 
+      - name: Inspect Linux native relocations
+        if: runner.os == 'Linux'
+        run: scripts/inspect-linux-native-relocations.sh
+
       - name: Build native plugin
         run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 

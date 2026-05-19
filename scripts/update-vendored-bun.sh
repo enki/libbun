@@ -48,3 +48,4 @@ cat > "$metadata_file" <<JSON
 JSON
 
 echo "Vendored Bun $commit from $repo_url ($ref)"
+echo "Run scripts/stage-vendored-bun-source.sh before committing the vendored update."

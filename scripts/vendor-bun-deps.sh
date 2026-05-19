@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-bun_dir="$repo_root/vendor/bun"
+bun_dir="${LIBBUN_VENDOR_DIR:-"$repo_root/vendor/bun"}"
 lolhtml_repo="${LOLHTML_UPSTREAM_REPO:-https://github.com/cloudflare/lol-html.git}"
 lolhtml_dir="$bun_dir/vendor/lolhtml"
 

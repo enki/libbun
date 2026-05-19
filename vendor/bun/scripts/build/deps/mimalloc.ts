@@ -12,6 +12,8 @@
 
 import type { Dependency, DirectBuild } from "../source.ts";
 
+const libbunNativePluginPic = process.env.LIBBUN_NATIVE_PLUGIN_PIC === "1";
+
 const MIMALLOC_COMMIT = "f15aecb94fc8096008bf87b90c53ed682026914a";
 
 export const mimalloc: Dependency = {
@@ -106,7 +108,9 @@ export const mimalloc: Dependency = {
     // addons because musl's static TLS block is fixed-size. ELF/Mach-O
     // only — clang-cl doesn't recognize -ftls-model (COFF has no TLS
     // models; mimalloc's cmake gates it behind NOT WIN32 too).
-    if (!cfg.windows) {
+    if (libbunNativePluginPic) {
+      cflags.push("-ftls-model=local-dynamic");
+    } else if (!cfg.windows) {
       cflags.push(cfg.abi === "musl" ? "-ftls-model=local-dynamic" : "-ftls-model=initial-exec");
     }
 

@@ -1,6 +1,6 @@
 # ADR-2042: Linux PIC Native Plugin Inputs
 
-Status: Proposed
+Status: Accepted
 Date: 2026-05-18
 
 ADR-2041 established the desired publication shape for `libbun`: a small
@@ -77,8 +77,11 @@ shared library.
 
 1. Capture the exact failing Linux linker command and all rejected relocation
    sources into a checked-in diagnostic note under `release/` or `docs/`.
+   Current diagnostic note:
+   `docs/LIBBUN-LINUX-NATIVE-RELOCATION-DIAGNOSTICS.md`.
 2. Add a script that inspects Linux native archives for shared-object-hostile
-   relocations before the expensive plugin link.
+   relocations before the expensive plugin link. Current guardrail:
+   `scripts/inspect-linux-native-relocations.sh`.
 3. Identify which build system owns each failing object:
    `vendor/bun` CMake/Ninja output, Bun Rust crates, WebKit cache artifacts, or
    third-party native dependency builds.
@@ -87,7 +90,14 @@ shared library.
 5. If Bun/WebKit already supports PIC-compatible artifacts, add release-script
    configuration for that mode and verify both x86_64 and arm64 Linux.
 6. If not, add a minimal patch set to the vendored build that enables PIC for
-   only the Linux plugin release profile.
+   only the Linux plugin release profile. Current Linux preparation mode:
+   `scripts/prepare-native-bun-link.sh` exports `LIBBUN_NATIVE_PLUGIN_PIC=1`,
+   which switches Bun/WebKit/native dependency flags away from the default
+   static-executable PIC/TLS assumptions for the plugin input build. The
+   vendored Bun changes live in
+   `patches/vendored-bun/0001-add-libbun-native-plugin-pic-build-mode.patch`
+   and are replayed by `scripts/apply-vendored-bun-patches.sh` after
+   re-vendoring.
 7. Re-run Linux x86_64 first, then Linux arm64.
 8. Restore Linux targets to the release matrix and release asset verifier only
    after the link, dynamic loader smoke test, replacement build check, package,

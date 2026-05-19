@@ -1,0 +1,101 @@
+diff --git a/scripts/build/deps/mimalloc.ts b/scripts/build/deps/mimalloc.ts
+index 4683c79..5c3a9f9 100644
+--- a/scripts/build/deps/mimalloc.ts
++++ b/scripts/build/deps/mimalloc.ts
+@@ -12,6 +12,8 @@
+ 
+ import type { Dependency, DirectBuild } from "../source.ts";
+ 
++const libbunNativePluginPic = process.env.LIBBUN_NATIVE_PLUGIN_PIC === "1";
++
+ const MIMALLOC_COMMIT = "f15aecb94fc8096008bf87b90c53ed682026914a";
+ 
+ export const mimalloc: Dependency = {
+@@ -106,7 +108,9 @@ export const mimalloc: Dependency = {
+     // addons because musl's static TLS block is fixed-size. ELF/Mach-O
+     // only — clang-cl doesn't recognize -ftls-model (COFF has no TLS
+     // models; mimalloc's cmake gates it behind NOT WIN32 too).
+-    if (!cfg.windows) {
++    if (libbunNativePluginPic) {
++      cflags.push("-ftls-model=local-dynamic");
++    } else if (!cfg.windows) {
+       cflags.push(cfg.abi === "musl" ? "-ftls-model=local-dynamic" : "-ftls-model=initial-exec");
+     }
+ 
+diff --git a/scripts/build/deps/webkit.ts b/scripts/build/deps/webkit.ts
+index c3978fa..e7dbef3 100644
+--- a/scripts/build/deps/webkit.ts
++++ b/scripts/build/deps/webkit.ts
+@@ -46,6 +46,8 @@ import { computeCpuTargetFlags } from "../flags.ts";
+ import { slash } from "../shell.ts";
+ import { type Dependency, type NestedCmakeBuild, type Source, depBuildDir, depSourceDir } from "../source.ts";
+ 
++const libbunNativePluginPic = process.env.LIBBUN_NATIVE_PLUGIN_PIC === "1";
++
+ // ───────────────────────────────────────────────────────────────────────────
+ // Prebuilt URL computation
+ // ───────────────────────────────────────────────────────────────────────────
+@@ -235,7 +237,13 @@ export const webkit: Dependency = {
+     // -no-pie rides along in CMAKE_C_FLAGS so try_compile() probes link on
+     // PIE-default distros — without it the driver still passes -pie and the
+     // -fno-pic probe object fails R_X86_64_32S relocation, killing FindThreads.
+-    if (cfg.unix && cfg.abi !== "android") optFlags.push("-fno-pic", "-fno-pie", "-no-pie");
++    if (cfg.unix && cfg.abi !== "android") {
++      if (libbunNativePluginPic) {
++        optFlags.push("-fPIC");
++      } else {
++        optFlags.push("-fno-pic", "-fno-pie", "-no-pie");
++      }
++    }
+     if (cfg.lto) optFlags.push("-flto=full");
+     if (cfg.pgoGenerate) optFlags.push(`-fprofile-generate=${cfg.pgoGenerate}`);
+     if (cfg.pgoUse) {
+@@ -308,7 +316,9 @@ export const webkit: Dependency = {
+       // .data.rel.ro. We link -no-pie so this is dead weight in the RW
+       // PT_LOAD. Android (PIE) overrides via the -fPIC in optFlags above
+       // never being suppressed there.
+-      ...(cfg.abi !== "android" ? { CMAKE_POSITION_INDEPENDENT_CODE: "OFF" } : {}),
++      ...(cfg.abi !== "android"
++        ? { CMAKE_POSITION_INDEPENDENT_CODE: libbunNativePluginPic ? "ON" : "OFF" }
++        : {}),
+       PORT: "JSCOnly",
+       ENABLE_STATIC_JSC: "ON",
+       USE_THIN_ARCHIVES: "OFF",
+diff --git a/scripts/build/flags.ts b/scripts/build/flags.ts
+index 443a60d..5ae0090 100644
+--- a/scripts/build/flags.ts
++++ b/scripts/build/flags.ts
+@@ -15,6 +15,8 @@ import { join } from "node:path";
+ import { bunExeName, type Config } from "./config.ts";
+ import { slash } from "./shell.ts";
+ 
++const libbunNativePluginPic = process.env.LIBBUN_NATIVE_PLUGIN_PIC === "1";
++
+ export type FlagValue = string | string[] | ((cfg: Config) => string | string[]);
+ 
+ export interface Flag {
+@@ -531,9 +533,14 @@ export const bunOnlyFlags: Flag[] = [
+   },
+   {
+     flag: ["-fno-pic", "-fno-pie"],
+-    when: c => c.unix && c.abi !== "android",
++    when: c => c.unix && c.abi !== "android" && !libbunNativePluginPic,
+     desc: "No position-independent code (we're a final executable)",
+   },
++  {
++    flag: "-fPIC",
++    when: c => c.unix && c.abi !== "android" && libbunNativePluginPic,
++    desc: "Position-independent code for libbun native plugin shared-object inputs",
++  },
+   {
+     flag: "-fPIC",
+     when: c => c.abi === "android",
+@@ -941,7 +948,7 @@ export const linkerFlags: Flag[] = [
+   },
+   {
+     flag: ["-fno-pic", "-Wl,-no-pie"],
+-    when: c => c.linux && c.abi !== "android",
++    when: c => c.linux && c.abi !== "android" && !libbunNativePluginPic,
+     desc: "No PIE (we don't need ASLR; simpler codegen)",
+   },
+   {

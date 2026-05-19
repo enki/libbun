@@ -8,6 +8,10 @@ archive="$build_dir/libbun_native_objects.a"
 objects_file="$build_dir/libbun_native_objects.txt"
 manifest="$build_dir/libbun_native_link_manifest.txt"
 
+if [[ "$(uname -s)" == "Linux" ]]; then
+  export LIBBUN_NATIVE_PLUGIN_PIC="${LIBBUN_NATIVE_PLUGIN_PIC:-1}"
+fi
+
 "$repo_root/scripts/configure-vendored-bun.sh" --profile=debug-no-asan >&2
 ninja -C "$build_dir" bun -j"${LIBBUN_NATIVE_BUILD_JOBS:-8}" >&2
 

@@ -15,6 +15,8 @@ import { join } from "node:path";
 import { bunExeName, type Config } from "./config.ts";
 import { slash } from "./shell.ts";
 
+const libbunNativePluginPic = process.env.LIBBUN_NATIVE_PLUGIN_PIC === "1";
+
 export type FlagValue = string | string[] | ((cfg: Config) => string | string[]);
 
 export interface Flag {
@@ -531,8 +533,13 @@ export const bunOnlyFlags: Flag[] = [
   },
   {
     flag: ["-fno-pic", "-fno-pie"],
-    when: c => c.unix && c.abi !== "android",
+    when: c => c.unix && c.abi !== "android" && !libbunNativePluginPic,
     desc: "No position-independent code (we're a final executable)",
+  },
+  {
+    flag: "-fPIC",
+    when: c => c.unix && c.abi !== "android" && libbunNativePluginPic,
+    desc: "Position-independent code for libbun native plugin shared-object inputs",
   },
   {
     flag: "-fPIC",
@@ -941,7 +948,7 @@ export const linkerFlags: Flag[] = [
   },
   {
     flag: ["-fno-pic", "-Wl,-no-pie"],
-    when: c => c.linux && c.abi !== "android",
+    when: c => c.linux && c.abi !== "android" && !libbunNativePluginPic,
     desc: "No PIE (we don't need ASLR; simpler codegen)",
   },
   {

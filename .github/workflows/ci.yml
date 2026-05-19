@@ -25,6 +25,9 @@ jobs:
       - name: Check dynamic loading facade
         run: cargo check --features dynamic-loading
 
+      - name: Verify vendored Bun source reproducibility
+        run: scripts/verify-vendored-bun-reproducible.sh
+
       - name: Verify Cargo package contents
         run: |
           cargo package --list > target/libbun-package-files.txt

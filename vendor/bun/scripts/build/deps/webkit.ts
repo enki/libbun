@@ -46,6 +46,8 @@ import { computeCpuTargetFlags } from "../flags.ts";
 import { slash } from "../shell.ts";
 import { type Dependency, type NestedCmakeBuild, type Source, depBuildDir, depSourceDir } from "../source.ts";
 
+const libbunNativePluginPic = process.env.LIBBUN_NATIVE_PLUGIN_PIC === "1";
+
 // ───────────────────────────────────────────────────────────────────────────
 // Prebuilt URL computation
 // ───────────────────────────────────────────────────────────────────────────
@@ -235,7 +237,13 @@ export const webkit: Dependency = {
     // -no-pie rides along in CMAKE_C_FLAGS so try_compile() probes link on
     // PIE-default distros — without it the driver still passes -pie and the
     // -fno-pic probe object fails R_X86_64_32S relocation, killing FindThreads.
-    if (cfg.unix && cfg.abi !== "android") optFlags.push("-fno-pic", "-fno-pie", "-no-pie");
+    if (cfg.unix && cfg.abi !== "android") {
+      if (libbunNativePluginPic) {
+        optFlags.push("-fPIC");
+      } else {
+        optFlags.push("-fno-pic", "-fno-pie", "-no-pie");
+      }
+    }
     if (cfg.lto) optFlags.push("-flto=full");
     if (cfg.pgoGenerate) optFlags.push(`-fprofile-generate=${cfg.pgoGenerate}`);
     if (cfg.pgoUse) {
@@ -308,7 +316,9 @@ export const webkit: Dependency = {
       // .data.rel.ro. We link -no-pie so this is dead weight in the RW
       // PT_LOAD. Android (PIE) overrides via the -fPIC in optFlags above
       // never being suppressed there.
-      ...(cfg.abi !== "android" ? { CMAKE_POSITION_INDEPENDENT_CODE: "OFF" } : {}),
+      ...(cfg.abi !== "android"
+        ? { CMAKE_POSITION_INDEPENDENT_CODE: libbunNativePluginPic ? "ON" : "OFF" }
+        : {}),
       PORT: "JSCOnly",
       ENABLE_STATIC_JSC: "ON",
       USE_THIN_ARCHIVES: "OFF",

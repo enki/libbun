@@ -62,12 +62,27 @@ cargo check --features dynamic-loading
 echo "==> preflight ${release_version}: prepare native Bun link inputs"
 scripts/prepare-native-bun-link.sh
 
+case "$(uname -s)" in
+  Linux)
+    echo "==> preflight ${release_version}: inspect Linux native relocations"
+    scripts/inspect-linux-native-relocations.sh
+    plugin_name="liblibbun_plugin_native.so"
+    ;;
+  Darwin)
+    plugin_name="liblibbun_plugin_native.dylib"
+    ;;
+  *)
+    echo "unsupported native plugin preflight OS: $(uname -s)" >&2
+    exit 2
+    ;;
+esac
+
 echo "==> preflight ${release_version}: build native plugin"
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 
-plugin_path="$(find plugin/target/debug -maxdepth 1 -name 'liblibbun_plugin_native.dylib' -print -quit)"
+plugin_path="$(find plugin/target/debug -maxdepth 1 -name "$plugin_name" -print -quit)"
 if [[ -z "$plugin_path" || ! -f "$plugin_path" ]]; then
-  echo "native plugin dylib was not produced under plugin/target/debug" >&2
+  echo "native plugin binary was not produced under plugin/target/debug: $plugin_name" >&2
   exit 1
 fi
 
