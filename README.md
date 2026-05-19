@@ -51,7 +51,7 @@ libbun-plugin-native-vX.Y.Z-aarch64-unknown-linux-gnu.tar.zst
 The consumer contract is the same on every platform:
 
 ```text
-consumer app -> LIBBUN_PLUGIN_PATH -> native plugin
+consumer app -> LIBBUN_PLUGIN_PATH or libbun release cache -> native plugin
 ```
 
 The implementation behind that plugin differs by platform today:
@@ -73,24 +73,44 @@ not a downstream API commitment. If Linux later gains suitable PIC
 WebKit/JSC/WTF inputs, the Linux tarball can switch to an in-process plugin
 without changing facade code or `LIBBUN_PLUGIN_PATH` setup.
 
-For example:
+Hosts should prefer `libbun::release::resolve_native_plugin()` or
+`DynamicBunRuntime::initialize(...)` so they can honor `LIBBUN_PLUGIN_PATH` and
+the standard release cache without probing a sibling checkout. The default cache
+layout is:
+
+```text
+~/.cache/libbun/vX.Y.Z/<target>/
+```
+
+Set `LIBBUN_HOME` to override the cache root. Set `LIBBUN_PLUGIN_PATH` to point
+at an explicit replacement plugin.
+
+Manual macOS installation example:
 
 ```sh
-version=v0.1.1
+version=v0.1.2
 target=aarch64-apple-darwin
 curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
-tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst"
-export LIBBUN_PLUGIN_PATH="$PWD/liblibbun_plugin_native.dylib"
+mkdir -p "$HOME/.cache/libbun/${version}/${target}"
+tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst" -C "$HOME/.cache/libbun/${version}/${target}"
 ```
 
 Linux setup is the same except for the target name and `.so` filename:
 
 ```sh
-version=v0.1.1
+version=v0.1.2
 target=aarch64-unknown-linux-gnu
 curl -LO "https://github.com/enki/libbun/releases/download/${version}/libbun-plugin-native-${version}-${target}.tar.zst"
-tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst"
-export LIBBUN_PLUGIN_PATH="$PWD/liblibbun_plugin_native.so"
+mkdir -p "$HOME/.cache/libbun/${version}/${target}"
+tar --zstd -xf "libbun-plugin-native-${version}-${target}.tar.zst" -C "$HOME/.cache/libbun/${version}/${target}"
+```
+
+Hosts that want an in-process installer can enable the optional
+`plugin-installer` feature and call:
+
+```rust
+let plugin = libbun::release::install_native_plugin()?;
+println!("installed libbun plugin at {}", plugin.path.display());
 ```
 
 Minimal dynamic-loading example:
@@ -138,8 +158,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-If `LIBBUN_PLUGIN_PATH` is unset, initialization fails with an error naming that
-environment variable. If the plugin ABI does not match the facade ABI,
+If `LIBBUN_PLUGIN_PATH` is unset and the standard release cache does not contain
+the plugin, initialization fails with an error naming the expected release asset
+and installation remedy. If the plugin ABI does not match the facade ABI,
 initialization fails before a runtime is created.
 
 If you redistribute the native plugin binary, pass through the matching
@@ -236,7 +257,7 @@ instructions, and checksum files.
 Before creating a release tag, run the local preflight:
 
 ```sh
-scripts/preflight-native-plugin-release.sh v0.1.1
+scripts/preflight-native-plugin-release.sh v0.1.2
 ```
 
 After the preflight passes, commit the release changes and push the annotated
@@ -245,7 +266,7 @@ release tag:
 ```sh
 git add .
 git commit -m "Prepare native plugin release"
-scripts/create-native-plugin-release.sh v0.1.1
+scripts/create-native-plugin-release.sh v0.1.2
 ```
 
 Pushing the tag triggers `.github/workflows/release-native-plugin.yml`. Inspect

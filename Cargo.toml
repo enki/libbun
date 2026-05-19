@@ -1,6 +1,6 @@
 [package]
 name = "libbun"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "Rust facade for hosting JavaScript and TypeScript providers through a replaceable Bun native plugin"
 license = "Apache-2.0"
@@ -29,7 +29,10 @@ libloading = { version = "0.8", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+tar = { version = "0.4", optional = true }
 thiserror = "2"
+ureq = { version = "2", optional = true }
+zstd = { version = "0.13", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
@@ -37,3 +40,4 @@ tempfile = "3"
 [features]
 default = []
 dynamic-loading = ["dep:libloading"]
+plugin-installer = ["dep:tar", "dep:ureq", "dep:zstd"]

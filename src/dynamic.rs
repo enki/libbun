@@ -1,6 +1,5 @@
 use std::ffi::c_void;
 use std::path::Path;
-use std::path::PathBuf;
 
 use libloading::Library;
 use serde::de::DeserializeOwned;
@@ -9,13 +8,12 @@ use crate::plugin_abi::{
     LIBBUN_PLUGIN_ABI_VERSION, LIBBUN_PLUGIN_STATUS_ERROR, LIBBUN_PLUGIN_STATUS_OK,
     LibbunPluginBuffer, LibbunPluginStatus,
 };
+use crate::release;
 use crate::{
     BunAsyncHandle, BunEmbeddingRuntime, BunModuleHandle, BunModuleSpec, BunRuntimeConfig,
     ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, PumpBudget,
     PumpOutcome, StructuralValue,
 };
-
-const LIBBUN_PLUGIN_PATH_ENV: &str = "LIBBUN_PLUGIN_PATH";
 
 type PluginAbiVersionFn = unsafe extern "C" fn() -> u32;
 type PluginBufferFreeFn = unsafe extern "C" fn(LibbunPluginBuffer);
@@ -98,12 +96,8 @@ impl DynamicBunRuntime {
 
 impl BunEmbeddingRuntime for DynamicBunRuntime {
     fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
-        let plugin_path = std::env::var_os(LIBBUN_PLUGIN_PATH_ENV)
-            .map(PathBuf::from)
-            .ok_or_else(|| {
-                LibbunError::initialize(format!("{LIBBUN_PLUGIN_PATH_ENV} is not set"))
-            })?;
-        Self::load(plugin_path, config)
+        let plugin = release::resolve_native_plugin()?;
+        Self::load(plugin.path, config)
     }
 
     fn load_module(&mut self, spec: BunModuleSpec) -> LibbunResult<BunModuleHandle> {
