@@ -1,6 +1,10 @@
 use std::ffi::c_void;
 use std::mem::ManuallyDrop;
 use std::path::Path;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
+use std::sync::OnceLock;
+use std::sync::TryLockError;
 
 use libloading::Library;
 use serde::de::DeserializeOwned;
@@ -43,6 +47,7 @@ pub struct DynamicBunRuntime {
     plugin: DynamicPlugin,
     runtime: *mut c_void,
     output: Vec<OutputRecord>,
+    _runtime_guard: MutexGuard<'static, ()>,
     shutdown: bool,
 }
 
@@ -62,6 +67,16 @@ struct DynamicPlugin {
 
 impl DynamicBunRuntime {
     pub fn load(plugin_path: impl AsRef<Path>, config: BunRuntimeConfig) -> LibbunResult<Self> {
+        let runtime_guard = dynamic_runtime_guard()
+            .try_lock()
+            .map_err(|err| match err {
+                TryLockError::WouldBlock => LibbunError::initialize(
+                    "another dynamic Bun runtime is already active in this process",
+                ),
+                TryLockError::Poisoned(_) => {
+                    LibbunError::initialize("dynamic Bun runtime guard is poisoned")
+                }
+            })?;
         let plugin = DynamicPlugin::load(plugin_path.as_ref())?;
         let config = serde_json::to_vec(&config).map_err(|err| {
             LibbunError::initialize(format!("dynamic plugin config encode failed: {err}"))
@@ -80,10 +95,31 @@ impl DynamicBunRuntime {
             plugin,
             runtime,
             output: Vec::new(),
+            _runtime_guard: runtime_guard,
             shutdown: false,
         };
         runtime.collect_output()?;
         Ok(runtime)
+    }
+
+    pub fn initialize_with_bundled_plugin(
+        config: BunRuntimeConfig,
+        host_binary_path: impl AsRef<Path>,
+    ) -> LibbunResult<Self> {
+        let plugin = release::BundledNativePluginResolver::from_env()
+            .with_host_binary_path(host_binary_path.as_ref())
+            .resolve()?;
+        Self::load(plugin.path, config)
+    }
+
+    pub fn initialize_with_plugin_dir(
+        config: BunRuntimeConfig,
+        plugin_dir: impl AsRef<Path>,
+    ) -> LibbunResult<Self> {
+        let plugin = release::BundledNativePluginResolver::from_env()
+            .with_plugin_dir(plugin_dir.as_ref())
+            .resolve()?;
+        Self::load(plugin.path, config)
     }
 
     fn collect_output(&mut self) -> LibbunResult<()> {
@@ -199,6 +235,11 @@ impl Drop for DynamicBunRuntime {
             self.runtime = std::ptr::null_mut();
         }
     }
+}
+
+fn dynamic_runtime_guard() -> &'static Mutex<()> {
+    static DYNAMIC_RUNTIME_GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+    DYNAMIC_RUNTIME_GUARD.get_or_init(|| Mutex::new(()))
 }
 
 impl DynamicPlugin {

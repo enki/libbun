@@ -171,3 +171,76 @@ fn native_runtime_provider_flows() {
         record.stream == OutputStream::Log && record.text.contains("loading module module-1")
     }));
 }
+
+#[test]
+fn source_module_execution_does_not_create_runtime_artifacts() {
+    let tempdir = tempfile::tempdir().expect("tempdir creates");
+    let mut host = BunHost::<NativeBunRuntime>::initialize(BunRuntimeConfig::new(
+        "native-file-free-test-host",
+        tempdir.path(),
+    ))
+    .expect("host initializes");
+
+    let module = host
+        .load_module(BunModuleSpec::Source {
+            module_id: "file-free".to_string(),
+            source: r#"
+                export function run() {
+                    console.log("file free stdout");
+                    console.error("file free stderr");
+                    return { ok: true };
+                }
+            "#
+            .to_string(),
+        })
+        .expect("source module loads");
+    let result = host
+        .call_export(&module, "run", StructuralValue::null())
+        .expect("source module export runs");
+
+    assert_eq!(
+        result,
+        libbun::ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+            "ok": true
+        }))))
+    );
+    assert!(host.captured_output().iter().any(|record| {
+        record.stream == OutputStream::Stdout && record.text.contains("file free stdout")
+    }));
+    assert!(host.captured_output().iter().any(|record| {
+        record.stream == OutputStream::Stderr && record.text.contains("file free stderr")
+    }));
+
+    let artifacts = std::fs::read_dir(tempdir.path())
+        .expect("working directory readable")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("working directory entries readable");
+    assert!(
+        artifacts.is_empty(),
+        "source-module runtime must not create files in working directory: {artifacts:?}"
+    );
+}
+
+#[test]
+fn second_native_runtime_fails_instead_of_blocking() {
+    let first_dir = tempfile::tempdir().expect("first tempdir creates");
+    let _first = BunHost::<NativeBunRuntime>::initialize(BunRuntimeConfig::new(
+        "native-single-runtime-first",
+        first_dir.path(),
+    ))
+    .expect("first native runtime initializes");
+
+    let second_dir = tempfile::tempdir().expect("second tempdir creates");
+    let error = BunHost::<NativeBunRuntime>::initialize(BunRuntimeConfig::new(
+        "native-single-runtime-second",
+        second_dir.path(),
+    ))
+    .expect_err("second native runtime must be rejected");
+
+    assert!(
+        error
+            .to_string()
+            .contains("another native Bun runtime is already active"),
+        "unexpected error: {error}"
+    );
+}

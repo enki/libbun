@@ -3,6 +3,13 @@
 Status: Done
 Date: 2026-05-19
 
+Updated: 2026-05-20 by ADR-2049. `download-plugin` remains a convenience for
+crate development and experiments, but it is not the final product topology for
+hosts that ship a native binary. Product hosts must bundle the verified plugin
+relative to the shipped binary, and development hosts must resolve the
+development plugin relative to the development binary or target artifact rather
+than relying on persistent runtime cache state.
+
 `libbun` should be usable as a Cargo dependency without requiring downstream
 users to keep a sibling `../libbun` checkout, manually download GitHub Release
 assets, or learn the native plugin package layout. The crate called `libbun`

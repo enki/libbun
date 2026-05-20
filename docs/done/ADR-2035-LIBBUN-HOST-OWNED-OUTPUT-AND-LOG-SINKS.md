@@ -3,6 +3,12 @@
 Status: Done
 Date: 2026-05-18
 
+Updated: 2026-05-20 by ADR-2049. The host-owned output/log sink law remains,
+but file-backed capture is no longer acceptable for generated provider runtime
+execution. Native adapters must capture through memory buffers or explicit
+host-owned file descriptors, not `stdout.capture`, `stderr.capture`, or
+`log.capture` files.
+
 The native adapter can capture Bun stdout/stderr by initializing Bun's output
 streams with host-owned files before VM creation and draining them into
 `OutputRecord`s. This covers JavaScript console output and Bun output paths that

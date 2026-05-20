@@ -2889,6 +2889,7 @@ dependencies = [
  "bun_platform",
  "bun_runtime",
  "libbun",
+ "libc",
  "serde_json",
  "tempfile",
  "url",

@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -31,19 +32,15 @@ fn main() {
             manifest.display()
         )
     });
+    let link_inputs = native_link_inputs_from_manifest(&manifest, &contents);
 
-    for line in contents.lines() {
-        let Some((kind, path)) = line.split_once('=') else {
-            continue;
-        };
-        if kind == "archive" || kind == "static" {
-            if target_os == "macos" {
-                println!("cargo:rustc-link-arg=-Wl,-force_load,{path}");
-            } else {
-                println!("cargo:rustc-link-arg=-Wl,--whole-archive");
-                println!("cargo:rustc-link-arg={path}");
-                println!("cargo:rustc-link-arg=-Wl,--no-whole-archive");
-            }
+    for path in link_inputs {
+        if target_os == "macos" {
+            println!("cargo:rustc-link-arg=-Wl,-force_load,{}", path.display());
+        } else {
+            println!("cargo:rustc-link-arg=-Wl,--whole-archive");
+            println!("cargo:rustc-link-arg={}", path.display());
+            println!("cargo:rustc-link-arg=-Wl,--no-whole-archive");
         }
     }
 
@@ -119,6 +116,60 @@ fn default_manifest_path() -> PathBuf {
                 repo_root.join(path)
             }
         })
-        .unwrap_or_else(|| repo_root.join("vendor/bun/build/debug"))
+        .unwrap_or_else(|| repo_root.join("vendor/bun/build/release"))
         .join("libbun_native_link_manifest.txt")
+}
+
+fn native_link_inputs_from_manifest(manifest: &Path, contents: &str) -> Vec<PathBuf> {
+    let mut link_inputs = Vec::new();
+    for line in contents.lines() {
+        let Some((kind, raw_path)) = line.split_once('=') else {
+            continue;
+        };
+        if kind != "archive" && kind != "static" {
+            continue;
+        }
+        reject_debug_native_link_input(manifest, raw_path);
+        let path = PathBuf::from(raw_path);
+        let path = if path.is_absolute() {
+            path
+        } else {
+            manifest
+                .parent()
+                .expect("native link manifest has parent")
+                .join(path)
+        };
+        if !path.exists() {
+            panic!(
+                "native Bun link manifest {} references missing input {}. Regenerate it locally with scripts/prepare-native-bun-link.sh.",
+                manifest.display(),
+                path.display()
+            );
+        }
+        link_inputs.push(path);
+    }
+
+    if link_inputs.is_empty() {
+        panic!(
+            "native Bun link manifest {} contains no archive/static inputs. Regenerate it locally with scripts/prepare-native-bun-link.sh.",
+            manifest.display()
+        );
+    }
+    link_inputs
+}
+
+fn reject_debug_native_link_input(manifest: &Path, path: &str) {
+    if path.contains("/build/debug/")
+        || path.contains("\\build\\debug\\")
+        || path.contains("/bun-debug")
+        || path.contains("\\bun-debug")
+        || path.contains("-debug/")
+        || path.contains("-debug\\")
+    {
+        panic!(
+            "native Bun link manifest {} contains debug build input {}. Regenerate it from Bun's release profile with scripts/prepare-native-bun-link.sh.",
+            manifest.display(),
+            path
+        );
+    }
 }

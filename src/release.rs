@@ -27,6 +27,7 @@ pub struct NativePluginAsset {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativePluginSource {
     Environment,
+    Bundled,
     BuildTime,
     Cache,
 }
@@ -43,6 +44,13 @@ pub struct NativePluginResolver {
     plugin_path: Option<PathBuf>,
     cache_root: Option<PathBuf>,
     use_build_time_plugin: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct BundledNativePluginResolver {
+    plugin_path: Option<PathBuf>,
+    plugin_dir: Option<PathBuf>,
+    host_binary_path: Option<PathBuf>,
 }
 
 impl Default for NativePluginResolver {
@@ -120,12 +128,99 @@ impl NativePluginAsset {
         self.cache_dir(cache_root).join(self.plugin_filename)
     }
 
+    pub fn plugin_path_in_dir(&self, dir: impl AsRef<Path>) -> PathBuf {
+        dir.as_ref().join(self.plugin_filename)
+    }
+
     fn release_asset_url(&self, asset_name: &str) -> String {
         format!(
             "https://github.com/{}/releases/download/{}/{}",
             self.repository, self.release_tag, asset_name
         )
     }
+}
+
+impl BundledNativePluginResolver {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn from_env() -> Self {
+        Self {
+            plugin_path: std::env::var_os(LIBBUN_PLUGIN_PATH_ENV).map(PathBuf::from),
+            plugin_dir: None,
+            host_binary_path: None,
+        }
+    }
+
+    pub fn with_plugin_path(mut self, plugin_path: impl Into<PathBuf>) -> Self {
+        self.plugin_path = Some(plugin_path.into());
+        self
+    }
+
+    pub fn with_plugin_dir(mut self, plugin_dir: impl Into<PathBuf>) -> Self {
+        self.plugin_dir = Some(plugin_dir.into());
+        self
+    }
+
+    pub fn with_host_binary_path(mut self, host_binary_path: impl Into<PathBuf>) -> Self {
+        self.host_binary_path = Some(host_binary_path.into());
+        self
+    }
+
+    pub fn resolve(&self) -> LibbunResult<ResolvedNativePlugin> {
+        let asset = NativePluginAsset::current()?;
+        if let Some(plugin_path) = &self.plugin_path {
+            if plugin_path.is_file() {
+                return Ok(ResolvedNativePlugin {
+                    path: plugin_path.clone(),
+                    source: NativePluginSource::Environment,
+                    asset,
+                });
+            }
+            return Err(LibbunError::initialize(format!(
+                "{LIBBUN_PLUGIN_PATH_ENV} points to `{}`, but no plugin file exists there",
+                plugin_path.display()
+            )));
+        }
+
+        if let Some(plugin_dir) = &self.plugin_dir {
+            return resolve_bundled_plugin_in_dir(asset, plugin_dir);
+        }
+
+        if let Some(host_binary_path) = &self.host_binary_path {
+            let plugin_dir = host_binary_path.parent().ok_or_else(|| {
+                LibbunError::initialize(format!(
+                    "host binary path `{}` has no parent directory for bundled libbun plugin resolution",
+                    host_binary_path.display()
+                ))
+            })?;
+            return resolve_bundled_plugin_in_dir(asset, plugin_dir);
+        }
+
+        Err(LibbunError::initialize(format!(
+            "bundled libbun plugin resolution requires {LIBBUN_PLUGIN_PATH_ENV}, a plugin directory, or a host binary path"
+        )))
+    }
+}
+
+fn resolve_bundled_plugin_in_dir(
+    asset: NativePluginAsset,
+    plugin_dir: &Path,
+) -> LibbunResult<ResolvedNativePlugin> {
+    let plugin_path = asset.plugin_path_in_dir(plugin_dir);
+    if plugin_path.is_file() {
+        return Ok(ResolvedNativePlugin {
+            path: plugin_path,
+            source: NativePluginSource::Bundled,
+            asset,
+        });
+    }
+    Err(LibbunError::initialize(format!(
+        "bundled libbun plugin `{}` was not found in `{}`",
+        asset.plugin_filename,
+        plugin_dir.display()
+    )))
 }
 
 impl NativePluginResolver {
@@ -207,7 +302,18 @@ pub fn current_native_plugin_asset() -> LibbunResult<NativePluginAsset> {
 }
 
 pub fn resolve_native_plugin() -> LibbunResult<ResolvedNativePlugin> {
-    NativePluginResolver::from_env().resolve()
+    resolve_bundled_native_plugin_for_current_exe()
+}
+
+pub fn resolve_bundled_native_plugin_for_current_exe() -> LibbunResult<ResolvedNativePlugin> {
+    let current_exe = std::env::current_exe().map_err(|err| {
+        LibbunError::initialize(format!(
+            "failed to read current executable path for bundled libbun plugin resolution: {err}"
+        ))
+    })?;
+    BundledNativePluginResolver::from_env()
+        .with_host_binary_path(current_exe)
+        .resolve()
 }
 
 pub fn build_time_plugin_path() -> Option<PathBuf> {

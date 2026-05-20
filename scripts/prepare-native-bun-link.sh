@@ -6,6 +6,10 @@ bun_dir="$repo_root/vendor/bun"
 profile="${LIBBUN_NATIVE_BUN_PROFILE:-release}"
 build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$bun_dir/build/$profile"}"
 exe_target="${LIBBUN_NATIVE_BUN_EXE_TARGET:-}"
+if [[ "$profile" != "release" ]]; then
+  echo "libbun native plugin links must be prepared from Bun's release profile; got LIBBUN_NATIVE_BUN_PROFILE=$profile" >&2
+  exit 1
+fi
 case "$build_dir" in
   /*) ;;
   *) build_dir="$repo_root/$build_dir" ;;
@@ -21,12 +25,12 @@ if [[ "$(uname -s)" == "Linux" ]]; then
 fi
 
 if [[ -z "$exe_target" ]]; then
-  case "$profile" in
-    debug*) exe_target="bun-debug" ;;
-    release-assertions*) exe_target="bun-assertions" ;;
-    release-asan*) exe_target="bun-asan" ;;
-    *) exe_target="bun-profile" ;;
-  esac
+  exe_target="bun-profile"
+fi
+
+if [[ "$exe_target" != "bun-profile" ]]; then
+  echo "libbun native plugin links must use Bun's release bun-profile target; got LIBBUN_NATIVE_BUN_EXE_TARGET=$exe_target" >&2
+  exit 1
 fi
 
 "$repo_root/scripts/configure-vendored-bun.sh" "--profile=$profile" >&2
@@ -85,6 +89,13 @@ esac
       esac
     done
 } > "$manifest"
+
+if grep -F "build/debug" "$manifest" >/dev/null ||
+  grep -F "bun-debug" "$manifest" >/dev/null ||
+  grep -F -- "-debug/" "$manifest" >/dev/null; then
+  echo "native Bun link manifest contains debug build inputs: $manifest" >&2
+  exit 1
+fi
 
 if [[ "${LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST:-0}" == "1" ]]; then
   rm -rf \

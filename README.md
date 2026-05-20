@@ -30,13 +30,47 @@ statically link `libbun-native`.
 ## Downstream Use
 
 Downstream Rust applications depend on the facade crate and load the native Bun
-implementation through a replaceable plugin. There are two supported upstream
-consumption modes.
+implementation through a replaceable plugin. Product hosts should bundle that
+plugin relative to their own binary. The download/cache helpers are development
+and packaging conveniences, not the runtime contract for shipped hosts.
+
+### Bundled Product Integration
+
+Use this mode for applications that ship a native binary.
+
+Depend on the facade without `download-plugin`:
+
+```sh
+cargo add libbun --features dynamic-loading
+```
+
+Bundle the verified native plugin beside the host binary, or in a deterministic
+directory relative to it:
+
+```text
+bin/
+  ss
+  liblibbun_plugin_native.dylib      # macOS
+  liblibbun_plugin_native.so         # Linux
+```
+
+Then load by exact path or binary-relative resolution:
+
+```rust
+use libbun::dynamic::DynamicBunRuntime;
+
+let runtime = DynamicBunRuntime::initialize_with_bundled_plugin(config, host_binary_path)?;
+```
+
+`LIBBUN_PLUGIN_PATH` remains a user/admin replacement override. Product hosts
+must not rely on `~/.cache/libbun`, `LIBBUN_HOME`, or build-output release
+caches at runtime.
 
 ### Automatic Cargo Build Download
 
-Use this mode for local development and upstream crates whose Cargo builds are
-allowed to download verified release artifacts.
+Use this mode for local development and experiments whose Cargo builds are
+allowed to download verified release artifacts. It is not the product shipping
+topology for native host binaries.
 
 Add `libbun` with `dynamic-loading` and `download-plugin`:
 
@@ -46,8 +80,7 @@ cargo add libbun --features dynamic-loading,download-plugin
 
 With `download-plugin`, `libbun`'s build script selects the Cargo `TARGET`,
 downloads the matching native plugin release asset for the crate version,
-verifies its committed checksum, extracts it under Cargo's `OUT_DIR`, and emits
-the plugin path for `DynamicBunRuntime::initialize(...)`.
+verifies its committed checksum, and extracts it under Cargo's `OUT_DIR`.
 
 `download-plugin` is intentionally opt-in because it makes Cargo builds depend
 on network access unless an override is provided. Use these overrides when the
@@ -63,41 +96,12 @@ LIBBUN_DOWNLOAD_PLUGIN=0
 `LIBBUN_PLUGIN_PATH` is also the user replacement path and always wins at
 runtime.
 
-### No-Download Integration
+### No-Download Packaging
 
-Use this mode for package-manager builds, hermetic CI, app bundles, or any
-upstream crate that wants to control native artifact fetching outside Cargo.
-
-Depend on the facade without `download-plugin`:
-
-```sh
-cargo add libbun --features dynamic-loading
-```
-
-Then arrange for one of these runtime paths:
-
-```text
-LIBBUN_PLUGIN_PATH=/absolute/path/to/replacement/plugin
-LIBBUN_HOME=/cache/root/containing/vX.Y.Z/<target>/<plugin>
-~/.cache/libbun/vX.Y.Z/<target>/<plugin>
-```
-
-The cache layout is:
-
-```text
-<cache-root>/vX.Y.Z/<target>/
-  liblibbun_plugin_native.dylib or liblibbun_plugin_native.so
-  libbun-runtime-native             # Linux helper-backed bundles only
-  libbun-native-bundle.json
-  SOURCE.txt
-  NOTICE.txt
-  licenses.json
-  checksums.txt
-```
-
-No-download consumers can use the GitHub Release assets directly, the optional
-`plugin-installer` API, or their own packaging system. The important rule is
-that the plugin remains dynamically loaded and user-replaceable.
+Package managers, hermetic CI systems, and app release processes can fetch the
+GitHub Release assets directly and place the extracted plugin into the host
+bundle. The important rules are that the plugin remains dynamically loaded,
+user-replaceable, and binary-relative for product hosts.
 
 Download the plugin asset that matches the host platform from the native plugin
 release tag selected by the `libbun` facade crate. Facade patch releases may
@@ -114,7 +118,7 @@ libbun-plugin-native-vX.Y.Z-aarch64-unknown-linux-gnu.tar.zst
 The consumer contract is the same on every platform:
 
 ```text
-consumer app -> LIBBUN_PLUGIN_PATH, build-time plugin, or libbun release cache -> native plugin
+consumer app -> bundled plugin path or LIBBUN_PLUGIN_PATH -> native plugin
 ```
 
 The implementation behind that plugin is recorded in
@@ -138,27 +142,20 @@ For older helper-backed bundles, set `LIBBUN_RUNTIME_NATIVE_PATH` only when
 testing or replacing a modified helper build. The helper process is an
 implementation detail of those releases, not a downstream API commitment.
 
-Hosts should prefer `libbun::release::resolve_native_plugin()` or
-`DynamicBunRuntime::initialize(...)` so they can honor `LIBBUN_PLUGIN_PATH`, the
-build-time downloaded plugin, and the standard release cache without probing a
-sibling checkout. The default cache root for manual or installer-managed
-plugins is:
+Hosts should prefer `DynamicBunRuntime::load(...)` with an exact bundled path,
+`DynamicBunRuntime::initialize_with_bundled_plugin(...)`, or
+`DynamicBunRuntime::initialize_with_plugin_dir(...)`. These APIs honor
+`LIBBUN_PLUGIN_PATH` as the replacement override and do not inspect runtime
+plugin caches.
 
-```text
-~/.cache/libbun/vX.Y.Z/<target>/
-```
-
-Set `LIBBUN_HOME` to override the cache root. Set `LIBBUN_PLUGIN_PATH` to point
-at an explicit replacement plugin.
-
-Manual macOS installation example when `download-plugin` is not used:
+Manual macOS bundling example when `download-plugin` is not used:
 
 ```sh
 native_version=v0.1.5
 target=aarch64-apple-darwin
 curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
-mkdir -p "$HOME/.cache/libbun/${native_version}/${target}"
-tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C "$HOME/.cache/libbun/${native_version}/${target}"
+mkdir -p dist/bin
+tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C dist/bin
 ```
 
 Linux setup is the same except for the target name and `.so` filename:
@@ -167,16 +164,8 @@ Linux setup is the same except for the target name and `.so` filename:
 native_version=v0.1.5
 target=aarch64-unknown-linux-gnu
 curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
-mkdir -p "$HOME/.cache/libbun/${native_version}/${target}"
-tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C "$HOME/.cache/libbun/${native_version}/${target}"
-```
-
-Hosts that want an in-process installer can enable the optional
-`plugin-installer` feature and call:
-
-```rust
-let plugin = libbun::release::install_native_plugin()?;
-println!("installed libbun plugin at {}", plugin.path.display());
+mkdir -p dist/bin
+tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C dist/bin
 ```
 
 Minimal dynamic-loading example:
@@ -190,10 +179,10 @@ use libbun::{
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut runtime = DynamicBunRuntime::initialize(BunRuntimeConfig::new(
-        "example-host",
-        std::env::current_dir()?,
-    ))?;
+    let host_binary_path = std::env::current_exe()?;
+    let config = BunRuntimeConfig::new("example-host", std::env::current_dir()?);
+    let mut runtime =
+        DynamicBunRuntime::initialize_with_bundled_plugin(config, host_binary_path)?;
 
     let module = runtime.load_module(BunModuleSpec::Source {
         module_id: "provider".to_string(),
@@ -224,10 +213,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-If `LIBBUN_PLUGIN_PATH` is unset and the standard release cache does not contain
-the plugin, initialization fails with an error naming the expected release asset
-and installation remedy. If the plugin ABI does not match the facade ABI,
-initialization fails before a runtime is created.
+If `LIBBUN_PLUGIN_PATH` is unset and no bundled plugin exists next to the host
+binary or in the configured plugin directory, initialization fails with an error
+naming the expected plugin filename and directory. If the plugin ABI does not
+match the facade ABI, initialization fails before a runtime is created.
 
 If you redistribute the native plugin binary, pass through the matching
 `SOURCE.txt`, `NOTICE.txt`, `licenses.json`, source archive, and checksum file
@@ -279,9 +268,11 @@ scripts/prepare-native-bun-link.sh
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 test --manifest-path native/Cargo.toml --features internal-adapter
 ```
 
-The native link manifest is prepared from Bun's release profile by default so
-internal JS builtins are embedded in the linked plugin instead of loaded from a
-developer build directory at runtime. It intentionally records Bun's C/C++ object archive and
+The native link manifest is prepared from Bun's release profile only so internal
+JS builtins are embedded in the linked plugin instead of loaded from a developer
+build directory at runtime. Debug-profile manifests, `bun-debug`, `build/debug`,
+and debug WebKit/JSC inputs are rejected by the preparation script and Cargo
+build scripts. The manifest intentionally records Bun's C/C++ object archive and
 prebuilt WebKit/JSC static libraries, but not Bun's Rust staticlib. The adapter
 depends on the vendored Rust crates directly so Rust global state is not linked
 twice into the test host.
@@ -322,9 +313,8 @@ LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime
 
 Use `LIBBUN_NATIVE_BUN_BUILD_DIR=vendor/bun/build/native-$(uname -m)-$(uname -s)`
 to keep platform-specific Bun native build products outside the default
-`vendor/bun/build/release` directory. Use `LIBBUN_NATIVE_BUN_PROFILE=<profile>`
-only for explicit local experiments; release plugin assets must not contain
-Bun's debug builtin-module disk loader.
+`vendor/bun/build/release` directory. The native plugin link path is release
+profile only; do not use debug Bun profiles for libbun plugin artifacts.
 
 Rust hosts can enable the facade's `dynamic-loading` feature and load the plugin
 at runtime with `libbun::dynamic::DynamicBunRuntime`. `BunHost` initialization

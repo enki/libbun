@@ -1,6 +1,6 @@
 use libbun::release::{
-    LIBBUN_PLUGIN_PATH_ENV, NativePluginResolver, NativePluginSource, RELEASE_TAG,
-    current_native_plugin_asset, expected_checksum, verify_file_checksum,
+    BundledNativePluginResolver, LIBBUN_PLUGIN_PATH_ENV, NativePluginResolver, NativePluginSource,
+    RELEASE_TAG, current_native_plugin_asset, expected_checksum, verify_file_checksum,
 };
 
 #[cfg(feature = "plugin-installer")]
@@ -66,6 +66,50 @@ fn resolver_uses_standard_release_cache() {
 
     assert_eq!(resolved.path, cached_plugin);
     assert_eq!(resolved.source, NativePluginSource::Cache);
+}
+
+#[test]
+fn bundled_resolver_uses_plugin_next_to_host_binary() {
+    let asset = current_native_plugin_asset().expect("current target is supported");
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let host_binary = tempdir.path().join("ss");
+    let plugin_path = tempdir.path().join(asset.plugin_filename);
+    std::fs::write(&host_binary, b"host").expect("write host placeholder");
+    std::fs::write(&plugin_path, b"not a real dynamic library").expect("write plugin placeholder");
+
+    let resolved = BundledNativePluginResolver::new()
+        .with_host_binary_path(&host_binary)
+        .resolve()
+        .expect("bundled plugin resolves");
+
+    assert_eq!(resolved.path, plugin_path);
+    assert_eq!(resolved.source, NativePluginSource::Bundled);
+}
+
+#[test]
+fn bundled_resolver_does_not_consult_cache_root() {
+    let asset = current_native_plugin_asset().expect("current target is supported");
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let cache_root = tempdir.path().join("cache");
+    let cached_plugin = asset.cached_plugin_path(&cache_root);
+    std::fs::create_dir_all(cached_plugin.parent().expect("plugin parent")).expect("cache dir");
+    std::fs::write(&cached_plugin, b"cached plugin").expect("write cached plugin");
+    let host_binary = tempdir.path().join("bin").join("ss");
+    std::fs::create_dir_all(host_binary.parent().expect("host binary parent"))
+        .expect("host bin dir");
+    std::fs::write(&host_binary, b"host").expect("write host placeholder");
+
+    let error = BundledNativePluginResolver::new()
+        .with_host_binary_path(&host_binary)
+        .resolve()
+        .expect_err("bundled resolver must not use cache");
+
+    let message = error.to_string();
+    assert!(message.contains("bundled libbun plugin"), "{message}");
+    assert!(
+        message.contains(host_binary.parent().unwrap().to_str().unwrap()),
+        "{message}"
+    );
 }
 
 #[cfg(libbun_download_plugin)]

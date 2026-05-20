@@ -11,11 +11,14 @@ compile_error!(
 );
 
 use std::collections::BTreeMap;
-use std::fs::OpenOptions;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
+use std::sync::OnceLock;
+use std::sync::TryLockError;
 
 use bun_core::{String as BunString, ZigString};
 use bun_jsc::js_promise::Status as PromiseStatus;
@@ -42,7 +45,8 @@ pub struct NativeBunRuntime {
     stdout: OutputCapture,
     stderr: OutputCapture,
     log: OutputCapture,
-    tempdir: tempfile::TempDir,
+    prepared_bundle_tempdirs: Vec<tempfile::TempDir>,
+    _runtime_guard: MutexGuard<'static, ()>,
     next_module: u64,
     next_async: u64,
     shutdown: bool,
@@ -54,7 +58,6 @@ struct OutputCapture {
     policy: SinkPolicy,
     write_file: std::fs::File,
     read_file: std::fs::File,
-    read_offset: u64,
 }
 
 impl NativeBunRuntime {
@@ -166,7 +169,7 @@ impl NativeBunRuntime {
     }
 
     fn materialize_prepared_bundle(
-        &self,
+        &mut self,
         module_id: &str,
         bundle_id: &str,
         bytes: &[u8],
@@ -174,7 +177,13 @@ impl NativeBunRuntime {
         let bundle = PreparedBundleV1::from_bytes(bytes)?;
         bundle.validate_for_current_runtime(bundle_id)?;
 
-        let bundle_dir = self.tempdir.path().join(format!("{module_id}.bundle"));
+        let tempdir = tempfile::Builder::new()
+            .prefix("libbun-prepared-bundle-")
+            .tempdir()
+            .map_err(|err| {
+                LibbunError::module_load(format!("prepared bundle tempdir create failed: {err}"))
+            })?;
+        let bundle_dir = tempdir.path().join(format!("{module_id}.bundle"));
         std::fs::create_dir_all(&bundle_dir).map_err(|err| {
             LibbunError::module_load(format!("prepared bundle directory create failed: {err}"))
         })?;
@@ -195,38 +204,22 @@ impl NativeBunRuntime {
             })?;
         }
 
-        Ok(bundle_dir.join(bundle.entry_module))
+        let entry_module = bundle_dir.join(bundle.entry_module);
+        self.prepared_bundle_tempdirs.push(tempdir);
+        Ok(entry_module)
     }
 }
 
 bun_core::declare_scope!(LibbunNative, visible);
 
 impl OutputCapture {
-    fn create(
-        dir: &Path,
-        name: &str,
-        stream: OutputStream,
-        policy: SinkPolicy,
-    ) -> LibbunResult<Self> {
-        let path = dir.join(name);
-        let write_file = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .write(true)
-            .open(&path)
-            .map_err(|err| {
-                LibbunError::initialize(format!("output capture create failed: {err}"))
-            })?;
-        let read_file = OpenOptions::new()
-            .read(true)
-            .open(&path)
-            .map_err(|err| LibbunError::initialize(format!("output capture open failed: {err}")))?;
+    fn create(stream: OutputStream, policy: SinkPolicy) -> LibbunResult<Self> {
+        let (read_file, write_file) = create_nonblocking_pipe_pair()?;
         Ok(Self {
             stream,
             policy,
             write_file,
             read_file,
-            read_offset: 0,
         })
     }
 
@@ -235,23 +228,21 @@ impl OutputCapture {
     }
 
     fn drain_into(&mut self, output: &mut Vec<OutputRecord>) -> LibbunResult<()> {
-        let len = self
-            .read_file
-            .metadata()
-            .map_err(|err| LibbunError::export_call(format!("output metadata failed: {err}")))?
-            .len();
-        if len <= self.read_offset {
-            return Ok(());
+        let mut bytes = Vec::new();
+        let mut buffer = [0_u8; 8192];
+        loop {
+            match self.read_file.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(read) => bytes.extend_from_slice(&buffer[..read]),
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(err) => {
+                    return Err(LibbunError::export_call(format!(
+                        "output pipe read failed: {err}"
+                    )));
+                }
+            }
         }
-
-        self.read_file
-            .seek(SeekFrom::Start(self.read_offset))
-            .map_err(|err| LibbunError::export_call(format!("output seek failed: {err}")))?;
-        let mut bytes = Vec::with_capacity((len - self.read_offset) as usize);
-        self.read_file
-            .read_to_end(&mut bytes)
-            .map_err(|err| LibbunError::export_call(format!("output read failed: {err}")))?;
-        self.read_offset = len;
 
         if self.policy == SinkPolicy::Capture && !bytes.is_empty() {
             output.push(OutputRecord {
@@ -268,6 +259,56 @@ fn fd_from_file(file: &std::fs::File) -> bun_core::Fd {
     use std::os::fd::AsRawFd;
 
     bun_core::Fd::from_native(file.as_raw_fd())
+}
+
+#[cfg(unix)]
+fn create_nonblocking_pipe_pair() -> LibbunResult<(std::fs::File, std::fs::File)> {
+    use std::os::fd::FromRawFd;
+
+    let mut fds = [0; 2];
+    if unsafe { libc::pipe(fds.as_mut_ptr()) } != 0 {
+        return Err(LibbunError::initialize(format!(
+            "output pipe create failed: {}",
+            std::io::Error::last_os_error()
+        )));
+    }
+
+    if let Err(err) = set_nonblocking(fds[0]) {
+        unsafe {
+            libc::close(fds[0]);
+            libc::close(fds[1]);
+        }
+        return Err(err);
+    }
+
+    let read_file = unsafe { std::fs::File::from_raw_fd(fds[0]) };
+    let write_file = unsafe { std::fs::File::from_raw_fd(fds[1]) };
+    Ok((read_file, write_file))
+}
+
+#[cfg(unix)]
+fn set_nonblocking(fd: libc::c_int) -> LibbunResult<()> {
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    if flags < 0 {
+        return Err(LibbunError::initialize(format!(
+            "output pipe flags read failed: {}",
+            std::io::Error::last_os_error()
+        )));
+    }
+    if unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
+        return Err(LibbunError::initialize(format!(
+            "output pipe nonblocking setup failed: {}",
+            std::io::Error::last_os_error()
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn create_nonblocking_pipe_pair() -> LibbunResult<(std::fs::File, std::fs::File)> {
+    Err(LibbunError::initialize(
+        "file-free output capture is currently implemented for Unix targets",
+    ))
 }
 
 #[cfg(windows)]
@@ -322,27 +363,20 @@ fn validate_environment_key(key: &str) -> LibbunResult<()> {
 
 impl BunEmbeddingRuntime for NativeBunRuntime {
     fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
+        let runtime_guard = native_runtime_guard().try_lock().map_err(|err| match err {
+            TryLockError::WouldBlock => LibbunError::initialize(
+                "another native Bun runtime is already active in this process",
+            ),
+            TryLockError::Poisoned(_) => {
+                LibbunError::initialize("native Bun runtime guard is poisoned")
+            }
+        })?;
         ensure_macos_compat_symbols();
         bun_core::StackCheck::configure_thread();
 
-        let tempdir = tempfile::Builder::new()
-            .prefix("libbun-native-")
-            .tempdir_in(&config.working_directory)
-            .map_err(|err| LibbunError::initialize(format!("tempdir create failed: {err}")))?;
-        let stdout = OutputCapture::create(
-            tempdir.path(),
-            "stdout.capture",
-            OutputStream::Stdout,
-            config.stdout,
-        )?;
-        let stderr = OutputCapture::create(
-            tempdir.path(),
-            "stderr.capture",
-            OutputStream::Stderr,
-            config.stderr,
-        )?;
-        let log =
-            OutputCapture::create(tempdir.path(), "log.capture", OutputStream::Log, config.log)?;
+        let stdout = OutputCapture::create(OutputStream::Stdout, config.stdout)?;
+        let stderr = OutputCapture::create(OutputStream::Stderr, config.stderr)?;
+        let log = OutputCapture::create(OutputStream::Log, config.log)?;
         bun_core::Output::Source::set_init(stdout.bun_file(), stderr.bun_file());
         bun_core::Output::init_scoped_debug_writer_at_startup();
         unsafe {
@@ -374,7 +408,8 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             stdout,
             stderr,
             log,
-            tempdir,
+            prepared_bundle_tempdirs: Vec::new(),
+            _runtime_guard: runtime_guard,
             next_module: 1,
             next_async: 1,
             shutdown: false,
@@ -390,24 +425,19 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         self.next_module += 1;
         bun_core::scoped_log!(LibbunNative, "loading module {}", id);
 
-        let module_path = match spec {
-            BunModuleSpec::Source { source, .. } => {
-                let path = self.tempdir.path().join(format!("{id}.mjs"));
-                std::fs::write(&path, source).map_err(|err| {
-                    LibbunError::module_load(format!("source write failed: {err}"))
-                })?;
-                path
-            }
-            BunModuleSpec::Path { path } => path,
+        let specifier = match spec {
+            BunModuleSpec::Source { source, .. } => source_to_data_specifier(&source),
+            BunModuleSpec::Path { path } => path_to_file_specifier(&path)?,
             BunModuleSpec::PreparedBundle { bundle_id, bytes } => {
-                self.materialize_prepared_bundle(&id, &bundle_id, &bytes)?
+                path_to_file_specifier(&self.materialize_prepared_bundle(&id, &bundle_id, &bytes)?)?
             }
         };
 
-        let specifier = path_to_file_specifier(&module_path)?;
         let specifier = BunString::from_bytes(specifier.as_bytes());
-        let promise = JSModuleLoader::import_ptr(self.vm().global, &specifier)
-            .map_err(|_| LibbunError::module_load("module import threw"))?;
+        let promise = JSModuleLoader::import_ptr(self.vm().global, &specifier).map_err(|err| {
+            let error = self.vm().global().take_exception(err);
+            LibbunError::module_load(self.js_error_to_string(error, "module import threw"))
+        })?;
         self.vm_mut()
             .wait_for_promise(AnyPromise::Internal(promise.as_ptr()));
 
@@ -576,6 +606,11 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
     }
 }
 
+fn native_runtime_guard() -> &'static Mutex<()> {
+    static NATIVE_RUNTIME_GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+    NATIVE_RUNTIME_GUARD.get_or_init(|| Mutex::new(()))
+}
+
 fn path_to_file_specifier(path: &Path) -> LibbunResult<String> {
     // Avoid `std::fs::canonicalize` here. On Linux, Bun's linked mimalloc
     // symbols can interpose the free path for libc `realpath` allocations,
@@ -595,6 +630,24 @@ fn path_to_file_specifier(path: &Path) -> LibbunResult<String> {
                 path.display()
             ))
         })
+}
+
+fn source_to_data_specifier(source: &str) -> String {
+    let mut encoded = String::with_capacity(source.len());
+    for byte in source.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte));
+            }
+            _ => {
+                const HEX: &[u8; 16] = b"0123456789ABCDEF";
+                encoded.push('%');
+                encoded.push(char::from(HEX[(byte >> 4) as usize]));
+                encoded.push(char::from(HEX[(byte & 0x0F) as usize]));
+            }
+        }
+    }
+    format!("data:text/javascript;charset=utf-8,{encoded}")
 }
 
 #[cfg(target_os = "macos")]

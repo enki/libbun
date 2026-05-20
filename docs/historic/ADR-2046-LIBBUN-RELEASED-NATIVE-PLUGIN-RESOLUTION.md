@@ -3,6 +3,9 @@
 Status: Superseded
 Date: 2026-05-19
 Superseded: 2026-05-19 by ADR-2047
+Further superseded: 2026-05-20 by ADR-2049 for product hosts that bundle the
+native plugin relative to their binary and avoid persistent runtime plugin
+caches.
 
 This ADR implemented release metadata, cache resolution, and an optional
 runtime installer, but it treated explicit installation or pre-populated cache
