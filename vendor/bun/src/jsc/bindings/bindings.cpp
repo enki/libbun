@@ -6286,6 +6286,13 @@ CPP_DECL const char* Bun__CallFrame__describeFrame(JSC::CallFrame* callFrame)
 {
     return callFrame->describeFrame();
 }
+#else
+// LIBBUN_RELEASE_CALLFRAME_DESCRIBE_SYMBOL: bun_jsc references this C ABI
+// symbol in release builds, where JSC::CallFrame::describeFrame is assert-only.
+CPP_DECL const char* Bun__CallFrame__describeFrame(JSC::CallFrame*)
+{
+    return "<CallFrame::describeFrame unavailable in release build>";
+}
 #endif
 
 extern "C" double Bun__JSC__operationMathPow(double x, double y)

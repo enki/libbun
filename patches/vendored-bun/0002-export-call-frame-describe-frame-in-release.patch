@@ -1,0 +1,20 @@
+diff --git a/src/jsc/bindings/bindings.cpp b/src/jsc/bindings/bindings.cpp
+index 0000000..0000000 100644
+--- a/src/jsc/bindings/bindings.cpp
++++ b/src/jsc/bindings/bindings.cpp
+@@ -6284,8 +6284,15 @@ extern "C" void Bun__JSValue__protect(JSC::EncodedJSValue encodedValue)
+ #if ASSERT_ENABLED
+ CPP_DECL const char* Bun__CallFrame__describeFrame(JSC::CallFrame* callFrame)
+ {
+     return callFrame->describeFrame();
+ }
++#else
++// LIBBUN_RELEASE_CALLFRAME_DESCRIBE_SYMBOL: bun_jsc references this C ABI
++// symbol in release builds, where JSC::CallFrame::describeFrame is assert-only.
++CPP_DECL const char* Bun__CallFrame__describeFrame(JSC::CallFrame*)
++{
++    return "<CallFrame::describeFrame unavailable in release build>";
++}
+ #endif
+ 
+ extern "C" double Bun__JSC__operationMathPow(double x, double y)
