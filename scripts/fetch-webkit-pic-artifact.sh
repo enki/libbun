@@ -9,7 +9,7 @@ case "$build_dir" in
 esac
 
 repo="${LIBBUN_WEBKIT_PIC_REPO:-enki/WebKit}"
-tag="${LIBBUN_WEBKIT_PIC_TAG:-libbun-webkit-pic-5488984d-20260519}"
+tag="${LIBBUN_WEBKIT_PIC_TAG:-libbun-webkit-pic-release-5488984d-20260520}"
 target="${LIBBUN_WEBKIT_PIC_TARGET:-}"
 base_manifest="${LIBBUN_NATIVE_BASE_LINK_MANIFEST:-"$build_dir/libbun_native_link_manifest.txt"}"
 out_manifest="${LIBBUN_WEBKIT_PIC_LINK_MANIFEST:-"$build_dir/libbun_native_link_manifest.pic.txt"}"
@@ -19,19 +19,19 @@ usage() {
   cat >&2 <<'USAGE'
 usage: scripts/fetch-webkit-pic-artifact.sh [--target <triple>] [--manifest <path>] [--out <path>]
 
-Downloads a pinned PIC WebKit artifact release, verifies its checksum, extracts
-it, and rewrites a libbun native link manifest so WebKit/JSC/WTF static library
-entries point at the PIC artifacts.
+Downloads a pinned public PIC WebKit artifact release, verifies its checksum,
+extracts it, and rewrites a libbun native link manifest so WebKit/JSC/WTF static
+library entries point at the PIC artifacts.
 
 Environment:
   LIBBUN_WEBKIT_PIC_REPO=<owner/repo>       default: enki/WebKit
-  LIBBUN_WEBKIT_PIC_TAG=<release-tag>      default: libbun-webkit-pic-5488984d-20260519
+  LIBBUN_WEBKIT_PIC_TAG=<release-tag>      default: libbun-webkit-pic-release-5488984d-20260520
   LIBBUN_WEBKIT_PIC_TARGET=<triple>        default: host Linux target
   LIBBUN_NATIVE_BASE_LINK_MANIFEST=<path>  default: <build-dir>/libbun_native_link_manifest.txt
   LIBBUN_WEBKIT_PIC_LINK_MANIFEST=<path>   default: <build-dir>/libbun_native_link_manifest.pic.txt
   LIBBUN_WEBKIT_PIC_METADATA=<path>        default: <build-dir>/libbun_webkit_pic_artifact.json
 
-Requires gh, tar, and shasum or sha256sum.
+Requires curl, gzip, tar, and shasum or sha256sum.
 USAGE
 }
 
@@ -68,7 +68,8 @@ require() {
   fi
 }
 
-require gh
+require curl
+require gzip
 require tar
 
 sha256() {
@@ -95,14 +96,21 @@ fi
 
 case "$target" in
   x86_64-unknown-linux-gnu)
-    asset="bun-webkit-linux-amd64-pic-debug.tar.gz"
+    asset="bun-webkit-linux-amd64-pic-release.tar.gz"
     ;;
   aarch64-unknown-linux-gnu)
-    asset="bun-webkit-linux-arm64-pic-debug.tar.gz"
+    asset="bun-webkit-linux-arm64-pic-release.tar.gz"
     ;;
   *)
     echo "unsupported WebKit PIC target: $target" >&2
     exit 2
+    ;;
+esac
+
+case "$asset" in
+  *debug*|*Debug*)
+    echo "debug WebKit PIC assets are forbidden for libbun production plugin builds: $asset" >&2
+    exit 1
     ;;
 esac
 
@@ -117,13 +125,10 @@ extract_dir="$work_dir/extract"
 rm -rf "$download_dir" "$extract_dir"
 mkdir -p "$download_dir" "$extract_dir" "$(dirname "$out_manifest")" "$(dirname "$metadata_out")"
 
-gh release download "$tag" \
-  --repo "$repo" \
-  --pattern "$asset" \
-  --pattern checksums.txt \
-  --pattern metadata.json \
-  --dir "$download_dir" \
-  --clobber
+release_url="https://github.com/$repo/releases/download/$tag"
+curl -fL --retry 3 --retry-delay 2 --output "$download_dir/$asset" "$release_url/$asset"
+curl -fL --retry 3 --retry-delay 2 --output "$download_dir/checksums.txt" "$release_url/checksums.txt"
+curl -fL --retry 3 --retry-delay 2 --output "$download_dir/metadata.json" "$release_url/metadata.json"
 
 checksums="$download_dir/checksums.txt"
 archive="$download_dir/$asset"
@@ -131,6 +136,11 @@ metadata="$download_dir/metadata.json"
 if [[ ! -f "$checksums" || ! -f "$archive" || ! -f "$metadata" ]]; then
   echo "downloaded WebKit PIC release is missing required files" >&2
   exit 2
+fi
+
+if grep -i "debug" "$metadata" >/dev/null; then
+  echo "WebKit PIC metadata contains debug build markers; release PIC inputs are required: $metadata" >&2
+  exit 1
 fi
 
 expected="$(awk -v asset="$asset" '$2 == asset { print $1 }' "$checksums")"
@@ -146,7 +156,7 @@ if [[ "$actual" != "$expected" ]]; then
   exit 1
 fi
 
-tar -C "$extract_dir" -xzf "$archive"
+gzip -dc -f "$archive" | tar -C "$extract_dir" -xf -
 webkit_dir="$extract_dir/bun-webkit"
 if [[ ! -d "$webkit_dir/lib" ]]; then
   echo "WebKit PIC archive did not extract to bun-webkit/lib" >&2

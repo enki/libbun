@@ -11,11 +11,26 @@ fn main() {
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let linux_in_process = env::var_os("CARGO_FEATURE_LINUX_IN_PROCESS").is_some();
+    let legacy_linux_helper = env::var_os("CARGO_FEATURE_LEGACY_LINUX_HELPER_PROCESS").is_some();
     if target_os == "linux" && !linux_in_process {
-        println!("cargo:warning=building Linux libbun-plugin-native in helper-process mode");
-        return;
+        if legacy_linux_helper {
+            println!(
+                "cargo:warning=building Linux libbun-plugin-native in quarantined legacy helper-process mode"
+            );
+            return;
+        }
+        panic!(
+            "Linux libbun-plugin-native now requires --features linux-in-process. \
+             The helper-process transport is quarantined behind \
+             --features legacy-linux-helper-process for diagnostics only."
+        );
     }
-
+    if target_os == "linux" && linux_in_process && legacy_linux_helper {
+        panic!("linux-in-process and legacy-linux-helper-process are mutually exclusive");
+    }
+    if target_os == "linux" {
+        emit_linux_plugin_export_boundary();
+    }
     if env::var("LIBBUN_NATIVE_LINK_BUN").as_deref() != Ok("1") {
         println!(
             "cargo:warning=building libbun-plugin-native requires LIBBUN_NATIVE_LINK_BUN=1 for a linkable cdylib"
@@ -68,6 +83,42 @@ fn main() {
         println!("cargo:rustc-link-lib=pthread");
         println!("cargo:rustc-link-lib=m");
     }
+}
+
+fn emit_linux_plugin_export_boundary() {
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by Cargo"));
+    let version_script = out_dir.join("libbun-plugin-native.exports");
+    fs::write(
+        &version_script,
+        r#"{
+    global:
+        libbun_plugin_abi_version;
+        libbun_plugin_buffer_free;
+        libbun_plugin_runtime_create;
+        libbun_plugin_runtime_destroy;
+        libbun_plugin_runtime_load_module;
+        libbun_plugin_runtime_call_export;
+        libbun_plugin_runtime_pump_event_loop;
+        libbun_plugin_runtime_resolve_async;
+        libbun_plugin_runtime_drain_output;
+        libbun_plugin_runtime_shutdown;
+    local:
+        *;
+};
+"#,
+    )
+    .unwrap_or_else(|err| {
+        panic!(
+            "failed to write Linux plugin export version script at {}: {err}",
+            version_script.display()
+        )
+    });
+
+    println!(
+        "cargo:rustc-cdylib-link-arg=-Wl,--version-script={}",
+        version_script.display()
+    );
+    println!("cargo:rustc-cdylib-link-arg=-Wl,--exclude-libs,ALL");
 }
 
 fn find_compiler_rt(library: &str) -> Option<PathBuf> {

@@ -6,7 +6,7 @@ on:
       webkit_pic_tag:
         description: WebKit PIC release tag from enki/WebKit
         required: true
-        default: libbun-webkit-pic-5488984d-20260519
+        default: libbun-webkit-pic-release-5488984d-20260520
         type: string
 
 permissions:

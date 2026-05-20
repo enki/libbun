@@ -20,10 +20,10 @@ fn main() {
         .expect("repo root from CARGO_MANIFEST_DIR")
         .to_path_buf();
 
-    // Allow override; default to debug profile codegen dir.
+    // Allow override; default to release profile codegen dir.
     let codegen_dir = env::var("BUN_CODEGEN_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| repo.join("build/debug/codegen"));
+        .unwrap_or_else(|_| repo.join("build/release/codegen"));
 
     let cpp_rs = codegen_dir.join("cpp.rs");
     if !cpp_rs.exists() {

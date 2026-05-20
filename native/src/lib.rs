@@ -21,7 +21,7 @@ use std::sync::OnceLock;
 use std::sync::TryLockError;
 
 use bun_core::{String as BunString, ZigString};
-use bun_jsc::js_promise::Status as PromiseStatus;
+use bun_jsc::js_promise::{Status as PromiseStatus, UnwrapMode, Unwrapped};
 use bun_jsc::virtual_machine::{InitOptions, VirtualMachine};
 use bun_jsc::{
     AnyPromise, BuiltinName, JSGlobalObject, JSInternalPromise, JSModuleLoader, JSPromise, JSType,
@@ -45,6 +45,8 @@ pub struct NativeBunRuntime {
     stdout: OutputCapture,
     stderr: OutputCapture,
     log: OutputCapture,
+    source_module_paths: Vec<Box<[u8]>>,
+    source_module_sources: Vec<Box<[u8]>>,
     prepared_bundle_tempdirs: Vec<tempfile::TempDir>,
     _runtime_guard: MutexGuard<'static, ()>,
     next_module: u64,
@@ -137,10 +139,77 @@ impl NativeBunRuntime {
                     return text;
                 }
             }
-            return fallback.to_string();
+            return js_value_to_string_lossy(global, value).unwrap_or_else(|| fallback.to_string());
         }
 
-        js_value_to_string(global, value).unwrap_or_else(|| fallback.to_string())
+        js_value_to_string_lossy(global, value).unwrap_or_else(|| fallback.to_string())
+    }
+
+    fn evaluate_source_module(&mut self, id: &str, source: &str) -> LibbunResult<JSValue> {
+        let source_path = std::env::current_dir()
+            .map_err(|err| LibbunError::module_load(format!("current_dir failed: {err}")))?
+            .join(format!("libbun-{id}/[eval]"))
+            .to_string_lossy()
+            .into_owned();
+        let specifier = source_path.clone();
+        self.source_module_paths
+            .push(source_path.into_bytes().into_boxed_slice());
+        self.source_module_sources
+            .push(source.as_bytes().to_vec().into_boxed_slice());
+        let (eval_source, source_path_ptr, source_path_len) = {
+            let source_path = self
+                .source_module_paths
+                .last()
+                .expect("source module path was just pushed");
+            let source = self
+                .source_module_sources
+                .last()
+                .expect("source module source was just pushed");
+            let eval_source = bun_ast::Source::init_path_string(&source_path[..], &source[..]);
+            (eval_source, source_path.as_ptr(), source_path.len())
+        };
+        let vm = self.vm_mut();
+        vm.module_loader.eval_source = Some(Box::new(eval_source));
+        // SAFETY: source_module_paths owns this allocation for the runtime lifetime.
+        vm.set_main(unsafe { std::slice::from_raw_parts(source_path_ptr, source_path_len) });
+        self.import_module_specifier(&specifier)
+    }
+
+    fn import_module_specifier(&mut self, specifier: &str) -> LibbunResult<JSValue> {
+        let specifier = BunString::from_bytes(specifier.as_bytes());
+        let promise = JSModuleLoader::import_ptr(self.vm().global, &specifier).map_err(|err| {
+            let exception = self.vm().global().take_exception(err);
+            let error = exception.to_error().unwrap_or(exception);
+            LibbunError::module_load(self.js_error_to_string(error, "module import threw"))
+        })?;
+        self.resolve_module_promise(AnyPromise::Internal(promise.as_ptr()), "module import")
+    }
+
+    fn resolve_module_promise(
+        &mut self,
+        promise: AnyPromise,
+        operation: &'static str,
+    ) -> LibbunResult<JSValue> {
+        self.vm_mut().wait_for_promise(promise);
+
+        match promise.unwrap(unsafe { &*self.vm().jsc_vm }, UnwrapMode::MarkHandled) {
+            Unwrapped::Pending => Err(LibbunError::module_load(format!(
+                "{operation} remained pending after wait"
+            ))),
+            Unwrapped::Rejected(value) => {
+                let error = self.rejected_to_result(value);
+                match error {
+                    ProviderCallResult::Err(error) => Err(LibbunError::module_load(format!(
+                        "{}: {}",
+                        error.code, error.message
+                    ))),
+                    ProviderCallResult::Ok(_) => {
+                        Err(LibbunError::module_load(format!("{operation} rejected")))
+                    }
+                }
+            }
+            Unwrapped::Fulfilled(namespace) => Ok(namespace),
+        }
     }
 
     fn promise_result(
@@ -332,6 +401,16 @@ fn js_value_to_string(global: &JSGlobalObject, value: JSValue) -> Option<String>
     }
 }
 
+fn js_value_to_string_lossy(global: &JSGlobalObject, value: JSValue) -> Option<String> {
+    match value.to_slice_clone(global) {
+        Ok(text) => {
+            let bytes = text.into_vec();
+            Some(String::from_utf8_lossy(&bytes).into_owned())
+        }
+        _ => js_value_to_string(global, value),
+    }
+}
+
 fn apply_environment_overlay(
     vm: &mut VirtualMachine,
     environment: &BTreeMap<String, String>,
@@ -408,6 +487,8 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             stdout,
             stderr,
             log,
+            source_module_paths: Vec::new(),
+            source_module_sources: Vec::new(),
             prepared_bundle_tempdirs: Vec::new(),
             _runtime_guard: runtime_guard,
             next_module: 1,
@@ -425,52 +506,24 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         self.next_module += 1;
         bun_core::scoped_log!(LibbunNative, "loading module {}", id);
 
-        let specifier = match spec {
-            BunModuleSpec::Source { source, .. } => source_to_data_specifier(&source),
-            BunModuleSpec::Path { path } => path_to_file_specifier(&path)?,
+        let namespace = match spec {
+            BunModuleSpec::Source { source, .. } => self.evaluate_source_module(&id, &source)?,
+            BunModuleSpec::Path { path } => {
+                let specifier = path_to_file_specifier(&path)?;
+                self.import_module_specifier(&specifier)?
+            }
             BunModuleSpec::PreparedBundle { bundle_id, bytes } => {
-                path_to_file_specifier(&self.materialize_prepared_bundle(&id, &bundle_id, &bytes)?)?
+                let specifier = path_to_file_specifier(
+                    &self.materialize_prepared_bundle(&id, &bundle_id, &bytes)?,
+                )?;
+                self.import_module_specifier(&specifier)?
             }
         };
 
-        let specifier = BunString::from_bytes(specifier.as_bytes());
-        let promise = JSModuleLoader::import_ptr(self.vm().global, &specifier).map_err(|err| {
-            let error = self.vm().global().take_exception(err);
-            LibbunError::module_load(self.js_error_to_string(error, "module import threw"))
-        })?;
-        self.vm_mut()
-            .wait_for_promise(AnyPromise::Internal(promise.as_ptr()));
-
-        match JSPromise::status_ptr(promise.as_ptr()) {
-            PromiseStatus::Pending => {
-                return Err(LibbunError::module_load(
-                    "module import remained pending after wait",
-                ));
-            }
-            PromiseStatus::Rejected => {
-                let value = JSInternalPromise::opaque_mut(promise.as_ptr())
-                    .result(unsafe { &*self.vm().jsc_vm });
-                JSInternalPromise::opaque_mut(promise.as_ptr()).set_handled();
-                let error = self.rejected_to_result(value);
-                return match error {
-                    ProviderCallResult::Err(error) => Err(LibbunError::module_load(format!(
-                        "{}: {}",
-                        error.code, error.message
-                    ))),
-                    ProviderCallResult::Ok(_) => {
-                        Err(LibbunError::module_load("module import rejected"))
-                    }
-                };
-            }
-            _ => {
-                let namespace = JSInternalPromise::opaque_mut(promise.as_ptr())
-                    .result(unsafe { &*self.vm().jsc_vm });
-                self.vm().run_with_api_lock(|| namespace.protect());
-                self.modules.insert(id.clone(), namespace);
-                self.drain_output()?;
-                Ok(BunModuleHandle { id })
-            }
-        }
+        self.vm().run_with_api_lock(|| namespace.protect());
+        self.modules.insert(id.clone(), namespace);
+        self.drain_output()?;
+        Ok(BunModuleHandle { id })
     }
 
     fn call_export(
@@ -630,24 +683,6 @@ fn path_to_file_specifier(path: &Path) -> LibbunResult<String> {
                 path.display()
             ))
         })
-}
-
-fn source_to_data_specifier(source: &str) -> String {
-    let mut encoded = String::with_capacity(source.len());
-    for byte in source.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                encoded.push(char::from(byte));
-            }
-            _ => {
-                const HEX: &[u8; 16] = b"0123456789ABCDEF";
-                encoded.push('%');
-                encoded.push(char::from(HEX[(byte >> 4) as usize]));
-                encoded.push(char::from(HEX[(byte & 0x0F) as usize]));
-            }
-        }
-    }
-    format!("data:text/javascript;charset=utf-8,{encoded}")
 }
 
 #[cfg(target_os = "macos")]

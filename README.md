@@ -289,7 +289,7 @@ scripts/prepare-native-bun-link.sh
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 ```
 
-Build the Linux in-process plugin with PIC WebKit inputs:
+Build the Linux in-process plugin with release-grade PIC WebKit inputs:
 
 ```sh
 scripts/prepare-native-bun-link.sh
@@ -302,12 +302,15 @@ LIBBUN_NATIVE_LINK_MANIFEST=vendor/bun/build/release/libbun_native_link_manifest
   cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
 ```
 
-Older helper-backed Linux bundles can still be built after preparing the same
-native link manifest:
+The older helper-backed Linux transport is quarantined for legacy diagnostics.
+It is not a production release path. Building it requires an explicit legacy
+feature and opt-in environment variable:
 
 ```sh
 scripts/prepare-native-bun-link.sh
-cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+LIBBUN_ENABLE_LEGACY_LINUX_HELPER=1 \
+  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml \
+    --features legacy-linux-helper-process
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
 ```
 
@@ -333,9 +336,10 @@ Before creating a release tag, run the local preflight:
 scripts/preflight-native-plugin-release.sh v0.1.5
 ```
 
-On Linux, set `LIBBUN_NATIVE_RUNTIME_MODE=in-process` to preflight the PIC
-single-plugin release path. Without that override, the preflight keeps the
-older helper-backed path available for diagnostics.
+On Linux, preflight defaults to the PIC single-plugin in-process release path.
+The older helper-backed path is available only with
+`LIBBUN_NATIVE_RUNTIME_MODE=helper-process` and
+`LIBBUN_ENABLE_LEGACY_LINUX_HELPER=1` for diagnostics.
 
 After the preflight passes, commit the release changes and push the annotated
 release tag:

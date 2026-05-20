@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -35,6 +36,7 @@ fn main() {
             continue;
         };
         if kind == "archive" || kind == "static" {
+            reject_debug_native_link_input(&manifest, path);
             if target_os == "macos" {
                 println!("cargo:rustc-link-arg=-Wl,-force_load,{path}");
             } else {
@@ -107,6 +109,22 @@ fn default_manifest_path() -> PathBuf {
                 repo_root.join(path)
             }
         })
-        .unwrap_or_else(|| repo_root.join("vendor/bun/build/debug"))
+        .unwrap_or_else(|| repo_root.join("vendor/bun/build/release"))
         .join("libbun_native_link_manifest.txt")
+}
+
+fn reject_debug_native_link_input(manifest: &Path, path: &str) {
+    if path.contains("/build/debug/")
+        || path.contains("\\build\\debug\\")
+        || path.contains("/bun-debug")
+        || path.contains("\\bun-debug")
+        || path.contains("-debug/")
+        || path.contains("-debug\\")
+    {
+        panic!(
+            "native Bun link manifest {} contains debug build input {}. Regenerate it from Bun's release profile with scripts/prepare-native-bun-link.sh.",
+            manifest.display(),
+            path
+        );
+    }
 }

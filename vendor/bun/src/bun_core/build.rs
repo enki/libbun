@@ -21,7 +21,7 @@ fn main() {
 
     let codegen_dir = env::var("BUN_CODEGEN_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| repo.join("build/debug/codegen"));
+        .unwrap_or_else(|_| repo.join("build/release/codegen"));
 
     let build_options = codegen_dir.join("build_options.rs");
     if !build_options.exists() {

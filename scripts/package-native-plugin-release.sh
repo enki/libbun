@@ -53,6 +53,47 @@ require zstd
 require python3
 require strings
 
+validate_linux_plugin_exports() {
+  local plugin_path="$1"
+
+  if [[ "$(uname -s)" != "Linux" ]]; then
+    return
+  fi
+
+  require nm
+
+  local unexpected=0
+  while read -r _address _kind symbol _rest; do
+    if [[ -z "${symbol:-}" ]]; then
+      continue
+    fi
+    symbol="${symbol%%@@*}"
+    symbol="${symbol%%@*}"
+    case "$symbol" in
+      libbun_plugin_abi_version|\
+      libbun_plugin_buffer_free|\
+      libbun_plugin_runtime_create|\
+      libbun_plugin_runtime_destroy|\
+      libbun_plugin_runtime_load_module|\
+      libbun_plugin_runtime_call_export|\
+      libbun_plugin_runtime_pump_event_loop|\
+      libbun_plugin_runtime_resolve_async|\
+      libbun_plugin_runtime_drain_output|\
+      libbun_plugin_runtime_shutdown)
+        ;;
+      *)
+        echo "Linux native plugin exports non-ABI symbol: $symbol" >&2
+        unexpected=1
+        ;;
+    esac
+  done < <(nm -D --defined-only "$plugin_path")
+
+  if [[ "$unexpected" != "0" ]]; then
+    echo "Linux native plugin must export only the libbun plugin C ABI" >&2
+    exit 1
+  fi
+}
+
 sha256() {
   if command -v shasum >/dev/null 2>&1; then
     shasum -a 256 "$1" | awk '{print $1}'
@@ -82,12 +123,10 @@ if strings "$plugin_binary" | grep -F "FATAL: bun-debug failed to load bundled v
   echo "native plugin contains Bun debug builtin-module disk loader; rebuild from a release Bun profile" >&2
   exit 1
 fi
+validate_linux_plugin_exports "$plugin_binary"
 
 if [[ -z "$runtime_mode" ]]; then
   runtime_mode="in-process"
-  case "$platform" in
-    *-linux-gnu) runtime_mode="helper-process" ;;
-  esac
 fi
 
 case "$runtime_mode" in
@@ -96,6 +135,10 @@ case "$runtime_mode" in
     helper_checksum=""
     ;;
   helper-process)
+    if [[ "${LIBBUN_ENABLE_LEGACY_LINUX_HELPER:-0}" != "1" ]]; then
+      echo "helper-process native plugin packages are quarantined; set LIBBUN_ENABLE_LEGACY_LINUX_HELPER=1 only for legacy diagnostics" >&2
+      exit 2
+    fi
     if [[ -z "$helper_binary" || ! -f "$helper_binary" ]]; then
       echo "helper-process native plugin packages require LIBBUN_NATIVE_HELPER_BINARY or a fourth helper-binary argument" >&2
       exit 2
@@ -198,8 +241,8 @@ LIBBUN_NATIVE_LINK_BUN and build the helper executable with:
 
 Host applications must keep the plugin replaceable. Users can build a modified
 compatible plugin from the corresponding source and configure the host to load
-that replacement path. On Linux, users can also replace the helper executable
-next to the plugin or set LIBBUN_RUNTIME_NATIVE_PATH."
+that replacement path. Helper-process Linux bundles are legacy diagnostics only;
+production Linux bundles use PIC in-process plugins."
 else
   linux_runtime_notice="On Linux in-process releases, the host loads the plugin dynamically through
 LIBBUN_PLUGIN_PATH and the plugin embeds Bun/JSC/WebKit in the host process.
@@ -308,7 +351,7 @@ inventory = {
         "noticesAndLicenses": "<same GitHub Release NOTICE and licenses.json URLs>",
         "checksums": "<same GitHub Release checksums URL>",
         "replacement": "Configure the host application to load an interface-compatible replacement plugin.",
-        "linuxHelperReplacement": "For helper-process Linux bundles, replace the helper next to the plugin or set LIBBUN_RUNTIME_NATIVE_PATH.",
+        "linuxHelperReplacement": "Helper-process Linux bundles are legacy diagnostics only; production Linux bundles are PIC in-process plugins.",
     },
 }
 

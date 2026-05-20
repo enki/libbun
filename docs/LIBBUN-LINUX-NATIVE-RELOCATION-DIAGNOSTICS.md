@@ -112,28 +112,35 @@ PIC-compatible WebKit artifacts: either build WebKit from source in the plugin
 PIC mode, or consume an upstream WebKit prebuilt release that is explicitly
 compatible with shared-object embedding.
 
-## 2026-05-19 PIC Artifact Verification
+## 2026-05-20 PIC Artifact Verification
 
-GitHub Actions artifacts from `enki/WebKit` run `26077123752` produced
-PIC-compatible debug WebKit bundles for:
+The first durable PIC experiment promoted debug WebKit bundles. That was useful
+for proving the relocation theory, but it is not a valid production input for
+the in-process plugin. Debug WebKit/JSC can trip debug-only assertions and may
+carry sanitizer/runtime assumptions that do not match libbun's release plugin
+lane.
 
-- `bun-webkit-linux-amd64-pic-debug`;
-- `bun-webkit-linux-arm64-pic-debug`.
+Production Linux in-process plugins require release-grade PIC WebKit bundles:
 
-Those artifacts were promoted to durable `enki/WebKit` GitHub Release assets:
+- `bun-webkit-linux-amd64-pic-release`;
+- `bun-webkit-linux-arm64-pic-release`.
+
+Those artifacts are produced by the dedicated `enki/WebKit` libbun PIC release
+workflow and consumed from:
 
 ```text
-https://github.com/enki/WebKit/releases/tag/libbun-webkit-pic-5488984d-20260519
+https://github.com/enki/WebKit/releases/tag/libbun-webkit-pic-release-5488984d-20260520
 ```
 
 The release targets the `libbun-pic-5488984d` branch and includes the amd64 and
-arm64 PIC WebKit archives, `checksums.txt`, and `metadata.json`.
+arm64 release PIC WebKit archives, `checksums.txt`, and `metadata.json`.
 
-The arm64 bundle was tested locally inside an Ubuntu 24.04 `smolvm` machine
-using the mounted libbun checkout and the existing Bun native object archive.
-The native link manifest was rewritten to use the extracted PIC WebKit
-archives, then `scripts/inspect-linux-native-relocations.sh` passed with no
-known shared-object-hostile TLS relocations.
+The earlier debug PIC arm64 bundle was tested locally inside an Ubuntu 24.04
+`smolvm` machine using the mounted libbun checkout and the existing Bun native
+object archive. The native link manifest was rewritten to use the extracted PIC
+WebKit archives, then `scripts/inspect-linux-native-relocations.sh` passed with
+no known shared-object-hostile TLS relocations. That proved PIC was the right
+relocation fix, but the debug build type was still the wrong runtime input.
 
 The first full plugin link with GNU `ld` was killed by the kernel during the
 large final link. Re-running the same link with `lld` succeeded and produced a
@@ -144,16 +151,12 @@ normal dynamically loadable Linux arm64 plugin:
 ELF 64-bit LSB shared object, ARM aarch64, dynamically linked
 ```
 
-Two runtime-loader issues were found and fixed in the libbun plugin/native
-crates:
+One runtime-loader issue was found and fixed in the libbun plugin/native crates:
+Bun's Linux `sys_epoll_pwait2` platform shim must be force-linked into the
+native adapter, matching Bun's own binary crate behavior.
 
-- the PIC debug WebKit inputs reference UBSan handlers, so Linux plugin builds
-  must link the toolchain `libubsan` runtime when it is available;
-- Bun's Linux `sys_epoll_pwait2` platform shim must be force-linked into the
-  native adapter, matching Bun's own binary crate behavior.
-
-With those fixes and `RUSTFLAGS="-C link-arg=-fuse-ld=lld"`, the dynamic
-loader smoke test passed on Linux arm64:
+With those fixes and `RUSTFLAGS="-C link-arg=-fuse-ld=lld"`, the debug PIC
+dynamic loader smoke test previously passed on Linux arm64:
 
 ```text
 LIBBUN_PLUGIN_PATH=/work/target-smolvm-plugin-pic/debug/liblibbun_plugin_native.so
@@ -181,8 +184,8 @@ source module loading, prepared bundle loading, sync and async exports,
 structured provider errors, captured output/log handling, host environment
 overlays, Rust-substrate provider rejection, and deterministic shutdown.
 
-GitHub Actions run `26085651709` then proved the same PIC input strategy on
-both mature Linux targets:
+GitHub Actions run `26085651709` then proved the same debug PIC input strategy
+on both mature Linux targets:
 
 ```text
 x86_64-unknown-linux-gnu
@@ -191,12 +194,10 @@ aarch64-unknown-linux-gnu
 
 Both jobs passed relocation inspection, explicit `lld` shared-object linking,
 dynamic loader smoke, facade conformance, `mimalloc` diagnostic greps, and
-artifact upload. This means PIC WebKit artifacts can make the Linux
-in-process dynamic plugin viable on the full intended Linux matrix. Linux
-release publication still needs the tagged release lane to pass with the same
-constraints, including replacement-build verification and packaging/release
-promotion before replacing the helper-backed Linux bundle as the default
-release shape.
+artifact upload. That means PIC WebKit artifacts can make the Linux in-process
+dynamic plugin viable on the full intended Linux matrix. The production proof
+must be repeated with release PIC assets; debug PIC assets are now rejected by
+the fetch script and cannot be used by release/preflight lanes.
 
 `scripts/fetch-webkit-pic-artifact.sh` now makes the WebKit PIC input step
 reproducible: it downloads the pinned `enki/WebKit` release asset, verifies the

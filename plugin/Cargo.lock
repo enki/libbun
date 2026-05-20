@@ -2881,7 +2881,7 @@ dependencies = [
 
 [[package]]
 name = "libbun-native"
-version = "0.1.2"
+version = "0.1.5"
 dependencies = [
  "bun_ast",
  "bun_core",
@@ -2897,7 +2897,7 @@ dependencies = [
 
 [[package]]
 name = "libbun-plugin-native"
-version = "0.1.2"
+version = "0.1.5"
 dependencies = [
  "libbun",
  "libbun-native",

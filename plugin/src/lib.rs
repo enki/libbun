@@ -7,6 +7,24 @@ use libbun::{
     LibbunError, OutputRecord, ProviderCallResult, PumpBudget, PumpOutcome, StructuralValue,
 };
 
+#[cfg(all(
+    target_os = "linux",
+    not(feature = "linux-in-process"),
+    not(feature = "legacy-linux-helper-process")
+))]
+compile_error!(
+    "Linux libbun-plugin-native requires --features linux-in-process. \
+     The helper-process transport is quarantined behind \
+     --features legacy-linux-helper-process for diagnostics only."
+);
+
+#[cfg(all(
+    target_os = "linux",
+    feature = "linux-in-process",
+    feature = "legacy-linux-helper-process"
+))]
+compile_error!("linux-in-process and legacy-linux-helper-process are mutually exclusive");
+
 trait RuntimeTransport {
     fn load_module(&mut self, spec: BunModuleSpec) -> libbun::LibbunResult<BunModuleHandle>;
 
@@ -279,7 +297,11 @@ mod transport {
     }
 }
 
-#[cfg(all(target_os = "linux", not(feature = "linux-in-process")))]
+#[cfg(all(
+    target_os = "linux",
+    feature = "legacy-linux-helper-process",
+    not(feature = "linux-in-process")
+))]
 mod transport {
     use std::ffi::c_void;
     use std::io::BufReader;

@@ -49,13 +49,13 @@ stable dependency inputs. Once a WebKit PIC snapshot is close to usable for
 libbun's Linux plugin release path, the WebKit workflow must publish durable
 GitHub Release assets that libbun can fetch by tag, filename, and checksum.
 
-Phase 1 has started: the artifacts from run `26077123752` were promoted to the
-durable `enki/WebKit` release tag
-`libbun-webkit-pic-5488984d-20260519`, with archive checksums and metadata.
-`scripts/fetch-webkit-pic-artifact.sh` consumes that release and rewrites the
-native link manifest reproducibly. `.github/workflows/verify-linux-pic-plugin.yml`
-is the non-publishing CI lane for proving both Linux targets before release
-promotion.
+Phase 1 started with artifacts from run `26077123752`, promoted to the durable
+`enki/WebKit` release tag `libbun-webkit-pic-5488984d-20260519`. That snapshot
+proved the relocation strategy but used debug WebKit inputs, so it is now
+retired as a production input. `scripts/fetch-webkit-pic-artifact.sh` now
+requires the release-grade PIC snapshot and rewrites the native link manifest
+reproducibly. `.github/workflows/verify-linux-pic-plugin.yml` is the
+non-publishing CI lane for proving both Linux targets before release promotion.
 
 On 2026-05-19, libbun workflow run `26085651709` proved the current pinned
 WebKit PIC inputs on both Linux targets. The lane passed native relocation
@@ -342,8 +342,8 @@ Required work:
 - use WebKit Actions artifacts only for trial validation while deciding
   whether a snapshot is usable for libbun;
 - add or run a WebKit release publication job in that fork that attaches
-  `bun-webkit-linux-amd64-pic-debug` and
-  `bun-webkit-linux-arm64-pic-debug` archives to a stable tag;
+  release-grade `bun-webkit-linux-amd64-pic-release` and
+  `bun-webkit-linux-arm64-pic-release` archives to a stable tag;
 - publish SHA-256 checksums for each archive;
 - record the WebKit source commit, build configuration, target triple, and PIC
   mode in a small metadata file next to the archives;
@@ -351,8 +351,8 @@ Required work:
 
 ```text
 webkit-pic-<webkit-source-commit>
-  bun-webkit-linux-amd64-pic-debug.tar.gz
-  bun-webkit-linux-arm64-pic-debug.tar.gz
+  bun-webkit-linux-amd64-pic-release.tar.gz
+  bun-webkit-linux-arm64-pic-release.tar.gz
   checksums.txt
   metadata.json
 ```
@@ -363,8 +363,11 @@ Exit criteria:
 - no libbun workflow depends on expiring Actions artifact IDs;
 - libbun release jobs do not clone or build the full WebKit repository.
 
-Current status: complete for the pinned `libbun-webkit-pic-5488984d-20260519`
-snapshot.
+Current status correction, 2026-05-20: the original
+`libbun-webkit-pic-5488984d-20260519` snapshot proved the PIC relocation
+direction but used debug WebKit inputs. That snapshot is no longer an admitted
+production input. ADR-2049 requires release-grade PIC inputs, and libbun now
+rejects debug PIC assets before extraction, manifest rewriting, or linking.
 
 ### Phase 2: Add a libbun WebKit PIC Input Resolver
 

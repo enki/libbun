@@ -43,7 +43,7 @@ jobs:
       LIBBUN_NATIVE_LINK_MANIFEST: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}/libbun_native_link_manifest.txt
       BUN_CODEGEN_DIR: ${{ github.workspace }}/vendor/bun/build/native-${{ matrix.target }}/codegen
       LIBBUN_WEBKIT_PIC_REPO: enki/WebKit
-      LIBBUN_WEBKIT_PIC_TAG: libbun-webkit-pic-5488984d-20260519
+      LIBBUN_WEBKIT_PIC_TAG: libbun-webkit-pic-release-5488984d-20260520
       LIBBUN_WEBKIT_PIC_TARGET: ${{ matrix.target }}
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -108,7 +108,9 @@ jobs:
       - name: Build native plugin
         run: |
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
-            CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+            CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 \
+              cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml \
+                --features legacy-linux-helper-process
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
             LIBBUN_NATIVE_LINK_BUN=1 \
             CARGO_INCREMENTAL=0 \
@@ -161,10 +163,13 @@ jobs:
           version="${{ steps.release-version.outputs.version }}"
           plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
           helper_path=""
+          legacy_helper="0"
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
             helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
+            legacy_helper="1"
           fi
           LIBBUN_NATIVE_RUNTIME_MODE="${{ matrix.runtime_mode }}" \
+          LIBBUN_ENABLE_LEGACY_LINUX_HELPER="$legacy_helper" \
           LIBBUN_NATIVE_HELPER_BINARY="$helper_path" \
             scripts/package-native-plugin-release.sh "$version" "$plugin_path" "dist/native-plugin-${{ matrix.target }}"
 

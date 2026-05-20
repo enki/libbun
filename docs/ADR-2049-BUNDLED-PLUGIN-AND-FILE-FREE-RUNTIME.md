@@ -50,6 +50,10 @@ dispatch by module/export through that runtime. Parallelism belongs above or
 outside the single runtime lease unless a future adapter proves isolated VM
 instances.
 
+Any native adapter test binary that creates real Bun runtimes must run those
+tests serially. Parallel runtime tests in one process are invalid unless the
+adapter first proves multiple isolated Bun runtimes.
+
 ### Plugin Resolution
 
 Hosts that ship a binary must bundle the verified native plugin beside that
@@ -68,8 +72,6 @@ crate-managed release caches at runtime. Any cache-oriented resolver must be
 separate from the host-bundled resolver and must not be the default shape for
 shipped binaries.
 
-### Runtime Files
-
 ### Native Link Inputs
 
 Native plugin and native adapter tests must link Bun from the release profile
@@ -84,6 +86,29 @@ must reject debug-profile inputs. They must not silently consume
 `build/debug`, or WebKit/JSC static libraries from debug cache directories. A
 stale manifest from another machine must fail because its link inputs do not
 exist in the current checkout.
+
+Linux release builds use the PIC in-process plugin path now that durable PIC
+WebKit inputs exist for the supported Linux targets. The helper-process Linux
+transport is quarantined as a legacy diagnostic path only. It must not be the
+default for local preflight, release packaging, published bundle metadata, or
+downstream documentation. Building or packaging it requires an explicitly named
+legacy opt-in and must not be reachable by accidental Linux defaults.
+
+The Linux dynamic plugin is also a strict C ABI boundary. It must export only
+the `libbun_plugin_*` symbols that define the dynamic facade ABI. Bun, JSC,
+WebKit, Zig, Rust, allocator, and helper implementation symbols are private
+implementation details of the plugin and must not be present in the dynamic
+symbol table as defined exports. A plugin that exports native runtime internals
+is structurally invalid even if it links, because ELF symbol preemption and
+loader-visible global state can change native runtime behavior across the
+`cdylib` boundary.
+
+The PIC WebKit inputs themselves must be release-grade artifacts. Debug PIC
+WebKit archives are not acceptable production inputs, even when relocation
+inspection passes, because debug WebKit/JSC can carry assertion, sanitizer, and
+runtime assumptions that do not match the libbun release plugin lane. The
+libbun fetch, preflight, and release workflows must reject any WebKit PIC asset
+or metadata marked as debug.
 
 ### Runtime Files
 
@@ -130,6 +155,14 @@ format requirement, not reused for provider adapters.
 10. Update downstream documentation so binary products bundle the plugin instead
    of relying on `~/.cache/libbun`, `LIBBUN_HOME`, or build-output download
    caches.
+11. Make Linux PIC in-process the default preflight/release/package path and put
+    helper-process behind explicit legacy diagnostic opt-ins.
+12. Consume only release-grade Linux WebKit PIC artifacts and reject debug PIC
+    assets before extraction, manifest rewriting, or linking.
+13. Give the Linux plugin an explicit dynamic export boundary that exposes only
+    the libbun plugin C ABI and keeps all Bun/JSC/WebKit/native internals local.
+14. Add release/preflight gates that reject Linux plugin artifacts exporting any
+    non-ABI defined dynamic symbol.
 
 ## Acceptance Criteria
 
@@ -143,8 +176,18 @@ format requirement, not reused for provider adapters.
 - The dynamic plugin ABI remains replaceable and version-checked.
 - A process cannot create two live libbun runtimes concurrently; the second
   initialization returns a clear structural error instead of blocking.
+- Release preflight runs native adapter runtime tests serially so the test
+  harness does not violate the intentional single-runtime lease.
 - Native link manifests consumed by adapter/plugin builds are release-profile
   manifests and cannot point at debug Bun objects, `bun-debug`, or debug
   WebKit/JSC libraries.
+- Linux release/preflight packaging defaults to PIC in-process plugins. The
+  helper-process path cannot build or package unless a legacy diagnostic opt-in
+  is explicitly set.
+- Linux in-process release/preflight lanes consume release WebKit PIC inputs;
+  debug PIC inputs fail structurally before linking.
+- Linux in-process plugins export only the libbun plugin C ABI. Release and
+  preflight packaging reject artifacts that expose Bun/JSC/WebKit/native
+  implementation symbols through the dynamic symbol table.
 - `download-plugin` is clearly documented as a development/convenience path, not
   the product shipping contract.

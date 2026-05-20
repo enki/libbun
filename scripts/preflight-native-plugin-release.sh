@@ -14,7 +14,7 @@ Runs the local checks that mirror the native plugin GitHub Actions release job:
   - dynamic-loading check
   - native Bun link preparation
   - native plugin build
-  - Linux native helper build when running on Linux
+  - Linux PIC in-process plugin build when running on Linux
   - dynamic plugin loading test
   - native adapter integration tests
   - release asset packaging smoke test
@@ -22,7 +22,8 @@ Runs the local checks that mirror the native plugin GitHub Actions release job:
 Environment:
   LIBBUN_RELEASE_SKIP_NATIVE_TEST=1   skip native adapter integration tests
   LIBBUN_RELEASE_OUT_DIR=<path>       override generated test asset directory
-  LIBBUN_NATIVE_RUNTIME_MODE=<mode>   override runtime mode, for example in-process
+  LIBBUN_NATIVE_RUNTIME_MODE=<mode>   override runtime mode; default is in-process
+  LIBBUN_ENABLE_LEGACY_LINUX_HELPER=1 allow quarantined helper-process diagnostics
 USAGE
 }
 
@@ -55,6 +56,59 @@ require zstd
 
 cd "$repo_root"
 
+cargo_debug_artifact_dir() {
+  if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
+    case "$CARGO_TARGET_DIR" in
+      /*) printf '%s/debug\n' "$CARGO_TARGET_DIR" ;;
+      *) printf '%s/%s/debug\n' "$repo_root" "$CARGO_TARGET_DIR" ;;
+    esac
+    return
+  fi
+
+  printf '%s\n' "$1"
+}
+
+validate_linux_plugin_exports() {
+  local plugin_path="$1"
+
+  if [[ "$(uname -s)" != "Linux" ]]; then
+    return
+  fi
+
+  require nm
+
+  local unexpected=0
+  while read -r _address _kind symbol _rest; do
+    if [[ -z "${symbol:-}" ]]; then
+      continue
+    fi
+    symbol="${symbol%%@@*}"
+    symbol="${symbol%%@*}"
+    case "$symbol" in
+      libbun_plugin_abi_version|\
+      libbun_plugin_buffer_free|\
+      libbun_plugin_runtime_create|\
+      libbun_plugin_runtime_destroy|\
+      libbun_plugin_runtime_load_module|\
+      libbun_plugin_runtime_call_export|\
+      libbun_plugin_runtime_pump_event_loop|\
+      libbun_plugin_runtime_resolve_async|\
+      libbun_plugin_runtime_drain_output|\
+      libbun_plugin_runtime_shutdown)
+        ;;
+      *)
+        echo "Linux native plugin exports non-ABI symbol: $symbol" >&2
+        unexpected=1
+        ;;
+    esac
+  done < <(nm -D --defined-only "$plugin_path")
+
+  if [[ "$unexpected" != "0" ]]; then
+    echo "Linux native plugin must export only the libbun plugin C ABI" >&2
+    exit 1
+  fi
+}
+
 crate_version="$(python3 - <<'PY'
 import pathlib
 import tomllib
@@ -85,10 +139,10 @@ echo "==> preflight ${release_version}: prepare native Bun link inputs"
 scripts/prepare-native-bun-link.sh
 
 case "$(uname -s)" in
-  Linux)
-    plugin_name="liblibbun_plugin_native.so"
-    helper_name="libbun-runtime-native"
-    runtime_mode="${LIBBUN_NATIVE_RUNTIME_MODE:-helper-process}"
+	  Linux)
+	    plugin_name="liblibbun_plugin_native.so"
+	    helper_name="libbun-runtime-native"
+	    runtime_mode="${LIBBUN_NATIVE_RUNTIME_MODE:-in-process}"
     ;;
   Darwin)
     plugin_name="liblibbun_plugin_native.dylib"
@@ -102,12 +156,17 @@ case "$(uname -s)" in
 esac
 
 case "$runtime_mode" in
-  in-process|helper-process) ;;
+	  in-process|helper-process) ;;
   *)
     echo "unsupported native plugin preflight runtime mode: $runtime_mode" >&2
     exit 2
     ;;
 esac
+
+if [[ "$(uname -s)" == "Linux" && "$runtime_mode" == "helper-process" && "${LIBBUN_ENABLE_LEGACY_LINUX_HELPER:-0}" != "1" ]]; then
+  echo "Linux helper-process preflight is quarantined; set LIBBUN_ENABLE_LEGACY_LINUX_HELPER=1 only for legacy diagnostics" >&2
+  exit 2
+fi
 
 if [[ "$(uname -s)" == "Linux" && "$runtime_mode" == "in-process" ]]; then
   echo "==> preflight ${release_version}: fetch Linux PIC WebKit inputs"
@@ -120,26 +179,29 @@ fi
 
 echo "==> preflight ${release_version}: build native plugin"
 if [[ "$runtime_mode" == "helper-process" ]]; then
-  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features legacy-linux-helper-process
 elif [[ "$(uname -s)" == "Linux" ]]; then
   LIBBUN_NATIVE_LINK_BUN=1 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
 else
   LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
 fi
 
-plugin_path="$(find plugin/target/debug -maxdepth 1 -name "$plugin_name" -print -quit)"
+plugin_debug_dir="$(cargo_debug_artifact_dir "$repo_root/plugin/target/debug")"
+plugin_path="$(find "$plugin_debug_dir" -maxdepth 1 -name "$plugin_name" -print -quit)"
 if [[ -z "$plugin_path" || ! -f "$plugin_path" ]]; then
-  echo "native plugin binary was not produced under plugin/target/debug: $plugin_name" >&2
+  echo "native plugin binary was not produced under $plugin_debug_dir: $plugin_name" >&2
   exit 1
 fi
+validate_linux_plugin_exports "$plugin_path"
 
 helper_path=""
 if [[ "$runtime_mode" == "helper-process" ]]; then
   echo "==> preflight ${release_version}: build Linux native helper"
   LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
-  helper_path="$(find runtime/target/debug -maxdepth 1 -name "$helper_name" -print -quit)"
+  runtime_debug_dir="$(cargo_debug_artifact_dir "$repo_root/runtime/target/debug")"
+  helper_path="$(find "$runtime_debug_dir" -maxdepth 1 -name "$helper_name" -print -quit)"
   if [[ -z "$helper_path" || ! -f "$helper_path" ]]; then
-    echo "native helper binary was not produced under runtime/target/debug: $helper_name" >&2
+    echo "native helper binary was not produced under $runtime_debug_dir: $helper_name" >&2
     exit 1
   fi
 fi
@@ -166,7 +228,7 @@ fi
 
 if [[ "${LIBBUN_RELEASE_SKIP_NATIVE_TEST:-0}" != "1" && "$runtime_mode" == "in-process" ]]; then
   echo "==> preflight ${release_version}: native adapter integration tests"
-  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 test --manifest-path native/Cargo.toml --features internal-adapter
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 test --manifest-path native/Cargo.toml --features internal-adapter -- --test-threads=1
 else
   echo "==> preflight ${release_version}: skipping native adapter integration tests"
 fi
