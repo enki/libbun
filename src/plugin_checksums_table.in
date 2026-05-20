@@ -5,4 +5,7 @@
     ("v0.1.3", "aarch64-apple-darwin", "c9da743a5c295f5295b54dff95e88a3c70829d8e44a37d54e3e0d558b6203979"),
     ("v0.1.3", "x86_64-unknown-linux-gnu", "440afb19593e3fb6c55ebc2bfd431ac523b1b31382c9cbf21a667f0a47e3b2f9"),
     ("v0.1.3", "aarch64-unknown-linux-gnu", "6be71cca4534c1f545c5a8d0fbd5e77b7b4c108052365ea24dbbfeb3cb058e4e"),
+    ("v0.1.5", "aarch64-apple-darwin", "ce9755aabc5ba47e5264bbad23b50ab4df7baf52410c89792fa3484c3053da28"),
+    ("v0.1.5", "x86_64-unknown-linux-gnu", "7d331755fd182f416462cd76f156a5911fe60af30b702fbc7995ba9f20f75cd0"),
+    ("v0.1.5", "aarch64-unknown-linux-gnu", "0e571e030c9c5792ffff7c1d119c6e723c83d0139a28d71e593d83f9e6aee85e"),
 ]
