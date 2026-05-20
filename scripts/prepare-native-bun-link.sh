@@ -3,7 +3,9 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bun_dir="$repo_root/vendor/bun"
-build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$bun_dir/build/debug"}"
+profile="${LIBBUN_NATIVE_BUN_PROFILE:-release}"
+build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$bun_dir/build/$profile"}"
+exe_target="${LIBBUN_NATIVE_BUN_EXE_TARGET:-}"
 case "$build_dir" in
   /*) ;;
   *) build_dir="$repo_root/$build_dir" ;;
@@ -18,16 +20,25 @@ if [[ "$(uname -s)" == "Linux" ]]; then
   export LIBBUN_NATIVE_PLUGIN_PIC="${LIBBUN_NATIVE_PLUGIN_PIC:-1}"
 fi
 
-"$repo_root/scripts/configure-vendored-bun.sh" --profile=debug-no-asan >&2
+if [[ -z "$exe_target" ]]; then
+  case "$profile" in
+    debug*) exe_target="bun-debug" ;;
+    release-assertions*) exe_target="bun-assertions" ;;
+    release-asan*) exe_target="bun-asan" ;;
+    *) exe_target="bun-profile" ;;
+  esac
+fi
 
-ninja -C "$build_dir" -t query bun-debug |
+"$repo_root/scripts/configure-vendored-bun.sh" "--profile=$profile" >&2
+
+ninja -C "$build_dir" -t query "$exe_target" |
   awk '
     /^  input:/ { in_input = 1; next }
     /^  outputs:/ { in_input = 0; next }
     in_input && $1 ~ /\.o$/ { print $1 }
   ' > "$objects_file"
 
-ninja -C "$build_dir" -t query bun-debug |
+ninja -C "$build_dir" -t query "$exe_target" |
   awk '
     /^  input:/ { in_input = 1; next }
     /^  outputs:/ { in_input = 0; next }
@@ -77,9 +88,9 @@ esac
 
 if [[ "${LIBBUN_NATIVE_CLEAN_AFTER_MANIFEST:-0}" == "1" ]]; then
   rm -rf \
-    "$build_dir/bun-debug" \
+    "$build_dir/$exe_target" \
     "$build_dir/obj" \
     "$build_dir/rust-target"
 fi
 
-echo "Prepared native Bun link manifest at $manifest"
+echo "Prepared native Bun link manifest for $exe_target at $manifest"

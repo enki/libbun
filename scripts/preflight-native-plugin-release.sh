@@ -55,7 +55,20 @@ require zstd
 
 cd "$repo_root"
 
-native_build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}"
+crate_version="$(python3 - <<'PY'
+import pathlib
+import tomllib
+
+manifest = tomllib.loads(pathlib.Path("Cargo.toml").read_text())
+print(manifest["package"]["version"])
+PY
+)"
+if [[ "v${crate_version}" != "$release_version" ]]; then
+  echo "Cargo.toml version is ${crate_version}, release tag is ${release_version}; refusing divergent preflight" >&2
+  exit 1
+fi
+
+native_build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/release"}"
 case "$native_build_dir" in
   /*) ;;
   *) native_build_dir="$repo_root/$native_build_dir" ;;
@@ -98,8 +111,8 @@ esac
 
 if [[ "$(uname -s)" == "Linux" && "$runtime_mode" == "in-process" ]]; then
   echo "==> preflight ${release_version}: fetch Linux PIC WebKit inputs"
-  base_manifest="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}/libbun_native_link_manifest.txt"
-  pic_manifest="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}/libbun_native_link_manifest.pic.txt"
+  base_manifest="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/release"}/libbun_native_link_manifest.txt"
+  pic_manifest="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/release"}/libbun_native_link_manifest.pic.txt"
   scripts/fetch-webkit-pic-artifact.sh --manifest "$base_manifest" --out "$pic_manifest"
   export LIBBUN_NATIVE_LINK_MANIFEST="$pic_manifest"
   scripts/inspect-linux-native-relocations.sh "$LIBBUN_NATIVE_LINK_MANIFEST"

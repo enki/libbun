@@ -51,6 +51,7 @@ require git
 require tar
 require zstd
 require python3
+require strings
 
 sha256() {
   if command -v shasum >/dev/null 2>&1; then
@@ -64,7 +65,7 @@ bun_commit="$(tr -d '[:space:]' < "$repo_root/BUN_SOURCE_COMMIT")"
 git_commit="$(git -C "$repo_root" rev-parse HEAD)"
 plugin_checksum="$(sha256 "$plugin_binary")"
 helper_checksum=""
-build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/debug"}"
+build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$repo_root/vendor/bun/build/release"}"
 case "$build_dir" in
   /*) ;;
   *) build_dir="$repo_root/$build_dir" ;;
@@ -75,6 +76,11 @@ webkit_pic_metadata="${LIBBUN_WEBKIT_PIC_METADATA:-"$build_dir/libbun_webkit_pic
 if [[ ! -f "$manifest" ]]; then
   echo "native link manifest not found: $manifest" >&2
   exit 2
+fi
+
+if strings "$plugin_binary" | grep -F "FATAL: bun-debug failed to load bundled version" >/dev/null; then
+  echo "native plugin contains Bun debug builtin-module disk loader; rebuild from a release Bun profile" >&2
+  exit 1
 fi
 
 if [[ -z "$runtime_mode" ]]; then

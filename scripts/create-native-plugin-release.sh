@@ -41,6 +41,19 @@ remote="${LIBBUN_RELEASE_REMOTE:-origin}"
 
 cd "$repo_root"
 
+crate_version="$(python3 - <<'PY'
+import pathlib
+import tomllib
+
+manifest = tomllib.loads(pathlib.Path("Cargo.toml").read_text())
+print(manifest["package"]["version"])
+PY
+)"
+if [[ "v${crate_version}" != "$release_version" ]]; then
+  echo "Cargo.toml version is ${crate_version}, release tag is ${release_version}; refusing divergent release" >&2
+  exit 1
+fi
+
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "working tree is dirty; commit or stash changes before creating ${release_version}" >&2
   git status --short >&2
@@ -66,11 +79,6 @@ current_branch="$(git branch --show-current)"
 if [[ -z "$current_branch" ]]; then
   echo "not on a branch; refusing to create release tag from detached HEAD" >&2
   exit 1
-fi
-
-crate_version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-if [[ "v${crate_version}" != "$release_version" ]]; then
-  echo "warning: Cargo.toml version is ${crate_version}, release tag is ${release_version}" >&2
 fi
 
 echo "creating annotated tag ${release_version} at $(git rev-parse --short HEAD)"

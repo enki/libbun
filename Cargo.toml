@@ -1,6 +1,6 @@
 [package]
 name = "libbun"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 description = "Rust facade for hosting JavaScript and TypeScript providers through a replaceable Bun native plugin"
 license = "Apache-2.0"

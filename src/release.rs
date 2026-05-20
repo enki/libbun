@@ -9,7 +9,7 @@ use crate::LibbunResult;
 pub const LIBBUN_PLUGIN_PATH_ENV: &str = "LIBBUN_PLUGIN_PATH";
 pub const LIBBUN_HOME_ENV: &str = "LIBBUN_HOME";
 pub const RELEASE_REPOSITORY: &str = "enki/libbun";
-pub const RELEASE_TAG: &str = "v0.1.3";
+pub const RELEASE_TAG: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 pub const CHECKSUMS_ASSET_SUFFIX: &str = "checksums.txt";
 pub const NOTICE_ASSET_SUFFIX: &str = "NOTICE.txt";
 pub const SOURCE_ASSET_SUFFIX: &str = "SOURCE.txt";

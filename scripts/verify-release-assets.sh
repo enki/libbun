@@ -148,6 +148,10 @@ if [[ -n "$asset_dir" ]]; then
     echo "missing required command for bundle metadata verification: python3" >&2
     exit 2
   fi
+  if ! command -v strings >/dev/null 2>&1; then
+    echo "missing required command for native plugin verification: strings" >&2
+    exit 2
+  fi
 
   for target in "${targets[@]}"; do
     archive="$asset_dir/libbun-plugin-native-${release_version}-${target}.tar.zst"
@@ -189,6 +193,23 @@ elif runtime_mode == "helper-process":
 else:
     raise SystemExit(f"unsupported runtimeMode: {runtime_mode!r}")
 PY
+    plugin_file="$(python3 - "$bundle" <<'PY'
+import json
+import pathlib
+import sys
+
+bundle = pathlib.Path(sys.argv[1])
+data = json.loads(bundle.read_text())
+plugin_name = (data.get("plugin") or {}).get("filename")
+if not plugin_name:
+    raise SystemExit("bundle plugin filename is missing")
+print(bundle.parent / plugin_name)
+PY
+)"
+    if strings "$plugin_file" | grep -F "FATAL: bun-debug failed to load bundled version" >/dev/null; then
+      echo "$archive contains Bun debug builtin-module disk loader; release plugins must be built from a release Bun profile" >&2
+      exit 1
+    fi
     rm -rf "$extract_dir"
   done
 fi

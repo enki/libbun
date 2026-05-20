@@ -154,7 +154,7 @@ at an explicit replacement plugin.
 Manual macOS installation example when `download-plugin` is not used:
 
 ```sh
-native_version=v0.1.3
+native_version=v0.1.5
 target=aarch64-apple-darwin
 curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
 mkdir -p "$HOME/.cache/libbun/${native_version}/${target}"
@@ -164,7 +164,7 @@ tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C "$H
 Linux setup is the same except for the target name and `.so` filename:
 
 ```sh
-native_version=v0.1.3
+native_version=v0.1.5
 target=aarch64-unknown-linux-gnu
 curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
 mkdir -p "$HOME/.cache/libbun/${native_version}/${target}"
@@ -279,7 +279,9 @@ scripts/prepare-native-bun-link.sh
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 test --manifest-path native/Cargo.toml --features internal-adapter
 ```
 
-The native link manifest intentionally records Bun's C/C++ object archive and
+The native link manifest is prepared from Bun's release profile by default so
+internal JS builtins are embedded in the linked plugin instead of loaded from a
+developer build directory at runtime. It intentionally records Bun's C/C++ object archive and
 prebuilt WebKit/JSC static libraries, but not Bun's Rust staticlib. The adapter
 depends on the vendored Rust crates directly so Rust global state is not linked
 twice into the test host.
@@ -301,9 +303,9 @@ Build the Linux in-process plugin with PIC WebKit inputs:
 ```sh
 scripts/prepare-native-bun-link.sh
 scripts/fetch-webkit-pic-artifact.sh --target x86_64-unknown-linux-gnu \
-  --manifest vendor/bun/build/debug/libbun_native_link_manifest.txt \
-  --out vendor/bun/build/debug/libbun_native_link_manifest.pic.txt
-LIBBUN_NATIVE_LINK_MANIFEST=vendor/bun/build/debug/libbun_native_link_manifest.pic.txt \
+  --manifest vendor/bun/build/release/libbun_native_link_manifest.txt \
+  --out vendor/bun/build/release/libbun_native_link_manifest.pic.txt
+LIBBUN_NATIVE_LINK_MANIFEST=vendor/bun/build/release/libbun_native_link_manifest.pic.txt \
   LIBBUN_NATIVE_LINK_BUN=1 \
   RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
   cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
@@ -320,7 +322,9 @@ LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime
 
 Use `LIBBUN_NATIVE_BUN_BUILD_DIR=vendor/bun/build/native-$(uname -m)-$(uname -s)`
 to keep platform-specific Bun native build products outside the default
-`vendor/bun/build/debug` directory.
+`vendor/bun/build/release` directory. Use `LIBBUN_NATIVE_BUN_PROFILE=<profile>`
+only for explicit local experiments; release plugin assets must not contain
+Bun's debug builtin-module disk loader.
 
 Rust hosts can enable the facade's `dynamic-loading` feature and load the plugin
 at runtime with `libbun::dynamic::DynamicBunRuntime`. `BunHost` initialization
@@ -336,7 +340,7 @@ instructions, and checksum files.
 Before creating a release tag, run the local preflight:
 
 ```sh
-scripts/preflight-native-plugin-release.sh v0.1.3
+scripts/preflight-native-plugin-release.sh v0.1.5
 ```
 
 On Linux, set `LIBBUN_NATIVE_RUNTIME_MODE=in-process` to preflight the PIC
@@ -349,7 +353,7 @@ release tag:
 ```sh
 git add .
 git commit -m "Prepare native plugin release"
-scripts/create-native-plugin-release.sh v0.1.3
+scripts/create-native-plugin-release.sh v0.1.5
 ```
 
 Pushing the tag triggers `.github/workflows/release-native-plugin.yml`. Inspect
