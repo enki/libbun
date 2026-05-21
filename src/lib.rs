@@ -5,11 +5,18 @@
 //! entrypoints and does not expose raw JSC handles across its public API.
 
 use std::collections::BTreeMap;
+use std::collections::VecDeque;
 use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -403,15 +410,464 @@ impl ProviderDeadline {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderSettleOptions {
     pub deadline: ProviderDeadline,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub call_id: Option<ProviderCallId>,
 }
 
 impl ProviderSettleOptions {
     pub fn new(deadline: ProviderDeadline) -> Self {
-        Self { deadline }
+        Self {
+            deadline,
+            call_id: None,
+        }
+    }
+
+    pub fn with_call_id(mut self, call_id: impl Into<String>) -> Self {
+        self.call_id = Some(ProviderCallId(call_id.into()));
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ProviderCallId(pub String);
+
+pub const PROVIDER_DIAGNOSTIC_SCHEMA_VERSION: u32 = 1;
+
+pub trait ProviderDiagnosticSink: Send + Sync + 'static {
+    fn provider_event(&self, event: ProviderDiagnosticEvent);
+}
+
+impl<F> ProviderDiagnosticSink for F
+where
+    F: Fn(ProviderDiagnosticEvent) + Send + Sync + 'static,
+{
+    fn provider_event(&self, event: ProviderDiagnosticEvent) {
+        self(event);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderDiagnosticEvent {
+    pub schema_version: u32,
+    pub call_id: ProviderCallId,
+    pub sequence: u64,
+    pub span_id: u64,
+    pub parent_span_id: Option<u64>,
+    pub wall_time_unix_ms: u64,
+    pub elapsed_ms: u64,
+    pub kind: ProviderDiagnosticEventKind,
+    pub phase: ProviderDiagnosticPhase,
+    pub operation: ProviderExecutionOperation,
+    pub contract: ProviderContractIdentity,
+    pub provider_domain_class: ProviderDomainClass,
+    pub module_specifier_or_url: String,
+    pub export_name: String,
+    pub deadline_ms: u64,
+    pub pending_async_task_count: Option<usize>,
+    pub captured_output_record_count: Option<usize>,
+    pub libbun_version: String,
+    pub libbun_abi_version: u32,
+    pub bun_revision: String,
+    pub dynamic_plugin_path: Option<PathBuf>,
+    pub dynamic_plugin_sha256: Option<String>,
+    pub runtime_instance_id: String,
+    pub process_id: u32,
+    pub thread_id: String,
+    pub detail: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderDiagnosticEventKind {
+    CallStart,
+    PhaseEnter,
+    PhaseExit,
+    DeadlineElapsed,
+    CallComplete,
+    CallFailed,
+    OutputCaptured,
+    RuntimeSnapshot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderDiagnosticPhase {
+    RuntimeInitialize,
+    ModuleLoad,
+    CallExport,
+    ResolveAsync,
+    PumpEventLoop,
+    DrainOutput,
+    Shutdown,
+    DeadlineElapsed,
+    Complete,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderRuntimeSnapshot {
+    pub active_call: Option<ProviderCallSnapshot>,
+    pub recent_events: Vec<ProviderDiagnosticEvent>,
+    pub captured_output_count: usize,
+    pub runtime_state: ProviderRuntimeState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderCallSnapshot {
+    pub call_id: ProviderCallId,
+    pub contract: ProviderContractIdentity,
+    pub provider_domain_class: ProviderDomainClass,
+    pub module_specifier_or_url: String,
+    pub export_name: String,
+    pub deadline_ms: u64,
+    pub started_wall_time_unix_ms: u64,
+    pub latest_event: Option<ProviderDiagnosticEvent>,
+    pub unmatched_phase_enters: Vec<ProviderDiagnosticEvent>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderRuntimeState {
+    Initializing,
+    Ready,
+    InProviderCall,
+    ShuttingDown,
+    Shutdown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderRuntimeDiagnosticMetadata {
+    pub runtime_instance_id: String,
+    pub libbun_version: String,
+    pub libbun_abi_version: u32,
+    pub bun_revision: String,
+    pub dynamic_plugin_path: Option<PathBuf>,
+    pub dynamic_plugin_sha256: Option<String>,
+}
+
+impl Default for ProviderRuntimeDiagnosticMetadata {
+    fn default() -> Self {
+        Self {
+            runtime_instance_id: next_runtime_instance_id(),
+            libbun_version: env!("CARGO_PKG_VERSION").to_string(),
+            libbun_abi_version: LIBBUN_ABI_VERSION,
+            bun_revision: env!("LIBBUN_BUN_SOURCE_COMMIT").to_string(),
+            dynamic_plugin_path: None,
+            dynamic_plugin_sha256: None,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ProviderDiagnosticsHandle {
+    state: Arc<ProviderDiagnosticsState>,
+}
+
+struct ProviderDiagnosticsState {
+    inner: Mutex<ProviderDiagnosticsInner>,
+    sequence: AtomicU64,
+    span: AtomicU64,
+    sink: Option<Arc<dyn ProviderDiagnosticSink>>,
+}
+
+#[derive(Debug)]
+struct ProviderDiagnosticsInner {
+    metadata: ProviderRuntimeDiagnosticMetadata,
+    runtime_state: ProviderRuntimeState,
+    active_call: Option<ProviderCallSnapshot>,
+    recent_events: VecDeque<ProviderDiagnosticEvent>,
+    open_spans: BTreeMap<u64, ProviderDiagnosticEvent>,
+    captured_output_count: usize,
+}
+
+#[derive(Debug, Clone)]
+struct ProviderDiagnosticCallContext {
+    call_id: ProviderCallId,
+    request: ProviderRequest,
+    options: ProviderSettleOptions,
+    started_at: Instant,
+    started_wall_time_unix_ms: u64,
+}
+
+impl ProviderDiagnosticsHandle {
+    pub fn new() -> Self {
+        Self::from_optional_sink(None)
+    }
+
+    pub fn new_with_sink(sink: impl ProviderDiagnosticSink) -> Self {
+        Self::from_optional_sink(Some(Arc::new(sink)))
+    }
+
+    fn from_optional_sink(sink: Option<Arc<dyn ProviderDiagnosticSink>>) -> Self {
+        Self {
+            state: Arc::new(ProviderDiagnosticsState {
+                inner: Mutex::new(ProviderDiagnosticsInner {
+                    metadata: ProviderRuntimeDiagnosticMetadata::default(),
+                    runtime_state: ProviderRuntimeState::Initializing,
+                    active_call: None,
+                    recent_events: VecDeque::new(),
+                    open_spans: BTreeMap::new(),
+                    captured_output_count: 0,
+                }),
+                sequence: AtomicU64::new(1),
+                span: AtomicU64::new(1),
+                sink,
+            }),
+        }
+    }
+
+    pub fn snapshot(&self) -> ProviderRuntimeSnapshot {
+        let inner = self
+            .state
+            .inner
+            .lock()
+            .expect("provider diagnostics state poisoned");
+        ProviderRuntimeSnapshot {
+            active_call: inner.active_call.clone(),
+            recent_events: inner.recent_events.iter().cloned().collect(),
+            captured_output_count: inner.captured_output_count,
+            runtime_state: inner.runtime_state,
+        }
+    }
+
+    fn set_metadata(&self, metadata: ProviderRuntimeDiagnosticMetadata) {
+        self.state
+            .inner
+            .lock()
+            .expect("provider diagnostics state poisoned")
+            .metadata = metadata;
+    }
+
+    fn set_runtime_state(&self, runtime_state: ProviderRuntimeState) {
+        self.state
+            .inner
+            .lock()
+            .expect("provider diagnostics state poisoned")
+            .runtime_state = runtime_state;
+    }
+
+    fn add_captured_output(&self, count: usize) {
+        if count == 0 {
+            return;
+        }
+        self.state
+            .inner
+            .lock()
+            .expect("provider diagnostics state poisoned")
+            .captured_output_count += count;
+    }
+
+    fn start_call(
+        &self,
+        request: &ProviderRequest,
+        options: ProviderSettleOptions,
+        started_at: Instant,
+    ) -> ProviderDiagnosticCallContext {
+        let call_id = options
+            .call_id
+            .clone()
+            .unwrap_or_else(next_provider_call_id);
+        let context = ProviderDiagnosticCallContext {
+            call_id: call_id.clone(),
+            request: request.clone(),
+            options,
+            started_at,
+            started_wall_time_unix_ms: wall_time_unix_ms(),
+        };
+        {
+            let mut inner = self
+                .state
+                .inner
+                .lock()
+                .expect("provider diagnostics state poisoned");
+            inner.runtime_state = ProviderRuntimeState::InProviderCall;
+            inner.open_spans.clear();
+            inner.active_call = Some(ProviderCallSnapshot {
+                call_id,
+                contract: request.contract.clone(),
+                provider_domain_class: request.domain,
+                module_specifier_or_url: module_specifier_or_url(&request.module),
+                export_name: request.export.clone(),
+                deadline_ms: context.options.deadline.deadline_ms,
+                started_wall_time_unix_ms: context.started_wall_time_unix_ms,
+                latest_event: None,
+                unmatched_phase_enters: Vec::new(),
+            });
+        }
+        self.record(
+            &context,
+            ProviderDiagnosticEventKind::CallStart,
+            ProviderDiagnosticPhase::RuntimeInitialize,
+            ProviderExecutionOperation::RuntimeInitialize,
+            0,
+            None,
+            None,
+            None,
+        );
+        context
+    }
+
+    fn enter_phase(
+        &self,
+        context: &ProviderDiagnosticCallContext,
+        phase: ProviderDiagnosticPhase,
+        operation: ProviderExecutionOperation,
+        pending_async_task_count: usize,
+    ) -> u64 {
+        let span_id = self.state.span.fetch_add(1, Ordering::Relaxed);
+        self.record(
+            context,
+            ProviderDiagnosticEventKind::PhaseEnter,
+            phase,
+            operation,
+            span_id,
+            None,
+            Some(pending_async_task_count),
+            None,
+        );
+        span_id
+    }
+
+    fn exit_phase(
+        &self,
+        context: &ProviderDiagnosticCallContext,
+        phase: ProviderDiagnosticPhase,
+        operation: ProviderExecutionOperation,
+        span_id: u64,
+        pending_async_task_count: usize,
+        output_record_count: usize,
+    ) {
+        self.record(
+            context,
+            ProviderDiagnosticEventKind::PhaseExit,
+            phase,
+            operation,
+            span_id,
+            None,
+            Some(pending_async_task_count),
+            Some(output_record_count),
+        );
+    }
+
+    fn finish_call(
+        &self,
+        context: &ProviderDiagnosticCallContext,
+        kind: ProviderDiagnosticEventKind,
+        phase: ProviderDiagnosticPhase,
+        operation: ProviderExecutionOperation,
+        pending_async_task_count: usize,
+        output_record_count: usize,
+        detail: Option<String>,
+    ) {
+        self.record(
+            context,
+            kind,
+            phase,
+            operation,
+            0,
+            detail,
+            Some(pending_async_task_count),
+            Some(output_record_count),
+        );
+        let mut inner = self
+            .state
+            .inner
+            .lock()
+            .expect("provider diagnostics state poisoned");
+        inner.runtime_state = ProviderRuntimeState::Ready;
+        inner.active_call = None;
+        inner.open_spans.clear();
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn record(
+        &self,
+        context: &ProviderDiagnosticCallContext,
+        kind: ProviderDiagnosticEventKind,
+        phase: ProviderDiagnosticPhase,
+        operation: ProviderExecutionOperation,
+        span_id: u64,
+        detail: Option<String>,
+        pending_async_task_count: Option<usize>,
+        captured_output_record_count: Option<usize>,
+    ) {
+        let sequence = self.state.sequence.fetch_add(1, Ordering::Relaxed);
+        let metadata = {
+            self.state
+                .inner
+                .lock()
+                .expect("provider diagnostics state poisoned")
+                .metadata
+                .clone()
+        };
+        let event = ProviderDiagnosticEvent {
+            schema_version: PROVIDER_DIAGNOSTIC_SCHEMA_VERSION,
+            call_id: context.call_id.clone(),
+            sequence,
+            span_id,
+            parent_span_id: None,
+            wall_time_unix_ms: wall_time_unix_ms(),
+            elapsed_ms: elapsed_ms(context.started_at),
+            kind,
+            phase,
+            operation,
+            contract: context.request.contract.clone(),
+            provider_domain_class: context.request.domain,
+            module_specifier_or_url: module_specifier_or_url(&context.request.module),
+            export_name: context.request.export.clone(),
+            deadline_ms: context.options.deadline.deadline_ms,
+            pending_async_task_count,
+            captured_output_record_count,
+            libbun_version: metadata.libbun_version,
+            libbun_abi_version: metadata.libbun_abi_version,
+            bun_revision: metadata.bun_revision,
+            dynamic_plugin_path: metadata.dynamic_plugin_path,
+            dynamic_plugin_sha256: metadata.dynamic_plugin_sha256,
+            runtime_instance_id: metadata.runtime_instance_id,
+            process_id: std::process::id(),
+            thread_id: format!("{:?}", std::thread::current().id()),
+            detail,
+        };
+        let sink = {
+            let mut inner = self
+                .state
+                .inner
+                .lock()
+                .expect("provider diagnostics state poisoned");
+            const MAX_RECENT_EVENTS: usize = 128;
+            if inner.recent_events.len() == MAX_RECENT_EVENTS {
+                inner.recent_events.pop_front();
+            }
+            if kind == ProviderDiagnosticEventKind::PhaseEnter && span_id != 0 {
+                inner.open_spans.insert(span_id, event.clone());
+            } else if kind == ProviderDiagnosticEventKind::PhaseExit && span_id != 0 {
+                inner.open_spans.remove(&span_id);
+            }
+            inner.recent_events.push_back(event.clone());
+            let unmatched: Vec<_> = inner.open_spans.values().cloned().collect();
+            if let Some(active_call) = inner.active_call.as_mut() {
+                active_call.latest_event = Some(event.clone());
+                active_call.unmatched_phase_enters = unmatched;
+            }
+            self.state.sink.clone()
+        };
+        if let Some(sink) = sink {
+            sink.provider_event(event);
+        }
+    }
+}
+
+impl Default for ProviderDiagnosticsHandle {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -452,6 +908,7 @@ impl SettledProviderReceipt {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderSettlementDiagnostics {
+    pub call_id: Option<ProviderCallId>,
     pub operation: ProviderExecutionOperation,
     pub module_specifier_or_url: String,
     pub export_name: String,
@@ -486,6 +943,7 @@ pub enum ProviderSettlementPhase {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderExecutionFailure {
+    pub call_id: Option<ProviderCallId>,
     pub operation: ProviderExecutionOperation,
     pub module_specifier_or_url: String,
     pub export_name: String,
@@ -506,7 +964,7 @@ impl ProviderExecutionFailure {
     fn new(
         operation: ProviderExecutionOperation,
         request: &ProviderRequest,
-        options: ProviderSettleOptions,
+        options: &ProviderSettleOptions,
         started_at: Instant,
         pending_async_task_count: usize,
         output: Vec<OutputRecord>,
@@ -515,6 +973,7 @@ impl ProviderExecutionFailure {
         let message = message.into();
         let (js_error_name, js_error_stack) = js_error_fields(&message);
         Self {
+            call_id: options.call_id.clone(),
             operation,
             module_specifier_or_url: module_specifier_or_url(&request.module),
             export_name: request.export.clone(),
@@ -557,12 +1016,13 @@ impl ProviderSettlementDiagnostics {
     fn from_request(
         operation: ProviderExecutionOperation,
         request: &ProviderRequest,
-        options: ProviderSettleOptions,
+        options: &ProviderSettleOptions,
         started_at: Instant,
         pending_async_task_count: usize,
         output_record_count: usize,
     ) -> Self {
         Self {
+            call_id: options.call_id.clone(),
             operation,
             module_specifier_or_url: module_specifier_or_url(&request.module),
             export_name: request.export.clone(),
@@ -614,6 +1074,31 @@ fn elapsed_ms(started_at: Instant) -> u64 {
         .unwrap_or(u64::MAX)
 }
 
+fn wall_time_unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX)
+}
+
+fn next_provider_call_id() -> ProviderCallId {
+    static NEXT_PROVIDER_CALL: AtomicU64 = AtomicU64::new(1);
+    ProviderCallId(format!(
+        "provider-call-{}",
+        NEXT_PROVIDER_CALL.fetch_add(1, Ordering::Relaxed)
+    ))
+}
+
+fn next_runtime_instance_id() -> String {
+    static NEXT_RUNTIME_INSTANCE: AtomicU64 = AtomicU64::new(1);
+    format!(
+        "runtime-{}",
+        NEXT_RUNTIME_INSTANCE.fetch_add(1, Ordering::Relaxed)
+    )
+}
+
 fn deadline_elapsed(started_at: Instant, deadline: ProviderDeadline) -> bool {
     started_at.elapsed() >= Duration::from_millis(deadline.deadline_ms)
 }
@@ -645,7 +1130,7 @@ fn js_error_fields(message: &str) -> (Option<String>, Option<String>) {
 
 fn settled_ready_or_failure(
     request: ProviderRequest,
-    options: ProviderSettleOptions,
+    options: &ProviderSettleOptions,
     started_at: Instant,
     pending_async_task_count: usize,
     output: Vec<OutputRecord>,
@@ -682,6 +1167,13 @@ fn settled_ready_or_failure(
         ),
         output,
     })
+}
+
+fn ensure_provider_call_id(mut options: ProviderSettleOptions) -> ProviderSettleOptions {
+    if options.call_id.is_none() {
+        options.call_id = Some(next_provider_call_id());
+    }
+    options
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -759,6 +1251,10 @@ pub trait BunEmbeddingRuntime {
     where
         Self: Sized;
 
+    fn diagnostic_metadata(&self) -> ProviderRuntimeDiagnosticMetadata {
+        ProviderRuntimeDiagnosticMetadata::default()
+    }
+
     fn load_module(&mut self, spec: BunModuleSpec) -> LibbunResult<BunModuleHandle>;
 
     fn call_export(
@@ -780,222 +1276,7 @@ pub trait BunEmbeddingRuntime {
         request: ProviderRequest,
         options: ProviderSettleOptions,
     ) -> LibbunResult<SettledProviderReceipt> {
-        let started_at = Instant::now();
-        let mut output = self.drain_captured_output();
-        let mut pending_async_task_count = 0;
-        let mut trace = Vec::new();
-        push_settlement_trace(
-            &mut trace,
-            ProviderSettlementPhase::Start,
-            started_at,
-            pending_async_task_count,
-        );
-
-        if request.domain == ProviderDomainClass::RustSubstrateAuthority {
-            push_settlement_trace(
-                &mut trace,
-                ProviderSettlementPhase::Complete,
-                started_at,
-                pending_async_task_count,
-            );
-            return Ok(SettledProviderReceipt::Ready {
-                contract: request.contract.clone(),
-                artifact: artifact_fingerprint(),
-                result: ProviderCallResult::Err(ProviderError {
-                    code: "rust_substrate_authority_rejected".to_string(),
-                    message: "libbun cannot execute Rust-substrate provider exports".to_string(),
-                }),
-                settlement: ProviderSettlementDiagnostics::from_request(
-                    ProviderExecutionOperation::ProviderCallableValidate,
-                    &request,
-                    options,
-                    started_at,
-                    pending_async_task_count,
-                    output.len(),
-                )
-                .with_trace(trace),
-                output,
-            });
-        }
-
-        push_settlement_trace(
-            &mut trace,
-            ProviderSettlementPhase::ModuleLoad,
-            started_at,
-            pending_async_task_count,
-        );
-        let module = match self.load_module(request.module.clone()) {
-            Ok(module) => {
-                output.extend(self.drain_captured_output());
-                module
-            }
-            Err(err) => {
-                output.extend(self.drain_captured_output());
-                return Ok(SettledProviderReceipt::Failed(
-                    ProviderExecutionFailure::new(
-                        ProviderExecutionOperation::ProviderModuleImport,
-                        &request,
-                        options,
-                        started_at,
-                        pending_async_task_count,
-                        output,
-                        err.to_string(),
-                    )
-                    .with_trace(trace),
-                ));
-            }
-        };
-
-        push_settlement_trace(
-            &mut trace,
-            ProviderSettlementPhase::CallExport,
-            started_at,
-            pending_async_task_count,
-        );
-        let export_result = match self.call_export(&module, &request.export, request.input.clone())
-        {
-            Ok(result) => {
-                output.extend(self.drain_captured_output());
-                result
-            }
-            Err(err) => {
-                output.extend(self.drain_captured_output());
-                return Ok(SettledProviderReceipt::Failed(
-                    ProviderExecutionFailure::new(
-                        export_failure_operation(&err),
-                        &request,
-                        options,
-                        started_at,
-                        pending_async_task_count,
-                        output,
-                        err.to_string(),
-                    )
-                    .with_trace(trace),
-                ));
-            }
-        };
-
-        match export_result {
-            ExportCallResult::Ready(result) => {
-                push_settlement_trace(
-                    &mut trace,
-                    ProviderSettlementPhase::Complete,
-                    started_at,
-                    pending_async_task_count,
-                );
-                settled_ready_or_failure(
-                    request,
-                    options,
-                    started_at,
-                    pending_async_task_count,
-                    output,
-                    result,
-                    ProviderExecutionOperation::ProviderCallableInvoke,
-                )
-                .map(|receipt| receipt.with_trace(trace))
-            }
-            ExportCallResult::Pending(handle) => loop {
-                if deadline_elapsed(started_at, options.deadline) {
-                    output.extend(self.drain_captured_output());
-                    push_settlement_trace(
-                        &mut trace,
-                        ProviderSettlementPhase::DeadlineElapsed,
-                        started_at,
-                        pending_async_task_count.max(1),
-                    );
-                    return Ok(SettledProviderReceipt::Failed(
-                        ProviderExecutionFailure::new(
-                            ProviderExecutionOperation::ProviderDeadlineElapsed,
-                            &request,
-                            options,
-                            started_at,
-                            pending_async_task_count.max(1),
-                            output,
-                            format!(
-                                "provider deadline elapsed while settling `{}` after {} ms",
-                                request.export,
-                                elapsed_ms(started_at)
-                            ),
-                        )
-                        .with_trace(trace),
-                    ));
-                }
-
-                push_settlement_trace(
-                    &mut trace,
-                    ProviderSettlementPhase::ResolveAsync,
-                    started_at,
-                    pending_async_task_count,
-                );
-                match self.resolve_async(&handle) {
-                    Ok(Some(result)) => {
-                        output.extend(self.drain_captured_output());
-                        push_settlement_trace(
-                            &mut trace,
-                            ProviderSettlementPhase::Complete,
-                            started_at,
-                            pending_async_task_count,
-                        );
-                        break settled_ready_or_failure(
-                            request,
-                            options,
-                            started_at,
-                            pending_async_task_count,
-                            output,
-                            result,
-                            ProviderExecutionOperation::ProviderPromiseSettle,
-                        )
-                        .map(|receipt| receipt.with_trace(trace));
-                    }
-                    Ok(None) => {
-                        output.extend(self.drain_captured_output());
-                    }
-                    Err(err) => {
-                        output.extend(self.drain_captured_output());
-                        break Ok(SettledProviderReceipt::Failed(
-                            ProviderExecutionFailure::new(
-                                ProviderExecutionOperation::ProviderPromiseSettle,
-                                &request,
-                                options,
-                                started_at,
-                                pending_async_task_count,
-                                output,
-                                err.to_string(),
-                            )
-                            .with_trace(trace),
-                        ));
-                    }
-                }
-
-                push_settlement_trace(
-                    &mut trace,
-                    ProviderSettlementPhase::PumpEventLoop,
-                    started_at,
-                    pending_async_task_count,
-                );
-                match self.pump_event_loop(PumpBudget { max_ticks: 1 }) {
-                    Ok(outcome) => {
-                        pending_async_task_count = outcome.pending_async_work;
-                        output.extend(self.drain_captured_output());
-                    }
-                    Err(err) => {
-                        output.extend(self.drain_captured_output());
-                        break Ok(SettledProviderReceipt::Failed(
-                            ProviderExecutionFailure::new(
-                                ProviderExecutionOperation::ProviderPromiseSettle,
-                                &request,
-                                options,
-                                started_at,
-                                pending_async_task_count,
-                                output,
-                                err.to_string(),
-                            )
-                            .with_trace(trace),
-                        ));
-                    }
-                }
-            },
-        }
+        call_provider_until_settled_observed(self, request, options, None)
     }
 
     fn captured_output(&self) -> &[OutputRecord];
@@ -1005,11 +1286,476 @@ pub trait BunEmbeddingRuntime {
     fn shutdown(&mut self) -> LibbunResult<()>;
 }
 
+fn call_provider_until_settled_observed<R: BunEmbeddingRuntime + ?Sized>(
+    runtime: &mut R,
+    request: ProviderRequest,
+    options: ProviderSettleOptions,
+    diagnostics: Option<&ProviderDiagnosticsHandle>,
+) -> LibbunResult<SettledProviderReceipt> {
+    let options = ensure_provider_call_id(options);
+    let started_at = Instant::now();
+    let diagnostic_context =
+        diagnostics.map(|handle| handle.start_call(&request, options.clone(), started_at));
+    let mut output = runtime.drain_captured_output();
+    let mut pending_async_task_count = 0;
+    let mut trace = Vec::new();
+    push_settlement_trace(
+        &mut trace,
+        ProviderSettlementPhase::Start,
+        started_at,
+        pending_async_task_count,
+    );
+
+    if request.domain == ProviderDomainClass::RustSubstrateAuthority {
+        push_settlement_trace(
+            &mut trace,
+            ProviderSettlementPhase::Complete,
+            started_at,
+            pending_async_task_count,
+        );
+        let receipt = SettledProviderReceipt::Ready {
+            contract: request.contract.clone(),
+            artifact: artifact_fingerprint(),
+            result: ProviderCallResult::Err(ProviderError {
+                code: "rust_substrate_authority_rejected".to_string(),
+                message: "libbun cannot execute Rust-substrate provider exports".to_string(),
+            }),
+            settlement: ProviderSettlementDiagnostics::from_request(
+                ProviderExecutionOperation::ProviderCallableValidate,
+                &request,
+                &options,
+                started_at,
+                pending_async_task_count,
+                output.len(),
+            )
+            .with_trace(trace),
+            output,
+        };
+        finish_diagnostic_call(
+            diagnostics,
+            diagnostic_context.as_ref(),
+            &receipt,
+            ProviderDiagnosticEventKind::CallComplete,
+            ProviderDiagnosticPhase::Complete,
+            ProviderExecutionOperation::ProviderCallableValidate,
+        );
+        return Ok(receipt);
+    }
+
+    push_settlement_trace(
+        &mut trace,
+        ProviderSettlementPhase::ModuleLoad,
+        started_at,
+        pending_async_task_count,
+    );
+    let module_span = enter_diagnostic_phase(
+        diagnostics,
+        diagnostic_context.as_ref(),
+        ProviderDiagnosticPhase::ModuleLoad,
+        ProviderExecutionOperation::ProviderModuleImport,
+        pending_async_task_count,
+    );
+    let module = match runtime.load_module(request.module.clone()) {
+        Ok(module) => {
+            output.extend(runtime.drain_captured_output());
+            exit_diagnostic_phase(
+                diagnostics,
+                diagnostic_context.as_ref(),
+                ProviderDiagnosticPhase::ModuleLoad,
+                ProviderExecutionOperation::ProviderModuleImport,
+                module_span,
+                pending_async_task_count,
+                output.len(),
+            );
+            module
+        }
+        Err(err) => {
+            output.extend(runtime.drain_captured_output());
+            exit_diagnostic_phase(
+                diagnostics,
+                diagnostic_context.as_ref(),
+                ProviderDiagnosticPhase::ModuleLoad,
+                ProviderExecutionOperation::ProviderModuleImport,
+                module_span,
+                pending_async_task_count,
+                output.len(),
+            );
+            let receipt = SettledProviderReceipt::Failed(
+                ProviderExecutionFailure::new(
+                    ProviderExecutionOperation::ProviderModuleImport,
+                    &request,
+                    &options,
+                    started_at,
+                    pending_async_task_count,
+                    output,
+                    err.to_string(),
+                )
+                .with_trace(trace),
+            );
+            finish_diagnostic_call(
+                diagnostics,
+                diagnostic_context.as_ref(),
+                &receipt,
+                ProviderDiagnosticEventKind::CallFailed,
+                ProviderDiagnosticPhase::ModuleLoad,
+                ProviderExecutionOperation::ProviderModuleImport,
+            );
+            return Ok(receipt);
+        }
+    };
+
+    push_settlement_trace(
+        &mut trace,
+        ProviderSettlementPhase::CallExport,
+        started_at,
+        pending_async_task_count,
+    );
+    let export_span = enter_diagnostic_phase(
+        diagnostics,
+        diagnostic_context.as_ref(),
+        ProviderDiagnosticPhase::CallExport,
+        ProviderExecutionOperation::ProviderCallableInvoke,
+        pending_async_task_count,
+    );
+    let export_result = match runtime.call_export(&module, &request.export, request.input.clone()) {
+        Ok(result) => {
+            output.extend(runtime.drain_captured_output());
+            exit_diagnostic_phase(
+                diagnostics,
+                diagnostic_context.as_ref(),
+                ProviderDiagnosticPhase::CallExport,
+                ProviderExecutionOperation::ProviderCallableInvoke,
+                export_span,
+                pending_async_task_count,
+                output.len(),
+            );
+            result
+        }
+        Err(err) => {
+            output.extend(runtime.drain_captured_output());
+            let operation = export_failure_operation(&err);
+            exit_diagnostic_phase(
+                diagnostics,
+                diagnostic_context.as_ref(),
+                ProviderDiagnosticPhase::CallExport,
+                operation,
+                export_span,
+                pending_async_task_count,
+                output.len(),
+            );
+            let receipt = SettledProviderReceipt::Failed(
+                ProviderExecutionFailure::new(
+                    operation,
+                    &request,
+                    &options,
+                    started_at,
+                    pending_async_task_count,
+                    output,
+                    err.to_string(),
+                )
+                .with_trace(trace),
+            );
+            finish_diagnostic_call(
+                diagnostics,
+                diagnostic_context.as_ref(),
+                &receipt,
+                ProviderDiagnosticEventKind::CallFailed,
+                ProviderDiagnosticPhase::CallExport,
+                operation,
+            );
+            return Ok(receipt);
+        }
+    };
+
+    let receipt = match export_result {
+        ExportCallResult::Ready(result) => {
+            push_settlement_trace(
+                &mut trace,
+                ProviderSettlementPhase::Complete,
+                started_at,
+                pending_async_task_count,
+            );
+            settled_ready_or_failure(
+                request,
+                &options,
+                started_at,
+                pending_async_task_count,
+                output,
+                result,
+                ProviderExecutionOperation::ProviderCallableInvoke,
+            )
+            .map(|receipt| receipt.with_trace(trace))?
+        }
+        ExportCallResult::Pending(handle) => loop {
+            if deadline_elapsed(started_at, options.deadline) {
+                output.extend(runtime.drain_captured_output());
+                push_settlement_trace(
+                    &mut trace,
+                    ProviderSettlementPhase::DeadlineElapsed,
+                    started_at,
+                    pending_async_task_count.max(1),
+                );
+                let receipt = SettledProviderReceipt::Failed(
+                    ProviderExecutionFailure::new(
+                        ProviderExecutionOperation::ProviderDeadlineElapsed,
+                        &request,
+                        &options,
+                        started_at,
+                        pending_async_task_count.max(1),
+                        output,
+                        format!(
+                            "provider deadline elapsed while settling `{}` after {} ms",
+                            request.export,
+                            elapsed_ms(started_at)
+                        ),
+                    )
+                    .with_trace(trace),
+                );
+                break receipt;
+            }
+
+            push_settlement_trace(
+                &mut trace,
+                ProviderSettlementPhase::ResolveAsync,
+                started_at,
+                pending_async_task_count,
+            );
+            let resolve_span = enter_diagnostic_phase(
+                diagnostics,
+                diagnostic_context.as_ref(),
+                ProviderDiagnosticPhase::ResolveAsync,
+                ProviderExecutionOperation::ProviderPromiseSettle,
+                pending_async_task_count,
+            );
+            match runtime.resolve_async(&handle) {
+                Ok(Some(result)) => {
+                    output.extend(runtime.drain_captured_output());
+                    exit_diagnostic_phase(
+                        diagnostics,
+                        diagnostic_context.as_ref(),
+                        ProviderDiagnosticPhase::ResolveAsync,
+                        ProviderExecutionOperation::ProviderPromiseSettle,
+                        resolve_span,
+                        pending_async_task_count,
+                        output.len(),
+                    );
+                    push_settlement_trace(
+                        &mut trace,
+                        ProviderSettlementPhase::Complete,
+                        started_at,
+                        pending_async_task_count,
+                    );
+                    break settled_ready_or_failure(
+                        request,
+                        &options,
+                        started_at,
+                        pending_async_task_count,
+                        output,
+                        result,
+                        ProviderExecutionOperation::ProviderPromiseSettle,
+                    )
+                    .map(|receipt| receipt.with_trace(trace))?;
+                }
+                Ok(None) => {
+                    output.extend(runtime.drain_captured_output());
+                    exit_diagnostic_phase(
+                        diagnostics,
+                        diagnostic_context.as_ref(),
+                        ProviderDiagnosticPhase::ResolveAsync,
+                        ProviderExecutionOperation::ProviderPromiseSettle,
+                        resolve_span,
+                        pending_async_task_count,
+                        output.len(),
+                    );
+                }
+                Err(err) => {
+                    output.extend(runtime.drain_captured_output());
+                    exit_diagnostic_phase(
+                        diagnostics,
+                        diagnostic_context.as_ref(),
+                        ProviderDiagnosticPhase::ResolveAsync,
+                        ProviderExecutionOperation::ProviderPromiseSettle,
+                        resolve_span,
+                        pending_async_task_count,
+                        output.len(),
+                    );
+                    break SettledProviderReceipt::Failed(
+                        ProviderExecutionFailure::new(
+                            ProviderExecutionOperation::ProviderPromiseSettle,
+                            &request,
+                            &options,
+                            started_at,
+                            pending_async_task_count,
+                            output,
+                            err.to_string(),
+                        )
+                        .with_trace(trace),
+                    );
+                }
+            }
+
+            push_settlement_trace(
+                &mut trace,
+                ProviderSettlementPhase::PumpEventLoop,
+                started_at,
+                pending_async_task_count,
+            );
+            let pump_span = enter_diagnostic_phase(
+                diagnostics,
+                diagnostic_context.as_ref(),
+                ProviderDiagnosticPhase::PumpEventLoop,
+                ProviderExecutionOperation::ProviderPromiseSettle,
+                pending_async_task_count,
+            );
+            match runtime.pump_event_loop(PumpBudget { max_ticks: 1 }) {
+                Ok(outcome) => {
+                    pending_async_task_count = outcome.pending_async_work;
+                    output.extend(runtime.drain_captured_output());
+                    exit_diagnostic_phase(
+                        diagnostics,
+                        diagnostic_context.as_ref(),
+                        ProviderDiagnosticPhase::PumpEventLoop,
+                        ProviderExecutionOperation::ProviderPromiseSettle,
+                        pump_span,
+                        pending_async_task_count,
+                        output.len(),
+                    );
+                }
+                Err(err) => {
+                    output.extend(runtime.drain_captured_output());
+                    exit_diagnostic_phase(
+                        diagnostics,
+                        diagnostic_context.as_ref(),
+                        ProviderDiagnosticPhase::PumpEventLoop,
+                        ProviderExecutionOperation::ProviderPromiseSettle,
+                        pump_span,
+                        pending_async_task_count,
+                        output.len(),
+                    );
+                    break SettledProviderReceipt::Failed(
+                        ProviderExecutionFailure::new(
+                            ProviderExecutionOperation::ProviderPromiseSettle,
+                            &request,
+                            &options,
+                            started_at,
+                            pending_async_task_count,
+                            output,
+                            err.to_string(),
+                        )
+                        .with_trace(trace),
+                    );
+                }
+            }
+        },
+    };
+
+    let (kind, phase, operation) = match &receipt {
+        SettledProviderReceipt::Ready { settlement, .. } => (
+            ProviderDiagnosticEventKind::CallComplete,
+            ProviderDiagnosticPhase::Complete,
+            settlement.operation,
+        ),
+        SettledProviderReceipt::Failed(failure)
+            if failure.operation == ProviderExecutionOperation::ProviderDeadlineElapsed =>
+        {
+            (
+                ProviderDiagnosticEventKind::DeadlineElapsed,
+                ProviderDiagnosticPhase::DeadlineElapsed,
+                failure.operation,
+            )
+        }
+        SettledProviderReceipt::Failed(failure) => (
+            ProviderDiagnosticEventKind::CallFailed,
+            ProviderDiagnosticPhase::Complete,
+            failure.operation,
+        ),
+    };
+    finish_diagnostic_call(
+        diagnostics,
+        diagnostic_context.as_ref(),
+        &receipt,
+        kind,
+        phase,
+        operation,
+    );
+    Ok(receipt)
+}
+
+fn enter_diagnostic_phase(
+    diagnostics: Option<&ProviderDiagnosticsHandle>,
+    context: Option<&ProviderDiagnosticCallContext>,
+    phase: ProviderDiagnosticPhase,
+    operation: ProviderExecutionOperation,
+    pending_async_task_count: usize,
+) -> u64 {
+    match (diagnostics, context) {
+        (Some(handle), Some(context)) => {
+            handle.enter_phase(context, phase, operation, pending_async_task_count)
+        }
+        _ => 0,
+    }
+}
+
+fn exit_diagnostic_phase(
+    diagnostics: Option<&ProviderDiagnosticsHandle>,
+    context: Option<&ProviderDiagnosticCallContext>,
+    phase: ProviderDiagnosticPhase,
+    operation: ProviderExecutionOperation,
+    span_id: u64,
+    pending_async_task_count: usize,
+    output_record_count: usize,
+) {
+    if let (Some(handle), Some(context)) = (diagnostics, context) {
+        handle.exit_phase(
+            context,
+            phase,
+            operation,
+            span_id,
+            pending_async_task_count,
+            output_record_count,
+        );
+    }
+}
+
+fn finish_diagnostic_call(
+    diagnostics: Option<&ProviderDiagnosticsHandle>,
+    context: Option<&ProviderDiagnosticCallContext>,
+    receipt: &SettledProviderReceipt,
+    kind: ProviderDiagnosticEventKind,
+    phase: ProviderDiagnosticPhase,
+    operation: ProviderExecutionOperation,
+) {
+    let (pending_async_task_count, output_record_count, detail) = match receipt {
+        SettledProviderReceipt::Ready { settlement, .. } => (
+            settlement.pending_async_task_count,
+            settlement.output_record_count,
+            None,
+        ),
+        SettledProviderReceipt::Failed(failure) => (
+            failure.pending_async_task_count,
+            failure.output_record_count,
+            failure.js_error_message.clone(),
+        ),
+    };
+    if let (Some(handle), Some(context)) = (diagnostics, context) {
+        handle.finish_call(
+            context,
+            kind,
+            phase,
+            operation,
+            pending_async_task_count,
+            output_record_count,
+            detail,
+        );
+    }
+}
+
 pub struct BunHost<R: BunEmbeddingRuntime> {
     runtime: R,
     output: CapturedOutput,
     output_handler: Option<OutputHandler>,
     output_policies: OutputPolicies,
+    diagnostics: ProviderDiagnosticsHandle,
     shutdown: bool,
 }
 
@@ -1042,11 +1788,15 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
     pub fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
         let output_policies = OutputPolicies::from_config(&config);
         let runtime = R::initialize(config)?;
+        let diagnostics = ProviderDiagnosticsHandle::new();
+        diagnostics.set_metadata(runtime.diagnostic_metadata());
+        diagnostics.set_runtime_state(ProviderRuntimeState::Ready);
         let mut host = Self {
             runtime,
             output: CapturedOutput::default(),
             output_handler: None,
             output_policies,
+            diagnostics,
             shutdown: false,
         };
         host.collect_output();
@@ -1059,11 +1809,36 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
     ) -> LibbunResult<Self> {
         let output_policies = OutputPolicies::from_config(&config);
         let runtime = R::initialize(config)?;
+        let diagnostics = ProviderDiagnosticsHandle::new();
+        diagnostics.set_metadata(runtime.diagnostic_metadata());
+        diagnostics.set_runtime_state(ProviderRuntimeState::Ready);
         let mut host = Self {
             runtime,
             output: CapturedOutput::default(),
             output_handler: Some(Box::new(output_handler)),
             output_policies,
+            diagnostics,
+            shutdown: false,
+        };
+        host.collect_output();
+        Ok(host)
+    }
+
+    pub fn initialize_with_diagnostics(
+        config: BunRuntimeConfig,
+        diagnostic_sink: impl ProviderDiagnosticSink,
+    ) -> LibbunResult<Self> {
+        let output_policies = OutputPolicies::from_config(&config);
+        let runtime = R::initialize(config)?;
+        let diagnostics = ProviderDiagnosticsHandle::new_with_sink(diagnostic_sink);
+        diagnostics.set_metadata(runtime.diagnostic_metadata());
+        diagnostics.set_runtime_state(ProviderRuntimeState::Ready);
+        let mut host = Self {
+            runtime,
+            output: CapturedOutput::default(),
+            output_handler: None,
+            output_policies,
+            diagnostics,
             shutdown: false,
         };
         host.collect_output();
@@ -1072,11 +1847,15 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
 
     pub fn from_runtime(config: BunRuntimeConfig, runtime: R) -> Self {
         let output_policies = OutputPolicies::from_config(&config);
+        let diagnostics = ProviderDiagnosticsHandle::new();
+        diagnostics.set_metadata(runtime.diagnostic_metadata());
+        diagnostics.set_runtime_state(ProviderRuntimeState::Ready);
         let mut host = Self {
             runtime,
             output: CapturedOutput::default(),
             output_handler: None,
             output_policies,
+            diagnostics,
             shutdown: false,
         };
         host.collect_output();
@@ -1089,12 +1868,21 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
         options: ProviderSettleOptions,
     ) -> LibbunResult<SettledProviderReceipt> {
         self.ensure_live()?;
-        let result = self.runtime.call_provider_until_settled(request, options);
+        let result = call_provider_until_settled_observed(
+            &mut self.runtime,
+            request,
+            options,
+            Some(&self.diagnostics),
+        );
         if let Ok(receipt) = &result {
             self.collect_returned_output(receipt.output());
         }
         self.collect_output();
         result
+    }
+
+    pub fn diagnostics_handle(&self) -> ProviderDiagnosticsHandle {
+        self.diagnostics.clone()
     }
 
     pub fn captured_output(&self) -> &[OutputRecord] {
@@ -1144,6 +1932,7 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
             handler(record.clone());
         }
         self.output.push(record);
+        self.diagnostics.add_captured_output(1);
     }
 }
 
@@ -1152,6 +1941,7 @@ pub struct LowLevelBunHost<R: BunEmbeddingRuntime> {
     output: CapturedOutput,
     output_handler: Option<OutputHandler>,
     output_policies: OutputPolicies,
+    diagnostics: ProviderDiagnosticsHandle,
     shutdown: bool,
 }
 
@@ -1159,11 +1949,15 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
     pub fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
         let output_policies = OutputPolicies::from_config(&config);
         let runtime = R::initialize(config)?;
+        let diagnostics = ProviderDiagnosticsHandle::new();
+        diagnostics.set_metadata(runtime.diagnostic_metadata());
+        diagnostics.set_runtime_state(ProviderRuntimeState::Ready);
         let mut host = Self {
             runtime,
             output: CapturedOutput::default(),
             output_handler: None,
             output_policies,
+            diagnostics,
             shutdown: false,
         };
         host.collect_output();
@@ -1176,11 +1970,36 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
     ) -> LibbunResult<Self> {
         let output_policies = OutputPolicies::from_config(&config);
         let runtime = R::initialize(config)?;
+        let diagnostics = ProviderDiagnosticsHandle::new();
+        diagnostics.set_metadata(runtime.diagnostic_metadata());
+        diagnostics.set_runtime_state(ProviderRuntimeState::Ready);
         let mut host = Self {
             runtime,
             output: CapturedOutput::default(),
             output_handler: Some(Box::new(output_handler)),
             output_policies,
+            diagnostics,
+            shutdown: false,
+        };
+        host.collect_output();
+        Ok(host)
+    }
+
+    pub fn initialize_with_diagnostics(
+        config: BunRuntimeConfig,
+        diagnostic_sink: impl ProviderDiagnosticSink,
+    ) -> LibbunResult<Self> {
+        let output_policies = OutputPolicies::from_config(&config);
+        let runtime = R::initialize(config)?;
+        let diagnostics = ProviderDiagnosticsHandle::new_with_sink(diagnostic_sink);
+        diagnostics.set_metadata(runtime.diagnostic_metadata());
+        diagnostics.set_runtime_state(ProviderRuntimeState::Ready);
+        let mut host = Self {
+            runtime,
+            output: CapturedOutput::default(),
+            output_handler: None,
+            output_policies,
+            diagnostics,
             shutdown: false,
         };
         host.collect_output();
@@ -1189,11 +2008,15 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
 
     pub fn from_runtime(config: BunRuntimeConfig, runtime: R) -> Self {
         let output_policies = OutputPolicies::from_config(&config);
+        let diagnostics = ProviderDiagnosticsHandle::new();
+        diagnostics.set_metadata(runtime.diagnostic_metadata());
+        diagnostics.set_runtime_state(ProviderRuntimeState::Ready);
         let mut host = Self {
             runtime,
             output: CapturedOutput::default(),
             output_handler: None,
             output_policies,
+            diagnostics,
             shutdown: false,
         };
         host.collect_output();
@@ -1225,12 +2048,21 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
         options: ProviderSettleOptions,
     ) -> LibbunResult<SettledProviderReceipt> {
         self.ensure_live()?;
-        let result = self.runtime.call_provider_until_settled(request, options);
+        let result = call_provider_until_settled_observed(
+            &mut self.runtime,
+            request,
+            options,
+            Some(&self.diagnostics),
+        );
         if let Ok(receipt) = &result {
             self.collect_returned_output(receipt.output());
         }
         self.collect_output();
         result
+    }
+
+    pub fn diagnostics_handle(&self) -> ProviderDiagnosticsHandle {
+        self.diagnostics.clone()
     }
 
     pub fn pump_event_loop(&mut self, budget: PumpBudget) -> LibbunResult<PumpOutcome> {
@@ -1297,6 +2129,7 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
             handler(record.clone());
         }
         self.output.push(record);
+        self.diagnostics.add_captured_output(1);
     }
 }
 

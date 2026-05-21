@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use libbun::BunAsyncHandle;
 use libbun::BunEmbeddingRuntime;
@@ -19,10 +20,14 @@ use libbun::PreparedBundleV1;
 use libbun::ProviderCallResult;
 use libbun::ProviderContractIdentity;
 use libbun::ProviderDeadline;
+use libbun::ProviderDiagnosticEvent;
+use libbun::ProviderDiagnosticEventKind;
+use libbun::ProviderDiagnosticPhase;
 use libbun::ProviderDomainClass;
 use libbun::ProviderError;
 use libbun::ProviderExecutionOperation;
 use libbun::ProviderRequest;
+use libbun::ProviderRuntimeState;
 use libbun::ProviderSettleOptions;
 use libbun::ProviderSettlementPhase;
 use libbun::PumpBudget;
@@ -45,6 +50,7 @@ struct ConformanceRuntime {
 enum ModuleBehavior {
     Echo,
     AsyncEcho,
+    BlockingEcho,
     NeverSettles,
     ProviderError,
     PromiseReject,
@@ -79,6 +85,7 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                 let behavior = match source.as_str() {
                     "export:echo" => ModuleBehavior::Echo,
                     "export:async_echo" => ModuleBehavior::AsyncEcho,
+                    "export:blocking_echo" => ModuleBehavior::BlockingEcho,
                     "export:never" => ModuleBehavior::NeverSettles,
                     "export:error" => ModuleBehavior::ProviderError,
                     "export:reject" => ModuleBehavior::PromiseReject,
@@ -160,6 +167,10 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                     },
                 );
                 Ok(ExportCallResult::Pending(handle))
+            }
+            ModuleBehavior::BlockingEcho => {
+                std::thread::sleep(Duration::from_millis(200));
+                Ok(ExportCallResult::Ready(ProviderCallResult::Ok(input)))
             }
             ModuleBehavior::NeverSettles => {
                 let handle = BunAsyncHandle {
@@ -324,6 +335,10 @@ fn settled_provider_call_returns_structural_result_and_captures_output() {
             assert_eq!(
                 settlement.operation,
                 ProviderExecutionOperation::ProviderCallableInvoke
+            );
+            assert!(
+                settlement.call_id.is_some(),
+                "settled receipts must carry a generated call id"
             );
             assert!(output.iter().any(|record| {
                 record.stream == OutputStream::Stdout && record.text == "called default"
@@ -563,6 +578,10 @@ fn deadline_expiry_returns_pending_async_diagnostics() {
         ProviderExecutionOperation::ProviderDeadlineElapsed
     );
     assert_eq!(failure.deadline_ms, 0);
+    assert!(
+        failure.call_id.is_some(),
+        "settled failures must carry a generated call id"
+    );
     assert!(failure.pending_async_task_count >= 1);
     assert!(
         failure
@@ -659,6 +678,110 @@ fn host_can_drain_captured_output_history() {
     let initial = host.drain_captured_output();
     assert_eq!(initial.len(), 1);
     assert!(host.captured_output().is_empty());
+}
+
+#[test]
+fn provider_diagnostics_emit_live_phase_events() {
+    let events: Arc<Mutex<Vec<ProviderDiagnosticEvent>>> = Arc::new(Mutex::new(Vec::new()));
+    let sink_events = Arc::clone(&events);
+    let mut host = BunHost::<ConformanceRuntime>::initialize_with_diagnostics(
+        BunRuntimeConfig::new("test-host", "/tmp"),
+        move |event| {
+            sink_events.lock().expect("events lock").push(event);
+        },
+    )
+    .expect("host initializes");
+
+    let receipt = host
+        .call_provider_until_settled(
+            source_request("export:async_echo", StructuralValue(json!({ "ok": true }))),
+            settle_options().with_call_id("diagnostic-call"),
+        )
+        .expect("provider succeeds");
+    assert!(matches!(receipt, SettledProviderReceipt::Ready { .. }));
+
+    let events = events.lock().expect("events lock");
+    assert!(
+        events
+            .iter()
+            .any(|event| event.kind == ProviderDiagnosticEventKind::CallStart)
+    );
+    assert!(events.iter().any(|event| {
+        event.kind == ProviderDiagnosticEventKind::PhaseEnter
+            && event.phase == ProviderDiagnosticPhase::ModuleLoad
+    }));
+    assert!(events.iter().any(|event| {
+        event.kind == ProviderDiagnosticEventKind::PhaseExit
+            && event.phase == ProviderDiagnosticPhase::ModuleLoad
+    }));
+    assert!(events.iter().any(|event| {
+        event.kind == ProviderDiagnosticEventKind::PhaseEnter
+            && event.phase == ProviderDiagnosticPhase::CallExport
+    }));
+    assert!(events.iter().any(|event| {
+        event.kind == ProviderDiagnosticEventKind::PhaseEnter
+            && event.phase == ProviderDiagnosticPhase::ResolveAsync
+    }));
+    assert!(events.iter().any(|event| {
+        event.kind == ProviderDiagnosticEventKind::PhaseEnter
+            && event.phase == ProviderDiagnosticPhase::PumpEventLoop
+    }));
+    assert!(events.iter().any(|event| {
+        event.kind == ProviderDiagnosticEventKind::CallComplete
+            && event.phase == ProviderDiagnosticPhase::Complete
+    }));
+    assert!(
+        events
+            .iter()
+            .all(|event| event.call_id.0 == "diagnostic-call")
+    );
+}
+
+#[test]
+fn provider_diagnostics_snapshot_observes_unmatched_phase_during_call() {
+    let mut host =
+        BunHost::<ConformanceRuntime>::initialize(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("host initializes");
+    let diagnostics = host.diagnostics_handle();
+
+    let worker = std::thread::spawn(move || {
+        host.call_provider_until_settled(
+            source_request(
+                "export:blocking_echo",
+                StructuralValue(json!({ "ok": true })),
+            ),
+            settle_options().with_call_id("blocking-diagnostic-call"),
+        )
+        .expect("provider succeeds")
+    });
+
+    let mut observed = None;
+    for _ in 0..50 {
+        let snapshot = diagnostics.snapshot();
+        if let Some(active_call) = snapshot.active_call {
+            if active_call.unmatched_phase_enters.iter().any(|event| {
+                event.kind == ProviderDiagnosticEventKind::PhaseEnter
+                    && event.phase == ProviderDiagnosticPhase::CallExport
+            }) {
+                observed = Some(active_call);
+                break;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+
+    let active_call = observed.expect("snapshot observes unmatched call_export phase");
+    assert_eq!(active_call.call_id.0, "blocking-diagnostic-call");
+    assert_eq!(
+        active_call.latest_event.as_ref().map(|event| event.phase),
+        Some(ProviderDiagnosticPhase::CallExport)
+    );
+
+    let receipt = worker.join().expect("worker joins");
+    assert!(matches!(receipt, SettledProviderReceipt::Ready { .. }));
+    let final_snapshot = diagnostics.snapshot();
+    assert_eq!(final_snapshot.runtime_state, ProviderRuntimeState::Ready);
+    assert!(final_snapshot.active_call.is_none());
 }
 
 #[test]

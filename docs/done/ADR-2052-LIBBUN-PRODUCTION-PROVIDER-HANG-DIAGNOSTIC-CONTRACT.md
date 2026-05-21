@@ -23,12 +23,11 @@ boundary was entered.
 The correct responsibility split is:
 
 - `libbun` owns production observability for provider execution;
-- the host owns supervision policy, process isolation, retries, killing,
-  user-facing reporting, and escalation.
+- the host owns any supervision policy, user-facing reporting, and escalation.
 
 This ADR defines the `libbun` diagnostic contract needed by a host such as
-`ss` to diagnose and survive production provider hangs without relying on CI
-logs, stdout diagnostics, debug builds, or ad hoc native debugger sessions.
+`ss` to diagnose production provider hangs without relying on CI logs, stdout
+diagnostics, debug builds, or ad hoc native debugger sessions.
 
 ## Decision
 
@@ -158,7 +157,7 @@ pub struct ProviderRuntimeSnapshot {
 The snapshot is best-effort diagnostic state. It must be cheap to capture and
 must not require calling into Bun or JSC. It exists so a supervising host thread
 or worker supervisor can ask `libbun` what it last attempted before deciding how
-to report, abort, kill, or restart the provider runtime.
+to report or escalate the stuck provider call.
 
 The snapshot must be useful even when the runtime thread is blocked inside a
 native call. It therefore cannot require `&mut BunHost`, `&mut LowLevelBunHost`,
@@ -182,7 +181,7 @@ The intended host integration is:
 7. If the call hangs, the host asks the diagnostics handle for a snapshot and
    reports the latest unmatched `phase_enter`,
    plugin/runtime identity, request metadata, captured output count, and any
-   snapshot collected before it terminates or isolates the stuck worker.
+   snapshot collected by the host.
 
 ## Non-Goals
 
@@ -190,8 +189,8 @@ This ADR does not require `libbun` to kill threads or processes. Rust cannot
 safely kill an arbitrary thread executing native code inside the same process.
 
 This ADR does not require every host to run providers out of process. It requires
-`libbun` to expose the diagnostics that make an out-of-process or externally
-supervised design precise.
+`libbun` to expose diagnostics that remain useful whether the host runs
+providers in-process or behind an external supervisor.
 
 This ADR does not make CI diagnostics the primary goal. CI may use the same
 events and snapshots, but the contract is designed for production host
