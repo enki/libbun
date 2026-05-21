@@ -154,7 +154,7 @@ plugin caches.
 Manual macOS bundling example when `download-plugin` is not used:
 
 ```sh
-native_version=v0.2.2
+native_version=v0.2.3
 target=aarch64-apple-darwin
 curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
 mkdir -p dist/bin
@@ -164,7 +164,7 @@ tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C dis
 Linux setup is the same except for the target name and `.so` filename:
 
 ```sh
-native_version=v0.2.2
+native_version=v0.2.3
 target=aarch64-unknown-linux-gnu
 curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
 mkdir -p dist/bin
@@ -361,7 +361,7 @@ before assets are uploaded, verified, or recorded in checksum tables.
 Before creating a release tag, run the local preflight:
 
 ```sh
-scripts/preflight-native-plugin-release.sh v0.2.2
+scripts/preflight-native-plugin-release.sh v0.2.3
 ```
 
 On Linux, preflight defaults to the PIC single-plugin in-process release path.
@@ -375,7 +375,7 @@ release tag:
 ```sh
 git add .
 git commit -m "Prepare native plugin release"
-scripts/create-native-plugin-release.sh v0.2.2
+scripts/create-native-plugin-release.sh v0.2.3
 ```
 
 Pushing the tag triggers `.github/workflows/release-native-plugin.yml`. Inspect
