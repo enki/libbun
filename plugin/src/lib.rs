@@ -4,7 +4,8 @@ use std::panic::AssertUnwindSafe;
 use libbun::plugin_abi::{LIBBUN_PLUGIN_ABI_VERSION, LibbunPluginBuffer, LibbunPluginStatus};
 use libbun::{
     BunAsyncHandle, BunModuleHandle, BunModuleSpec, BunRuntimeConfig, ExportCallResult,
-    LibbunError, OutputRecord, ProviderCallResult, PumpBudget, PumpOutcome, StructuralValue,
+    LibbunError, OutputRecord, ProviderCallResult, ProviderRequest, ProviderSettleOptions,
+    PumpBudget, PumpOutcome, SettledProviderReceipt, StructuralValue,
 };
 
 #[cfg(all(
@@ -41,6 +42,12 @@ trait RuntimeTransport {
         &mut self,
         handle: &BunAsyncHandle,
     ) -> libbun::LibbunResult<Option<ProviderCallResult>>;
+
+    fn call_provider_until_settled(
+        &mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> libbun::LibbunResult<SettledProviderReceipt>;
 
     fn drain_output(&mut self) -> libbun::LibbunResult<Vec<OutputRecord>>;
 
@@ -162,6 +169,23 @@ pub unsafe extern "C" fn libbun_plugin_runtime_resolve_async(
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn libbun_plugin_runtime_call_provider_until_settled(
+    runtime: *mut c_void,
+    request_data: *const u8,
+    request_len: usize,
+    options_data: *const u8,
+    options_len: usize,
+) -> LibbunPluginStatus {
+    ffi_status(|| {
+        let request: ProviderRequest = read_json(request_data, request_len)?;
+        let options: ProviderSettleOptions = read_json(options_data, options_len)?;
+        runtime_mut(runtime)?
+            .transport
+            .call_provider_until_settled(request, options)
+    })
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn libbun_plugin_runtime_drain_output(
     runtime: *mut c_void,
 ) -> LibbunPluginStatus {
@@ -243,10 +267,10 @@ fn read_bytes<'a>(data: *const u8, len: usize) -> libbun::LibbunResult<&'a [u8]>
 
 #[cfg(any(not(target_os = "linux"), feature = "linux-in-process"))]
 mod transport {
-    use libbun::BunHost;
     use libbun::{
         BunAsyncHandle, BunModuleHandle, BunModuleSpec, BunRuntimeConfig, ExportCallResult,
-        OutputRecord, ProviderCallResult, PumpBudget, PumpOutcome, StructuralValue,
+        LowLevelBunHost, OutputRecord, ProviderCallResult, ProviderRequest, ProviderSettleOptions,
+        PumpBudget, PumpOutcome, SettledProviderReceipt, StructuralValue,
     };
     use libbun_native::NativeBunRuntime;
 
@@ -254,12 +278,12 @@ mod transport {
 
     pub fn create(config: BunRuntimeConfig) -> libbun::LibbunResult<Box<dyn RuntimeTransport>> {
         Ok(Box::new(InProcessTransport {
-            host: BunHost::<NativeBunRuntime>::initialize(config)?,
+            host: LowLevelBunHost::<NativeBunRuntime>::initialize(config)?,
         }))
     }
 
     struct InProcessTransport {
-        host: BunHost<NativeBunRuntime>,
+        host: LowLevelBunHost<NativeBunRuntime>,
     }
 
     impl RuntimeTransport for InProcessTransport {
@@ -285,6 +309,14 @@ mod transport {
             handle: &BunAsyncHandle,
         ) -> libbun::LibbunResult<Option<ProviderCallResult>> {
             self.host.resolve_async(handle)
+        }
+
+        fn call_provider_until_settled(
+            &mut self,
+            request: ProviderRequest,
+            options: ProviderSettleOptions,
+        ) -> libbun::LibbunResult<SettledProviderReceipt> {
+            self.host.call_provider_until_settled(request, options)
         }
 
         fn drain_output(&mut self) -> libbun::LibbunResult<Vec<OutputRecord>> {
@@ -324,7 +356,8 @@ mod transport {
     use libbun::plugin_abi::LIBBUN_PLUGIN_ABI_VERSION;
     use libbun::{
         BunAsyncHandle, BunModuleHandle, BunModuleSpec, BunRuntimeConfig, ExportCallResult,
-        LibbunError, OutputRecord, ProviderCallResult, PumpBudget, PumpOutcome, StructuralValue,
+        LibbunError, OutputRecord, ProviderCallResult, ProviderRequest, ProviderSettleOptions,
+        PumpBudget, PumpOutcome, SettledProviderReceipt, StructuralValue,
     };
 
     use crate::RuntimeTransport;
@@ -508,6 +541,22 @@ mod transport {
                 HelperResponsePayload::Resolve(result) => Ok(result),
                 _ => Err(LibbunError::export_call(
                     "Linux native helper returned an unexpected async response",
+                )),
+            }
+        }
+
+        fn call_provider_until_settled(
+            &mut self,
+            request: ProviderRequest,
+            options: ProviderSettleOptions,
+        ) -> libbun::LibbunResult<SettledProviderReceipt> {
+            match self.request(
+                HelperRequestPayload::CallProviderUntilSettled { request, options },
+                LibbunError::export_call,
+            )? {
+                HelperResponsePayload::SettledProvider(receipt) => Ok(receipt),
+                _ => Err(LibbunError::export_call(
+                    "Linux native helper returned an unexpected settled provider response",
                 )),
             }
         }

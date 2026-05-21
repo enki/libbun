@@ -100,6 +100,7 @@ fn emit_linux_plugin_export_boundary() {
         libbun_plugin_runtime_call_export;
         libbun_plugin_runtime_pump_event_loop;
         libbun_plugin_runtime_resolve_async;
+        libbun_plugin_runtime_call_provider_until_settled;
         libbun_plugin_runtime_drain_output;
         libbun_plugin_runtime_shutdown;
     local:

@@ -9,7 +9,7 @@ use libbun::helper_protocol::LIBBUN_HELPER_PROTOCOL_VERSION;
 use libbun::helper_protocol::read_frame;
 use libbun::helper_protocol::write_frame;
 use libbun::plugin_abi::LIBBUN_PLUGIN_ABI_VERSION;
-use libbun::{BunHost, LibbunError};
+use libbun::{LibbunError, LowLevelBunHost};
 use libbun_native::NativeBunRuntime;
 
 #[cfg(target_os = "linux")]
@@ -43,7 +43,7 @@ fn run() -> io::Result<()> {
 
 #[derive(Default)]
 struct HelperState {
-    host: Option<BunHost<NativeBunRuntime>>,
+    host: Option<LowLevelBunHost<NativeBunRuntime>>,
 }
 
 impl HelperState {
@@ -54,7 +54,7 @@ impl HelperState {
         match payload {
             HelperRequestPayload::Hello(hello) => self.hello(hello),
             HelperRequestPayload::Create { config } => {
-                self.host = Some(BunHost::<NativeBunRuntime>::initialize(config)?);
+                self.host = Some(LowLevelBunHost::<NativeBunRuntime>::initialize(config)?);
                 Ok(HelperResponsePayload::Unit)
             }
             HelperRequestPayload::LoadModule { spec } => self
@@ -77,11 +77,15 @@ impl HelperState {
                 .host_mut()?
                 .resolve_async(&handle)
                 .map(HelperResponsePayload::Resolve),
+            HelperRequestPayload::CallProviderUntilSettled { request, options } => self
+                .host_mut()?
+                .call_provider_until_settled(request, options)
+                .map(HelperResponsePayload::SettledProvider),
             HelperRequestPayload::DrainOutput => {
                 let records = self
                     .host
                     .as_mut()
-                    .map(BunHost::drain_captured_output)
+                    .map(LowLevelBunHost::drain_captured_output)
                     .unwrap_or_default();
                 Ok(HelperResponsePayload::Output(records))
             }
@@ -118,7 +122,7 @@ impl HelperState {
         )))
     }
 
-    fn host_mut(&mut self) -> libbun::LibbunResult<&mut BunHost<NativeBunRuntime>> {
+    fn host_mut(&mut self) -> libbun::LibbunResult<&mut LowLevelBunHost<NativeBunRuntime>> {
         self.host.as_mut().ok_or_else(|| {
             LibbunError::initialize("Linux native helper runtime has not been created")
         })

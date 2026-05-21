@@ -16,8 +16,8 @@ use crate::plugin_abi::{
 use crate::release;
 use crate::{
     BunAsyncHandle, BunEmbeddingRuntime, BunModuleHandle, BunModuleSpec, BunRuntimeConfig,
-    ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, PumpBudget,
-    PumpOutcome, StructuralValue,
+    ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, ProviderRequest,
+    ProviderSettleOptions, PumpBudget, PumpOutcome, SettledProviderReceipt, StructuralValue,
 };
 
 type PluginAbiVersionFn = unsafe extern "C" fn() -> u32;
@@ -39,6 +39,8 @@ type RuntimeCallExportFn = unsafe extern "C" fn(
 type RuntimePumpEventLoopFn = unsafe extern "C" fn(*mut c_void, u32) -> LibbunPluginStatus;
 type RuntimeResolveAsyncFn =
     unsafe extern "C" fn(*mut c_void, *const u8, usize) -> LibbunPluginStatus;
+type RuntimeCallProviderUntilSettledFn =
+    unsafe extern "C" fn(*mut c_void, *const u8, usize, *const u8, usize) -> LibbunPluginStatus;
 type RuntimeDrainOutputFn = unsafe extern "C" fn(*mut c_void) -> LibbunPluginStatus;
 type RuntimeShutdownFn = unsafe extern "C" fn(*mut c_void) -> LibbunPluginStatus;
 
@@ -61,6 +63,7 @@ struct DynamicPlugin {
     runtime_call_export: RuntimeCallExportFn,
     runtime_pump_event_loop: RuntimePumpEventLoopFn,
     runtime_resolve_async: RuntimeResolveAsyncFn,
+    runtime_call_provider_until_settled: RuntimeCallProviderUntilSettledFn,
     runtime_drain_output: RuntimeDrainOutputFn,
     runtime_shutdown: RuntimeShutdownFn,
 }
@@ -205,6 +208,34 @@ impl BunEmbeddingRuntime for DynamicBunRuntime {
         result
     }
 
+    fn call_provider_until_settled(
+        &mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> LibbunResult<SettledProviderReceipt> {
+        if self.shutdown {
+            return Err(LibbunError::RuntimeShutdown);
+        }
+        let request = serde_json::to_vec(&request).map_err(|err| {
+            LibbunError::export_call(format!("provider request encode failed: {err}"))
+        })?;
+        let options = serde_json::to_vec(&options).map_err(|err| {
+            LibbunError::export_call(format!("provider settle options encode failed: {err}"))
+        })?;
+        let status = unsafe {
+            (self.plugin.runtime_call_provider_until_settled)(
+                self.runtime,
+                request.as_ptr(),
+                request.len(),
+                options.as_ptr(),
+                options.len(),
+            )
+        };
+        let result = self.plugin.status_json(status, LibbunError::export_call);
+        self.collect_output()?;
+        result
+    }
+
     fn captured_output(&self) -> &[OutputRecord] {
         &self.output
     }
@@ -269,6 +300,10 @@ impl DynamicPlugin {
         let runtime_pump_event_loop =
             load_symbol(&library, b"libbun_plugin_runtime_pump_event_loop")?;
         let runtime_resolve_async = load_symbol(&library, b"libbun_plugin_runtime_resolve_async")?;
+        let runtime_call_provider_until_settled = load_symbol(
+            &library,
+            b"libbun_plugin_runtime_call_provider_until_settled",
+        )?;
         let runtime_drain_output = load_symbol(&library, b"libbun_plugin_runtime_drain_output")?;
         let runtime_shutdown = load_symbol(&library, b"libbun_plugin_runtime_shutdown")?;
 
@@ -284,6 +319,7 @@ impl DynamicPlugin {
             runtime_call_export,
             runtime_pump_event_loop,
             runtime_resolve_async,
+            runtime_call_provider_until_settled,
             runtime_drain_output,
             runtime_shutdown,
         })

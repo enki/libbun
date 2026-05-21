@@ -6,6 +6,7 @@ asset_dir=""
 repo="${LIBBUN_RELEASE_REPO:-enki/libbun}"
 targets=()
 tmpdir=""
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 cleanup() {
   if [[ -n "$tmpdir" ]]; then
@@ -144,6 +145,10 @@ if [[ -n "$asset_dir" ]]; then
     echo "missing required command for release tarball verification: zstd" >&2
     exit 2
   fi
+  if ! command -v tar >/dev/null 2>&1; then
+    echo "missing required command for release tarball verification: tar" >&2
+    exit 2
+  fi
   if ! command -v python3 >/dev/null 2>&1; then
     echo "missing required command for bundle metadata verification: python3" >&2
     exit 2
@@ -152,6 +157,20 @@ if [[ -n "$asset_dir" ]]; then
     echo "missing required command for native plugin verification: strings" >&2
     exit 2
   fi
+
+  source_extract_dir="$(mktemp -d)"
+  zstd -dc "$asset_dir/libbun-plugin-native-${release_version}-source.tar.zst" |
+    tar -C "$source_extract_dir" -xf -
+  source_root="$(find "$source_extract_dir" -mindepth 1 -maxdepth 1 -type d -name 'libbun-*' -print -quit)"
+  if [[ -z "$source_root" ]]; then
+    echo "source archive did not extract to a libbun-* root" >&2
+    exit 1
+  fi
+  source_manifest="$source_root/release/libbun-native-link-manifest.txt"
+  "$repo_root/scripts/assert-distributable-native-link.sh" \
+    "$source_manifest" \
+    "native plugin release source archive"
+  rm -rf "$source_extract_dir"
 
   for target in "${targets[@]}"; do
     archive="$asset_dir/libbun-plugin-native-${release_version}-${target}.tar.zst"

@@ -6,10 +6,10 @@ use std::sync::Mutex;
 
 use libbun::dynamic::DynamicBunRuntime;
 use libbun::{
-    BunHost, BunModuleSpec, BunRuntimeConfig, ExportCallResult, LibbunError, OutputRecord,
-    OutputStream, PreparedBundleModuleV1, PreparedBundleV1, ProviderCallResult,
-    ProviderContractIdentity, ProviderDomainClass, ProviderHostReceipt, ProviderRequest,
-    PumpBudget, StructuralValue,
+    BunHost, BunModuleSpec, BunRuntimeConfig, LibbunError, OutputRecord, OutputStream,
+    PreparedBundleModuleV1, PreparedBundleV1, ProviderCallResult, ProviderContractIdentity,
+    ProviderDeadline, ProviderDomainClass, ProviderExecutionOperation, ProviderRequest,
+    ProviderSettleOptions, SettledProviderReceipt, StructuralValue,
 };
 use serde_json::json;
 
@@ -21,6 +21,10 @@ fn contract() -> ProviderContractIdentity {
         capability: "test/dynamic".to_string(),
         contract_fingerprint: "dynamic-test".to_string(),
     }
+}
+
+fn settle_options() -> ProviderSettleOptions {
+    ProviderSettleOptions::new(ProviderDeadline::from_millis(5_000))
 }
 
 #[test]
@@ -48,10 +52,7 @@ fn dynamic_plugin_facade_conformance() {
         })
         .expect("host initializes");
 
-    let module = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "dynamic-conformance".to_string(),
-            source: r#"
+    let provider_source = r#"
                 export function sync(input) {
                     console.log("dynamic conformance stdout", input.value);
                     console.error("dynamic conformance stderr");
@@ -78,137 +79,182 @@ fn dynamic_plugin_facade_conformance() {
                     console.log("dynamic substrate should not execute");
                     return { executed: true };
                 }
-            "#
-            .to_string(),
-        })
-        .expect("module loads");
+            "#;
+    let provider_module = || BunModuleSpec::Source {
+        module_id: "dynamic-conformance".to_string(),
+        source: provider_source.to_string(),
+    };
 
     let receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::JavaScriptExternalTransport,
-            module: module.clone(),
-            export: "sync".to_string(),
-            input: StructuralValue(json!({ "value": 42 })),
-        })
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: contract(),
+                domain: ProviderDomainClass::JavaScriptExternalTransport,
+                module: provider_module(),
+                export: "sync".to_string(),
+                input: StructuralValue(json!({ "value": 42 })),
+            },
+            settle_options(),
+        )
         .expect("provider call succeeds");
     match receipt {
-        ProviderHostReceipt::Ready(ready) => {
+        SettledProviderReceipt::Ready {
+            result, artifact, ..
+        } => {
             assert_eq!(
-                ready.result,
+                result,
                 ProviderCallResult::Ok(StructuralValue(json!({
                     "ok": true,
                     "input": { "value": 42 }
                 })))
             );
-            assert_eq!(
-                ready.artifact.bun_revision,
-                env!("LIBBUN_BUN_SOURCE_COMMIT")
-            );
+            assert_eq!(artifact.bun_revision, env!("LIBBUN_BUN_SOURCE_COMMIT"));
         }
-        ProviderHostReceipt::Parked(_) => panic!("expected ready receipt"),
+        SettledProviderReceipt::Failed(failure) => panic!("expected ready receipt: {failure:?}"),
     }
 
     let async_receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::ApplicationIo,
-            module: module.clone(),
-            export: "asyncExport".to_string(),
-            input: StructuralValue(json!({ "async": true })),
-        })
-        .expect("provider call parks");
-    let handle = match async_receipt {
-        ProviderHostReceipt::Parked(parked) => parked.handle,
-        ProviderHostReceipt::Ready(_) => panic!("expected parked async receipt"),
-    };
-    let mut resolved = false;
-    for _ in 0..8 {
-        if let Some(result) = host.resolve_async(&handle).expect("async poll succeeds") {
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: contract(),
+                domain: ProviderDomainClass::ApplicationIo,
+                module: provider_module(),
+                export: "asyncExport".to_string(),
+                input: StructuralValue(json!({ "async": true })),
+            },
+            settle_options(),
+        )
+        .expect("provider call settles");
+    match async_receipt {
+        SettledProviderReceipt::Ready {
+            result, settlement, ..
+        } => {
             assert_eq!(
                 result,
                 ProviderCallResult::Ok(StructuralValue(json!({ "async": true })))
             );
-            resolved = true;
-            break;
+            assert_eq!(
+                settlement.operation,
+                ProviderExecutionOperation::ProviderPromiseSettle
+            );
         }
-        host.pump_event_loop(PumpBudget { max_ticks: 1 })
-            .expect("event loop pumps");
+        SettledProviderReceipt::Failed(failure) => panic!("expected async success: {failure:?}"),
     }
-    assert!(resolved, "async export did not resolve");
-    host.resolve_async(&handle)
-        .expect_err("resolved handle is consumed");
 
     let error_receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::ApplicationIo,
-            module: module.clone(),
-            export: "throws".to_string(),
-            input: StructuralValue::null(),
-        })
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: contract(),
+                domain: ProviderDomainClass::ApplicationIo,
+                module: provider_module(),
+                export: "throws".to_string(),
+                input: StructuralValue::null(),
+            },
+            settle_options(),
+        )
         .expect("provider throw is structural");
     match error_receipt {
-        ProviderHostReceipt::Ready(ready) => match ready.result {
-            ProviderCallResult::Err(error) => {
-                assert_eq!(error.code, "provider_rejected");
-                assert!(error.message.contains("dynamic provider boom"));
-            }
-            ProviderCallResult::Ok(_) => panic!("expected provider error"),
-        },
-        ProviderHostReceipt::Parked(_) => panic!("expected ready error receipt"),
+        SettledProviderReceipt::Failed(failure) => {
+            assert_eq!(
+                failure.operation,
+                ProviderExecutionOperation::ProviderCallableInvoke
+            );
+            assert!(
+                failure
+                    .js_error_message
+                    .expect("JS error message")
+                    .contains("dynamic provider boom")
+            );
+        }
+        SettledProviderReceipt::Ready { result, .. } => {
+            panic!("expected provider failure, got {result:?}")
+        }
     }
 
-    let env_result = host
-        .call_export(&module, "readEnv", StructuralValue::null())
+    let env_receipt = host
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: contract(),
+                domain: ProviderDomainClass::ApplicationIo,
+                module: provider_module(),
+                export: "readEnv".to_string(),
+                input: StructuralValue::null(),
+            },
+            settle_options(),
+        )
         .expect("env export succeeds");
+    let SettledProviderReceipt::Ready { result, .. } = env_receipt else {
+        panic!("expected env success");
+    };
     assert_eq!(
-        env_result,
-        ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+        result,
+        ProviderCallResult::Ok(StructuralValue(json!({
             "processEnv": "overlay-value",
             "bunEnv": "overlay-value"
-        }))))
+        })))
     );
     assert!(std::env::var_os(OVERLAY_ENV_KEY).is_none());
 
-    let module_load_error = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "dynamic-conformance-throwing-import".to_string(),
-            source: r#"
-                throw new Error("dynamic module import diagnostic boom");
-            "#
-            .to_string(),
-        })
-        .expect_err("module import throw should fail module load");
-    let module_load_message = module_load_error.to_string();
+    let module_load_receipt = host
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: contract(),
+                domain: ProviderDomainClass::ApplicationIo,
+                module: BunModuleSpec::Source {
+                    module_id: "dynamic-conformance-throwing-import".to_string(),
+                    source: r#"
+                        throw new Error("dynamic module import diagnostic boom");
+                    "#
+                    .to_string(),
+                },
+                export: "default".to_string(),
+                input: StructuralValue::null(),
+            },
+            settle_options(),
+        )
+        .expect("module import throw should be a settled failure");
+    let SettledProviderReceipt::Failed(module_load_failure) = module_load_receipt else {
+        panic!("expected module import failure");
+    };
+    let module_load_message = module_load_failure
+        .js_error_message
+        .as_deref()
+        .unwrap_or_default();
     assert!(
-        module_load_message.contains("module import")
-            && module_load_message.contains("specifier")
+        module_load_failure.operation == ProviderExecutionOperation::ProviderModuleImport
+            && module_load_failure
+                .module_specifier_or_url
+                .contains("dynamic-conformance-throwing-import")
             && module_load_message.contains("dynamic module import diagnostic boom"),
-        "module-load diagnostic must name the import operation, specifier, and JS exception detail; got {module_load_message}"
+        "module-load diagnostic must name the import operation, specifier, and JS exception detail; got {module_load_failure:?}"
     );
 
     let substrate_receipt = host
-        .call_provider(ProviderRequest {
-            contract: ProviderContractIdentity {
-                package: "@proving/agent".to_string(),
-                capability: "capability:advanceTurnSource".to_string(),
-                contract_fingerprint: "substrate".to_string(),
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: ProviderContractIdentity {
+                    package: "@proving/agent".to_string(),
+                    capability: "capability:advanceTurnSource".to_string(),
+                    contract_fingerprint: "substrate".to_string(),
+                },
+                domain: ProviderDomainClass::RustSubstrateAuthority,
+                module: provider_module(),
+                export: "mustNotRun".to_string(),
+                input: StructuralValue(json!({ "mustNotRun": true })),
             },
-            domain: ProviderDomainClass::RustSubstrateAuthority,
-            module: module.clone(),
-            export: "mustNotRun".to_string(),
-            input: StructuralValue(json!({ "mustNotRun": true })),
-        })
+            settle_options(),
+        )
         .expect("substrate rejection is structural");
     match substrate_receipt {
-        ProviderHostReceipt::Ready(ready) => match ready.result {
+        SettledProviderReceipt::Ready { result, .. } => match result {
             ProviderCallResult::Err(error) => {
                 assert_eq!(error.code, "rust_substrate_authority_rejected");
             }
             ProviderCallResult::Ok(_) => panic!("substrate export should not execute"),
         },
-        ProviderHostReceipt::Parked(_) => panic!("substrate export should not park"),
+        SettledProviderReceipt::Failed(failure) => {
+            panic!("substrate rejection should be ready: {failure:?}")
+        }
     }
     assert!(
         !host
@@ -236,23 +282,30 @@ fn dynamic_plugin_facade_conformance() {
     );
     let bundle = PreparedBundleV1::source_bundle("dynamic-prepared", "entry.mjs", modules)
         .expect("bundle builds");
-    let prepared_module = host
-        .load_module(BunModuleSpec::PreparedBundle {
-            bundle_id: "dynamic-prepared".to_string(),
-            bytes: bundle.to_bytes().expect("bundle serializes"),
-        })
-        .expect("prepared bundle loads");
-    assert_eq!(
-        host.call_export(
-            &prepared_module,
-            "bundle",
-            StructuralValue(json!({ "from": "prepared" }))
+    let prepared_receipt = host
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: contract(),
+                domain: ProviderDomainClass::ApplicationIo,
+                module: BunModuleSpec::PreparedBundle {
+                    bundle_id: "dynamic-prepared".to_string(),
+                    bytes: bundle.to_bytes().expect("bundle serializes"),
+                },
+                export: "bundle".to_string(),
+                input: StructuralValue(json!({ "from": "prepared" })),
+            },
+            settle_options(),
         )
-        .expect("prepared export succeeds"),
-        ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+        .expect("prepared export succeeds");
+    let SettledProviderReceipt::Ready { result, .. } = prepared_receipt else {
+        panic!("expected prepared bundle success");
+    };
+    assert_eq!(
+        result,
+        ProviderCallResult::Ok(StructuralValue(json!({
             "value": 7,
             "input": { "from": "prepared" }
-        }))))
+        })))
     );
 
     assert!(host.captured_output().iter().any(|record| {
@@ -261,9 +314,6 @@ fn dynamic_plugin_facade_conformance() {
     }));
     assert!(host.captured_output().iter().any(|record| {
         record.stream == OutputStream::Stderr && record.text.contains("dynamic conformance stderr")
-    }));
-    assert!(host.captured_output().iter().any(|record| {
-        record.stream == OutputStream::Log && record.text.contains("loading module module-1")
     }));
     assert!(
         records
@@ -280,7 +330,16 @@ fn dynamic_plugin_facade_conformance() {
 
     host.shutdown().expect("shutdown succeeds");
     let error = host
-        .pump_event_loop(PumpBudget { max_ticks: 1 })
-        .expect_err("post-shutdown pump fails");
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: contract(),
+                domain: ProviderDomainClass::ApplicationIo,
+                module: provider_module(),
+                export: "sync".to_string(),
+                input: StructuralValue::null(),
+            },
+            settle_options(),
+        )
+        .expect_err("post-shutdown provider call fails");
     assert!(matches!(error, LibbunError::RuntimeShutdown));
 }

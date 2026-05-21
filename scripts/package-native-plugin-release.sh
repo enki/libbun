@@ -78,6 +78,7 @@ validate_linux_plugin_exports() {
       libbun_plugin_runtime_call_export|\
       libbun_plugin_runtime_pump_event_loop|\
       libbun_plugin_runtime_resolve_async|\
+      libbun_plugin_runtime_call_provider_until_settled|\
       libbun_plugin_runtime_drain_output|\
       libbun_plugin_runtime_shutdown)
         ;;
@@ -118,6 +119,7 @@ if [[ ! -f "$manifest" ]]; then
   echo "native link manifest not found: $manifest" >&2
   exit 2
 fi
+"$repo_root/scripts/assert-distributable-native-link.sh" "$manifest" "native plugin release package"
 
 if strings "$plugin_binary" | grep -F "FATAL: bun-debug failed to load bundled version" >/dev/null; then
   echo "native plugin contains Bun debug builtin-module disk loader; rebuild from a release Bun profile" >&2
@@ -192,7 +194,7 @@ import sys
 bundle = {
     "target": target,
     "runtimeMode": runtime_mode,
-    "pluginAbiVersion": 1,
+    "pluginAbiVersion": 2,
     "helperProtocolVersion": 1 if runtime_mode == "helper-process" else None,
     "libbunReleaseVersion": release_version,
     "libbunGitCommit": git_commit,
@@ -312,7 +314,7 @@ inventory = {
     "version": release_version,
     "gitCommit": git_commit,
     "bunSourceCommit": bun_commit,
-    "pluginAbiVersion": 1,
+    "pluginAbiVersion": 2,
     "helperProtocolVersion": 1 if runtime_mode == "helper-process" else None,
     "platform": platform,
     "runtimeMode": runtime_mode,

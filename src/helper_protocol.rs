@@ -13,8 +13,11 @@ use crate::BunRuntimeConfig;
 use crate::ExportCallResult;
 use crate::OutputRecord;
 use crate::ProviderCallResult;
+use crate::ProviderRequest;
+use crate::ProviderSettleOptions;
 use crate::PumpBudget;
 use crate::PumpOutcome;
+use crate::SettledProviderReceipt;
 use crate::StructuralValue;
 use crate::plugin_abi::LIBBUN_PLUGIN_ABI_VERSION;
 
@@ -73,6 +76,10 @@ pub enum HelperRequestPayload {
     ResolveAsync {
         handle: BunAsyncHandle,
     },
+    CallProviderUntilSettled {
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    },
     DrainOutput,
     Shutdown,
     Exit,
@@ -94,6 +101,7 @@ pub enum HelperResponsePayload {
     Export(ExportCallResult),
     Pump(PumpOutcome),
     Resolve(Option<ProviderCallResult>),
+    SettledProvider(SettledProviderReceipt),
     Output(Vec<OutputRecord>),
 }
 

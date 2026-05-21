@@ -1,7 +1,7 @@
 use libbun::{
-    BunHost, BunModuleHandle, BunModuleSpec, BunRuntimeConfig, OutputStream, ProviderCallResult,
-    ProviderContractIdentity, ProviderDomainClass, ProviderHostReceipt, ProviderRequest,
-    PumpBudget, StructuralValue,
+    BunHost, BunModuleSpec, BunRuntimeConfig, OutputStream, ProviderCallResult,
+    ProviderContractIdentity, ProviderDeadline, ProviderDomainClass, ProviderExecutionOperation,
+    ProviderRequest, ProviderSettleOptions, SettledProviderReceipt, StructuralValue,
 };
 use libbun_native::NativeBunRuntime;
 use serde_json::json;
@@ -24,26 +24,43 @@ fn contract() -> ProviderContractIdentity {
     }
 }
 
-fn assert_sync_export(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleHandle) {
+fn settle_options() -> ProviderSettleOptions {
+    ProviderSettleOptions::new(ProviderDeadline::from_millis(5_000))
+}
+
+fn provider_request(source: &str, export: &str, input: StructuralValue) -> ProviderRequest {
+    ProviderRequest {
+        contract: contract(),
+        domain: ProviderDomainClass::ApplicationIo,
+        module: BunModuleSpec::Source {
+            module_id: "flows".to_string(),
+            source: source.to_string(),
+        },
+        export: export.to_string(),
+        input,
+    }
+}
+
+fn assert_sync_export(host: &mut BunHost<NativeBunRuntime>, source: &str) {
     let receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::JavaScriptExternalTransport,
-            module: module.clone(),
-            export: "sync".to_string(),
-            input: StructuralValue(json!({ "value": 42 })),
-        })
+        .call_provider_until_settled(
+            ProviderRequest {
+                domain: ProviderDomainClass::JavaScriptExternalTransport,
+                ..provider_request(source, "sync", StructuralValue(json!({ "value": 42 })))
+            },
+            settle_options(),
+        )
         .expect("provider call succeeds");
 
     match receipt {
-        ProviderHostReceipt::Ready(ready) => assert_eq!(
-            ready.result,
+        SettledProviderReceipt::Ready { result, .. } => assert_eq!(
+            result,
             ProviderCallResult::Ok(StructuralValue(json!({
                 "ok": true,
                 "input": { "value": 42 }
             })))
         ),
-        ProviderHostReceipt::Parked(_) => panic!("expected ready receipt"),
+        SettledProviderReceipt::Failed(failure) => panic!("expected ready receipt: {failure:?}"),
     }
 
     assert!(host.captured_output().iter().any(|record| {
@@ -54,73 +71,72 @@ fn assert_sync_export(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleHa
     }));
 }
 
-fn assert_async_export(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleHandle) {
+fn assert_async_export(host: &mut BunHost<NativeBunRuntime>, source: &str) {
     let receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::ApplicationIo,
-            module: module.clone(),
-            export: "asyncExport".to_string(),
-            input: StructuralValue(json!({ "async": true })),
-        })
-        .expect("provider call parks");
+        .call_provider_until_settled(
+            provider_request(source, "asyncExport", StructuralValue(json!({ "async": true }))),
+            settle_options(),
+        )
+        .expect("provider call settles");
 
-    let handle = match receipt {
-        ProviderHostReceipt::Parked(parked) => parked.handle,
-        ProviderHostReceipt::Ready(_) => panic!("expected parked async receipt"),
-    };
-
-    for _ in 0..8 {
-        if let Some(result) = host.resolve_async(&handle).expect("async poll succeeds") {
+    match receipt {
+        SettledProviderReceipt::Ready {
+            result, settlement, ..
+        } => {
             assert_eq!(
                 result,
                 ProviderCallResult::Ok(StructuralValue(json!({ "async": true })))
             );
-            return;
+            assert_eq!(
+                settlement.operation,
+                ProviderExecutionOperation::ProviderPromiseSettle
+            );
         }
-        host.pump_event_loop(PumpBudget { max_ticks: 1 })
-            .expect("event loop pumps");
+        SettledProviderReceipt::Failed(failure) => panic!("async export failed: {failure:?}"),
     }
-
-    panic!("async export did not resolve");
 }
 
-fn assert_structured_provider_error(
-    host: &mut BunHost<NativeBunRuntime>,
-    module: &BunModuleHandle,
-) {
+fn assert_structured_provider_error(host: &mut BunHost<NativeBunRuntime>, source: &str) {
     let receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::ApplicationIo,
-            module: module.clone(),
-            export: "throws".to_string(),
-            input: StructuralValue::null(),
-        })
+        .call_provider_until_settled(
+            provider_request(source, "throws", StructuralValue::null()),
+            settle_options(),
+        )
         .expect("provider throw is structural");
 
     match receipt {
-        ProviderHostReceipt::Ready(ready) => match ready.result {
-            ProviderCallResult::Err(error) => {
-                assert_eq!(error.code, "provider_rejected");
-                assert!(error.message.contains("provider boom"));
-            }
-            ProviderCallResult::Ok(_) => panic!("expected provider error"),
-        },
-        ProviderHostReceipt::Parked(_) => panic!("expected ready error receipt"),
+        SettledProviderReceipt::Failed(failure) => {
+            assert_eq!(
+                failure.operation,
+                ProviderExecutionOperation::ProviderCallableInvoke
+            );
+            assert!(
+                failure
+                    .js_error_message
+                    .expect("JS error message")
+                    .contains("provider boom")
+            );
+        }
+        SettledProviderReceipt::Ready { result, .. } => panic!("expected provider error: {result:?}"),
     }
 }
 
-fn assert_environment_overlay(host: &mut BunHost<NativeBunRuntime>, module: &BunModuleHandle) {
-    let result = host
-        .call_export(module, "readEnv", StructuralValue::null())
+fn assert_environment_overlay(host: &mut BunHost<NativeBunRuntime>, source: &str) {
+    let receipt = host
+        .call_provider_until_settled(
+            provider_request(source, "readEnv", StructuralValue::null()),
+            settle_options(),
+        )
         .expect("env export succeeds");
+    let SettledProviderReceipt::Ready { result, .. } = receipt else {
+        panic!("expected env success");
+    };
     assert_eq!(
         result,
-        libbun::ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+        ProviderCallResult::Ok(StructuralValue(json!({
             "processEnv": "overlay-value",
             "bunEnv": "overlay-value"
-        }))))
+        })))
     );
     assert!(std::env::var_os(OVERLAY_ENV_KEY).is_none());
 }
@@ -133,10 +149,7 @@ fn native_runtime_provider_flows() {
     );
 
     let mut host = host();
-    let module = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "flows".to_string(),
-            source: r#"
+    let source = r#"
                 export function sync(input) {
                     console.log("native stdout", input.value);
                     console.error("native stderr");
@@ -158,15 +171,12 @@ fn native_runtime_provider_flows() {
                         bunEnv: Bun.env.LIBBUN_NATIVE_OVERLAY_TEST,
                     };
                 }
-            "#
-            .to_string(),
-        })
-        .expect("module loads");
+            "#;
 
-    assert_sync_export(&mut host, &module);
-    assert_async_export(&mut host, &module);
-    assert_structured_provider_error(&mut host, &module);
-    assert_environment_overlay(&mut host, &module);
+    assert_sync_export(&mut host, source);
+    assert_async_export(&mut host, source);
+    assert_structured_provider_error(&mut host, source);
+    assert_environment_overlay(&mut host, source);
     assert!(host.captured_output().iter().any(|record| {
         record.stream == OutputStream::Log && record.text.contains("loading module module-1")
     }));
@@ -181,28 +191,37 @@ fn source_module_execution_does_not_create_runtime_artifacts() {
     ))
     .expect("host initializes");
 
-    let module = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "file-free".to_string(),
-            source: r#"
-                export function run() {
-                    console.log("file free stdout");
-                    console.error("file free stderr");
-                    return { ok: true };
-                }
-            "#
-            .to_string(),
-        })
-        .expect("source module loads");
-    let result = host
-        .call_export(&module, "run", StructuralValue::null())
+    let receipt = host
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: contract(),
+                domain: ProviderDomainClass::ApplicationIo,
+                module: BunModuleSpec::Source {
+                    module_id: "file-free".to_string(),
+                    source: r#"
+                        export function run() {
+                            console.log("file free stdout");
+                            console.error("file free stderr");
+                            return { ok: true };
+                        }
+                    "#
+                    .to_string(),
+                },
+                export: "run".to_string(),
+                input: StructuralValue::null(),
+            },
+            settle_options(),
+        )
         .expect("source module export runs");
+    let SettledProviderReceipt::Ready { result, .. } = receipt else {
+        panic!("expected file-free provider success");
+    };
 
     assert_eq!(
         result,
-        libbun::ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+        ProviderCallResult::Ok(StructuralValue(json!({
             "ok": true
-        }))))
+        })))
     );
     assert!(host.captured_output().iter().any(|record| {
         record.stream == OutputStream::Stdout && record.text.contains("file free stdout")

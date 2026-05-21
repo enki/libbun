@@ -11,18 +11,22 @@ use libbun::BunRuntimeConfig;
 use libbun::ExportCallResult;
 use libbun::LibbunError;
 use libbun::LibbunResult;
+use libbun::LowLevelBunHost;
 use libbun::OutputRecord;
 use libbun::OutputStream;
 use libbun::PreparedBundleModuleV1;
 use libbun::PreparedBundleV1;
 use libbun::ProviderCallResult;
 use libbun::ProviderContractIdentity;
+use libbun::ProviderDeadline;
 use libbun::ProviderDomainClass;
 use libbun::ProviderError;
-use libbun::ProviderHostReceipt;
+use libbun::ProviderExecutionOperation;
 use libbun::ProviderRequest;
+use libbun::ProviderSettleOptions;
 use libbun::PumpBudget;
 use libbun::PumpOutcome;
+use libbun::SettledProviderReceipt;
 use libbun::SinkPolicy;
 use libbun::StructuralValue;
 use serde_json::json;
@@ -40,13 +44,18 @@ struct ConformanceRuntime {
 enum ModuleBehavior {
     Echo,
     AsyncEcho,
+    NeverSettles,
     ProviderError,
+    PromiseReject,
+    InvalidCallable,
 }
 
 #[derive(Debug, Clone)]
 struct PendingResult {
     remaining_ticks: u32,
     result: ProviderCallResult,
+    output_on_ready: Vec<OutputRecord>,
+    emitted_ready_output: bool,
 }
 
 impl BunEmbeddingRuntime for ConformanceRuntime {
@@ -69,7 +78,15 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                 let behavior = match source.as_str() {
                     "export:echo" => ModuleBehavior::Echo,
                     "export:async_echo" => ModuleBehavior::AsyncEcho,
+                    "export:never" => ModuleBehavior::NeverSettles,
                     "export:error" => ModuleBehavior::ProviderError,
+                    "export:reject" => ModuleBehavior::PromiseReject,
+                    "export:invalid_callable" => ModuleBehavior::InvalidCallable,
+                    "export:import_error" => {
+                        return Err(LibbunError::module_load(
+                            "import stack: Error: test import boom\n    at source:test",
+                        ));
+                    }
                     other => {
                         return Err(LibbunError::module_load(format!(
                             "unknown test source `{other}`"
@@ -98,7 +115,7 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
         }
         if export != "default" {
             return Err(LibbunError::export_call(format!(
-                "unknown export `{export}`"
+                "missing export `{export}`"
             )));
         }
 
@@ -115,6 +132,10 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                 Ok(ExportCallResult::Ready(ProviderCallResult::Ok(input)))
             }
             ModuleBehavior::AsyncEcho => {
+                self.output.push(OutputRecord {
+                    stream: OutputStream::Stdout,
+                    text: "async before await".to_string(),
+                });
                 let handle = BunAsyncHandle {
                     id: format!("async-{}", self.next_async),
                 };
@@ -124,6 +145,33 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                     PendingResult {
                         remaining_ticks: 1,
                         result: ProviderCallResult::Ok(input),
+                        output_on_ready: vec![
+                            OutputRecord {
+                                stream: OutputStream::Stderr,
+                                text: "async after await".to_string(),
+                            },
+                            OutputRecord {
+                                stream: OutputStream::Log,
+                                text: "async settled log".to_string(),
+                            },
+                        ],
+                        emitted_ready_output: false,
+                    },
+                );
+                Ok(ExportCallResult::Pending(handle))
+            }
+            ModuleBehavior::NeverSettles => {
+                let handle = BunAsyncHandle {
+                    id: format!("async-{}", self.next_async),
+                };
+                self.next_async += 1;
+                self.async_results.insert(
+                    handle.id.clone(),
+                    PendingResult {
+                        remaining_ticks: u32::MAX,
+                        result: ProviderCallResult::Ok(input),
+                        output_on_ready: Vec::new(),
+                        emitted_ready_output: false,
                     },
                 );
                 Ok(ExportCallResult::Pending(handle))
@@ -134,6 +182,28 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                     message: "provider returned a structured error".to_string(),
                 },
             ))),
+            ModuleBehavior::PromiseReject => {
+                let handle = BunAsyncHandle {
+                    id: format!("async-{}", self.next_async),
+                };
+                self.next_async += 1;
+                self.async_results.insert(
+                    handle.id.clone(),
+                    PendingResult {
+                        remaining_ticks: 1,
+                        result: ProviderCallResult::Err(ProviderError {
+                            code: "provider_rejected".to_string(),
+                            message: "Error: async provider boom\n    at provider.test".to_string(),
+                        }),
+                        output_on_ready: Vec::new(),
+                        emitted_ready_output: false,
+                    },
+                );
+                Ok(ExportCallResult::Pending(handle))
+            }
+            ModuleBehavior::InvalidCallable => {
+                Err(LibbunError::export_call("export `default` is not callable"))
+            }
         }
     }
 
@@ -143,6 +213,10 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
             ticks += 1;
             for pending in self.async_results.values_mut() {
                 pending.remaining_ticks = pending.remaining_ticks.saturating_sub(1);
+                if pending.remaining_ticks == 0 && !pending.emitted_ready_output {
+                    self.output.append(&mut pending.output_on_ready);
+                    pending.emitted_ready_output = true;
+                }
             }
         }
         Ok(PumpOutcome {
@@ -193,6 +267,11 @@ fn host() -> BunHost<ConformanceRuntime> {
     BunHost::initialize(BunRuntimeConfig::new("test-host", "/tmp")).expect("host initializes")
 }
 
+fn low_level_host() -> LowLevelBunHost<ConformanceRuntime> {
+    LowLevelBunHost::initialize(BunRuntimeConfig::new("test-host", "/tmp"))
+        .expect("host initializes")
+}
+
 fn contract() -> ProviderContractIdentity {
     ProviderContractIdentity {
         package: "@test/provider".to_string(),
@@ -201,38 +280,55 @@ fn contract() -> ProviderContractIdentity {
     }
 }
 
-#[test]
-fn provider_call_returns_structural_result_and_captures_output() {
-    let mut host = host();
-    let module = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "echo".to_string(),
-            source: "export:echo".to_string(),
-        })
-        .expect("module loads");
+fn settle_options() -> ProviderSettleOptions {
+    ProviderSettleOptions::new(ProviderDeadline::from_millis(1_000))
+}
 
+fn source_request(source: &str, input: StructuralValue) -> ProviderRequest {
+    ProviderRequest {
+        contract: contract(),
+        domain: ProviderDomainClass::JavaScriptExternalTransport,
+        module: BunModuleSpec::Source {
+            module_id: source.to_string(),
+            source: source.to_string(),
+        },
+        export: "default".to_string(),
+        input,
+    }
+}
+
+#[test]
+fn settled_provider_call_returns_structural_result_and_captures_output() {
+    let mut host = host();
     let receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::JavaScriptExternalTransport,
-            module,
-            export: "default".to_string(),
-            input: StructuralValue(json!({ "ok": true })),
-        })
+        .call_provider_until_settled(
+            source_request("export:echo", StructuralValue(json!({ "ok": true }))),
+            settle_options(),
+        )
         .expect("provider call succeeds");
 
     match receipt {
-        ProviderHostReceipt::Ready(ready) => {
+        SettledProviderReceipt::Ready {
+            result,
+            artifact,
+            output,
+            settlement,
+            ..
+        } => {
             assert_eq!(
-                ready.result,
+                result,
                 ProviderCallResult::Ok(StructuralValue(json!({ "ok": true })))
             );
+            assert_eq!(artifact.bun_revision, env!("LIBBUN_BUN_SOURCE_COMMIT"));
             assert_eq!(
-                ready.artifact.bun_revision,
-                env!("LIBBUN_BUN_SOURCE_COMMIT")
+                settlement.operation,
+                ProviderExecutionOperation::ProviderCallableInvoke
             );
+            assert!(output.iter().any(|record| {
+                record.stream == OutputStream::Stdout && record.text == "called default"
+            }));
         }
-        ProviderHostReceipt::Parked(_) => panic!("expected ready receipt"),
+        SettledProviderReceipt::Failed(failure) => panic!("expected ready receipt: {failure:?}"),
     }
     assert!(
         host.captured_output()
@@ -242,74 +338,76 @@ fn provider_call_returns_structural_result_and_captures_output() {
 }
 
 #[test]
-fn async_provider_work_is_driven_by_explicit_pump() {
+fn settled_async_provider_work_does_not_require_host_polling() {
     let mut host = host();
-    let module = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "async".to_string(),
-            source: "export:async_echo".to_string(),
-        })
-        .expect("module loads");
-
     let receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::ApplicationIo,
-            module,
-            export: "default".to_string(),
-            input: StructuralValue(json!({ "async": true })),
-        })
-        .expect("provider call starts");
-    let handle = match receipt {
-        ProviderHostReceipt::Parked(parked) => parked.handle,
-        ProviderHostReceipt::Ready(_) => panic!("expected parked async receipt"),
-    };
+        .call_provider_until_settled(
+            source_request(
+                "export:async_echo",
+                StructuralValue(json!({ "async": true })),
+            ),
+            settle_options(),
+        )
+        .expect("provider call settles");
 
-    assert_eq!(host.resolve_async(&handle).expect("resolve polls"), None);
-    let pump = host
-        .pump_event_loop(PumpBudget { max_ticks: 1 })
-        .expect("event loop pumps");
-    assert_eq!(pump.ticks, 1);
-    assert_eq!(pump.pending_async_work, 0);
-    assert_eq!(
-        host.resolve_async(&handle).expect("async result resolves"),
-        Some(ProviderCallResult::Ok(StructuralValue(
-            json!({ "async": true })
-        )))
-    );
+    match receipt {
+        SettledProviderReceipt::Ready {
+            result,
+            output,
+            settlement,
+            ..
+        } => {
+            assert_eq!(
+                result,
+                ProviderCallResult::Ok(StructuralValue(json!({ "async": true })))
+            );
+            assert_eq!(
+                settlement.operation,
+                ProviderExecutionOperation::ProviderPromiseSettle
+            );
+            assert!(
+                output
+                    .iter()
+                    .any(|record| record.text == "async before await")
+            );
+            assert!(
+                output
+                    .iter()
+                    .any(|record| record.text == "async after await")
+            );
+            assert!(
+                output
+                    .iter()
+                    .any(|record| record.text == "async settled log")
+            );
+        }
+        SettledProviderReceipt::Failed(failure) => panic!("expected async success: {failure:?}"),
+    }
 }
 
 #[test]
 fn provider_error_is_structured_and_does_not_terminate_process() {
     let mut host = host();
-    let module = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "error".to_string(),
-            source: "export:error".to_string(),
-        })
-        .expect("module loads");
-
     let receipt = host
-        .call_provider(ProviderRequest {
-            contract: contract(),
-            domain: ProviderDomainClass::ApplicationIo,
-            module,
-            export: "default".to_string(),
-            input: StructuralValue::null(),
-        })
+        .call_provider_until_settled(
+            source_request("export:error", StructuralValue::null()),
+            settle_options(),
+        )
         .expect("provider errors are returned structurally");
 
     match receipt {
-        ProviderHostReceipt::Ready(ready) => {
+        SettledProviderReceipt::Ready { result, .. } => {
             assert_eq!(
-                ready.result,
+                result,
                 ProviderCallResult::Err(ProviderError {
                     code: "provider_failed".to_string(),
                     message: "provider returned a structured error".to_string(),
                 })
             );
         }
-        ProviderHostReceipt::Parked(_) => panic!("expected ready error receipt"),
+        SettledProviderReceipt::Failed(failure) => {
+            panic!("provider domain errors should be ready results: {failure:?}")
+        }
     }
 
     host.shutdown()
@@ -319,35 +417,36 @@ fn provider_error_is_structured_and_does_not_terminate_process() {
 #[test]
 fn rust_substrate_exports_are_rejected_before_provider_execution() {
     let mut host = host();
-    let module = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "echo".to_string(),
-            source: "export:echo".to_string(),
-        })
-        .expect("module loads");
-
     let receipt = host
-        .call_provider(ProviderRequest {
-            contract: ProviderContractIdentity {
-                package: "@proving/agent".to_string(),
-                capability: "capability:advanceTurnSource".to_string(),
-                contract_fingerprint: "substrate".to_string(),
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: ProviderContractIdentity {
+                    package: "@proving/agent".to_string(),
+                    capability: "capability:advanceTurnSource".to_string(),
+                    contract_fingerprint: "substrate".to_string(),
+                },
+                domain: ProviderDomainClass::RustSubstrateAuthority,
+                module: BunModuleSpec::Source {
+                    module_id: "substrate".to_string(),
+                    source: "export:echo".to_string(),
+                },
+                export: "default".to_string(),
+                input: StructuralValue(json!({ "mustNotRun": true })),
             },
-            domain: ProviderDomainClass::RustSubstrateAuthority,
-            module,
-            export: "default".to_string(),
-            input: StructuralValue(json!({ "mustNotRun": true })),
-        })
+            settle_options(),
+        )
         .expect("substrate rejection is structural");
 
     match receipt {
-        ProviderHostReceipt::Ready(ready) => match ready.result {
+        SettledProviderReceipt::Ready { result, .. } => match result {
             ProviderCallResult::Err(error) => {
                 assert_eq!(error.code, "rust_substrate_authority_rejected");
             }
             ProviderCallResult::Ok(_) => panic!("substrate export should not execute"),
         },
-        ProviderHostReceipt::Parked(_) => panic!("substrate export should not park"),
+        SettledProviderReceipt::Failed(failure) => {
+            panic!("substrate rejection should be a ready provider error: {failure:?}")
+        }
     }
 
     assert!(
@@ -359,12 +458,157 @@ fn rust_substrate_exports_are_rejected_before_provider_execution() {
 }
 
 #[test]
+fn provider_promise_rejection_returns_structured_failure_with_stack() {
+    let mut host = host();
+    let receipt = host
+        .call_provider_until_settled(
+            source_request("export:reject", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("provider call settles");
+
+    let SettledProviderReceipt::Failed(failure) = receipt else {
+        panic!("expected structured rejection failure");
+    };
+    assert_eq!(
+        failure.operation,
+        ProviderExecutionOperation::ProviderPromiseSettle
+    );
+    let message = failure.js_error_message.expect("JS error message");
+    assert!(message.contains("async provider boom"));
+    assert!(message.contains("provider.test"));
+    assert_eq!(failure.module_specifier_or_url, "source:export:reject");
+    assert_eq!(failure.export_name, "default");
+}
+
+#[test]
+fn module_import_failure_returns_structured_failure_with_module_identity() {
+    let mut host = host();
+    let receipt = host
+        .call_provider_until_settled(
+            source_request("export:import_error", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("module import failure is a settled receipt");
+
+    let SettledProviderReceipt::Failed(failure) = receipt else {
+        panic!("expected module import failure");
+    };
+    assert_eq!(
+        failure.operation,
+        ProviderExecutionOperation::ProviderModuleImport
+    );
+    assert_eq!(
+        failure.module_specifier_or_url,
+        "source:export:import_error"
+    );
+    assert!(
+        failure
+            .js_error_message
+            .expect("message")
+            .contains("test import boom")
+    );
+}
+
+#[test]
+fn missing_export_and_invalid_callable_are_structured_failures() {
+    let mut host = host();
+    let missing = host
+        .call_provider_until_settled(
+            ProviderRequest {
+                export: "missing".to_string(),
+                ..source_request("export:echo", StructuralValue::null())
+            },
+            settle_options(),
+        )
+        .expect("missing export is structural");
+    let SettledProviderReceipt::Failed(failure) = missing else {
+        panic!("expected missing export failure");
+    };
+    assert_eq!(
+        failure.operation,
+        ProviderExecutionOperation::ProviderExportLookup
+    );
+
+    let invalid = host
+        .call_provider_until_settled(
+            source_request("export:invalid_callable", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("invalid callable is structural");
+    let SettledProviderReceipt::Failed(failure) = invalid else {
+        panic!("expected invalid callable failure");
+    };
+    assert_eq!(
+        failure.operation,
+        ProviderExecutionOperation::ProviderCallableValidate
+    );
+}
+
+#[test]
+fn deadline_expiry_returns_pending_async_diagnostics() {
+    let mut host = host();
+    let receipt = host
+        .call_provider_until_settled(
+            source_request("export:never", StructuralValue::null()),
+            ProviderSettleOptions::new(ProviderDeadline::from_millis(0)),
+        )
+        .expect("deadline failure is structural");
+    let SettledProviderReceipt::Failed(failure) = receipt else {
+        panic!("expected deadline failure");
+    };
+    assert_eq!(
+        failure.operation,
+        ProviderExecutionOperation::ProviderDeadlineElapsed
+    );
+    assert_eq!(failure.deadline_ms, 0);
+    assert!(failure.pending_async_task_count >= 1);
+}
+
+#[test]
+fn low_level_async_controls_are_quarantined_on_named_host() {
+    let mut host = low_level_host();
+    let module = host
+        .load_module(BunModuleSpec::Source {
+            module_id: "async".to_string(),
+            source: "export:async_echo".to_string(),
+        })
+        .expect("module loads");
+
+    let result = host
+        .call_export(
+            &module,
+            "default",
+            StructuralValue(json!({ "async": true })),
+        )
+        .expect("export starts");
+    let ExportCallResult::Pending(handle) = result else {
+        panic!("expected low-level parked handle");
+    };
+
+    assert_eq!(host.resolve_async(&handle).expect("resolve polls"), None);
+    let pump = host
+        .pump_event_loop(PumpBudget { max_ticks: 1 })
+        .expect("event loop pumps");
+    assert_eq!(pump.ticks, 1);
+    assert_eq!(
+        host.resolve_async(&handle).expect("async result resolves"),
+        Some(ProviderCallResult::Ok(StructuralValue(
+            json!({ "async": true })
+        )))
+    );
+}
+
+#[test]
 fn shutdown_is_deterministic_and_blocks_later_calls() {
     let mut host = host();
     host.shutdown().expect("shutdown succeeds");
     let error = host
-        .pump_event_loop(PumpBudget { max_ticks: 1 })
-        .expect_err("post-shutdown pump fails");
+        .call_provider_until_settled(
+            source_request("export:echo", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect_err("post-shutdown call fails");
     assert!(matches!(error, LibbunError::RuntimeShutdown));
 }
 
@@ -383,14 +627,11 @@ fn output_handler_receives_records_without_polling_runtime() {
     )
     .expect("host initializes");
 
-    let module = host
-        .load_module(BunModuleSpec::Source {
-            module_id: "echo".to_string(),
-            source: "export:echo".to_string(),
-        })
-        .expect("module loads");
-    host.call_export(&module, "default", StructuralValue(json!({ "ok": true })))
-        .expect("export succeeds");
+    host.call_provider_until_settled(
+        source_request("export:echo", StructuralValue(json!({ "ok": true }))),
+        settle_options(),
+    )
+    .expect("export succeeds");
 
     let records = records.lock().expect("handler records lock");
     assert!(records.iter().any(|record| {

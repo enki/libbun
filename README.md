@@ -15,17 +15,20 @@ Current Bun source target:
 
 ## Status
 
-The initial crate defines the embedding ABI, provider-host receipts, structural
-value carriers, prepared source bundle artifacts, explicit event-loop pumping,
-output capture, deterministic shutdown, and Rust-substrate rejection.
+The initial crate defines the embedding ABI, settled provider-call receipts,
+structured provider execution failures, structural value carriers, prepared
+source bundle artifacts, output capture, deterministic shutdown, and
+Rust-substrate rejection. Ordinary provider hosts call once and receive one
+terminal success or failure; raw event-loop pumping and parked async handles are
+kept on the explicitly named `LowLevelBunHost` diagnostic interface.
 
 The native adapter binds this facade to Bun/JSC internals and has a real linked
 integration flow for source module load, prepared source bundle load,
-synchronous export calls, async export parking/resolution, structured provider
-errors, event-loop pumping, host environment overlays, dedicated internal log
-capture, and shutdown. Downstream hosts consume the native implementation only
-through the replaceable dynamic plugin described by ADR-2038; they should not
-statically link `libbun-native`.
+synchronous and asynchronous settled provider calls, structured provider
+errors, host environment overlays, dedicated internal log capture, and
+shutdown. Downstream hosts consume the native implementation only through the
+replaceable dynamic plugin described by ADR-2038; they should not statically
+link `libbun-native`.
 
 ## Downstream Use
 
@@ -151,7 +154,7 @@ plugin caches.
 Manual macOS bundling example when `download-plugin` is not used:
 
 ```sh
-native_version=v0.1.5
+native_version=v0.2.0
 target=aarch64-apple-darwin
 curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
 mkdir -p dist/bin
@@ -161,7 +164,7 @@ tar --zstd -xf "libbun-plugin-native-${native_version}-${target}.tar.zst" -C dis
 Linux setup is the same except for the target name and `.so` filename:
 
 ```sh
-native_version=v0.1.5
+native_version=v0.2.0
 target=aarch64-unknown-linux-gnu
 curl -LO "https://github.com/enki/libbun/releases/download/${native_version}/libbun-plugin-native-${native_version}-${target}.tar.zst"
 mkdir -p dist/bin
@@ -173,42 +176,56 @@ Minimal dynamic-loading example:
 ```rust
 use libbun::dynamic::DynamicBunRuntime;
 use libbun::{
-    BunEmbeddingRuntime, BunModuleSpec, BunRuntimeConfig, ExportCallResult,
-    ProviderCallResult, StructuralValue,
+    BunHost, BunModuleSpec, BunRuntimeConfig, ProviderCallResult,
+    ProviderContractIdentity, ProviderDeadline, ProviderDomainClass,
+    ProviderRequest, ProviderSettleOptions, SettledProviderReceipt,
+    StructuralValue,
 };
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let host_binary_path = std::env::current_exe()?;
     let config = BunRuntimeConfig::new("example-host", std::env::current_dir()?);
-    let mut runtime =
-        DynamicBunRuntime::initialize_with_bundled_plugin(config, host_binary_path)?;
+    let runtime =
+        DynamicBunRuntime::initialize_with_bundled_plugin(config.clone(), host_binary_path)?;
+    let mut host = BunHost::from_runtime(config, runtime);
 
-    let module = runtime.load_module(BunModuleSpec::Source {
-        module_id: "provider".to_string(),
-        source: r#"
-            export function run(input) {
-                return { ok: true, input };
-            }
-        "#
-        .to_string(),
-    })?;
-
-    let result = runtime.call_export(
-        &module,
-        "run",
-        StructuralValue(json!({ "value": 7 })),
+    let receipt = host.call_provider_until_settled(
+        ProviderRequest {
+            contract: ProviderContractIdentity {
+                package: "@example/provider".to_string(),
+                capability: "example/run".to_string(),
+                contract_fingerprint: "example".to_string(),
+            },
+            domain: ProviderDomainClass::JavaScriptExternalTransport,
+            module: BunModuleSpec::Source {
+                module_id: "provider".to_string(),
+                source: r#"
+                    export async function run(input) {
+                        await Promise.resolve();
+                        return { ok: true, input };
+                    }
+                "#
+                .to_string(),
+            },
+            export: "run".to_string(),
+            input: StructuralValue(json!({ "value": 7 })),
+        },
+        ProviderSettleOptions::new(ProviderDeadline::from_millis(5_000)),
     )?;
 
+    let SettledProviderReceipt::Ready { result, .. } = receipt else {
+        panic!("provider failed: {receipt:?}");
+    };
     assert_eq!(
         result,
-        ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+        ProviderCallResult::Ok(StructuralValue(json!({
             "ok": true,
             "input": { "value": 7 }
-        }))))
+        })))
     );
 
-    runtime.shutdown()?;
+    host.shutdown()?;
     Ok(())
 }
 ```
@@ -268,28 +285,35 @@ scripts/prepare-native-bun-link.sh
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 test --manifest-path native/Cargo.toml --features internal-adapter
 ```
 
-The native link manifest is prepared from Bun's release profile only so internal
-JS builtins are embedded in the linked plugin instead of loaded from a developer
-build directory at runtime. Debug-profile manifests, `bun-debug`, `build/debug`,
-and debug WebKit/JSC inputs are rejected by the preparation script and Cargo
-build scripts. The manifest intentionally records Bun's C/C++ object archive and
-prebuilt WebKit/JSC static libraries, but not Bun's Rust staticlib. The adapter
-depends on the vendored Rust crates directly so Rust global state is not linked
-twice into the test host.
+The native link manifest is prepared from Bun's release profile only so local
+integration tests do not depend on a developer debug build directory at runtime.
+Debug-profile manifests, `bun-debug`, `build/debug`, and debug WebKit/JSC inputs
+are rejected by the preparation script and Cargo build scripts.
+
+Static native Bun/JSC/WebKit link inputs are test-only. Release packaging,
+GitHub release assembly, and release-asset verification call
+`scripts/assert-distributable-native-link.sh` and refuse manifests containing
+`archive=` or `static=` entries. Those inputs must not appear in published
+plugin assets, checksum tables, or crates.io-facing release artifacts.
 
 ## Dynamic Plugin
 
 `plugin/` builds `libbun-plugin-native` as a `cdylib`. This is the only supported
 way for downstream applications to use the native Bun/JSC implementation.
 
-Build the macOS in-process plugin after preparing the native link manifest:
+The commands below are local test builds. They may use static native link inputs
+to exercise the embedding boundary, but their outputs are not distributable
+release assets.
+
+Build the macOS in-process plugin for local testing after preparing the native
+link manifest:
 
 ```sh
 scripts/prepare-native-bun-link.sh
 LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml
 ```
 
-Build the Linux in-process plugin with release-grade PIC WebKit inputs:
+Build the Linux in-process plugin for local testing with PIC WebKit inputs:
 
 ```sh
 scripts/prepare-native-bun-link.sh
@@ -330,10 +354,15 @@ Official native plugin binaries are produced by GitHub Actions and published as
 GitHub Release assets with matching source, notice, license inventory, source
 instructions, and checksum files.
 
+Release packaging is fail-closed for native linkage. Any manifest containing
+`archive=` or `static=` native Bun/JSC/WebKit inputs is rejected before assets
+are packaged, uploaded, verified, or recorded in checksum tables. Static-linked
+native inputs are only for local tests.
+
 Before creating a release tag, run the local preflight:
 
 ```sh
-scripts/preflight-native-plugin-release.sh v0.1.5
+scripts/preflight-native-plugin-release.sh v0.2.0
 ```
 
 On Linux, preflight defaults to the PIC single-plugin in-process release path.
@@ -347,7 +376,7 @@ release tag:
 ```sh
 git add .
 git commit -m "Prepare native plugin release"
-scripts/create-native-plugin-release.sh v0.1.5
+scripts/create-native-plugin-release.sh v0.2.0
 ```
 
 Pushing the tag triggers `.github/workflows/release-native-plugin.yml`. Inspect

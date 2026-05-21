@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
 use libbun::{
-    BunHost, BunModuleSpec, BunRuntimeConfig, ExportCallResult, PreparedBundleModuleV1,
-    PreparedBundleV1, ProviderCallResult, StructuralValue,
+    BunHost, BunModuleSpec, BunRuntimeConfig, PreparedBundleModuleV1, PreparedBundleV1,
+    ProviderCallResult, ProviderContractIdentity, ProviderDeadline, ProviderDomainClass,
+    ProviderRequest, ProviderSettleOptions, SettledProviderReceipt, StructuralValue,
 };
 use libbun_native::NativeBunRuntime;
 use serde_json::json;
@@ -37,26 +38,34 @@ fn native_runtime_loads_prepared_source_bundle() {
         .expect("bundle builds");
 
     let mut host = host();
-    let module = host
-        .load_module(BunModuleSpec::PreparedBundle {
-            bundle_id: "native-prepared".to_string(),
-            bytes: bundle.to_bytes().expect("bundle serializes"),
-        })
-        .expect("prepared bundle loads");
-
-    let result = host
-        .call_export(
-            &module,
-            "bundle",
-            StructuralValue(json!({ "from": "prepared" })),
+    let receipt = host
+        .call_provider_until_settled(
+            ProviderRequest {
+                contract: ProviderContractIdentity {
+                    package: "@test/native-prepared".to_string(),
+                    capability: "test/prepared".to_string(),
+                    contract_fingerprint: "native-prepared-test".to_string(),
+                },
+                domain: ProviderDomainClass::ApplicationIo,
+                module: BunModuleSpec::PreparedBundle {
+                    bundle_id: "native-prepared".to_string(),
+                    bytes: bundle.to_bytes().expect("bundle serializes"),
+                },
+                export: "bundle".to_string(),
+                input: StructuralValue(json!({ "from": "prepared" })),
+            },
+            ProviderSettleOptions::new(ProviderDeadline::from_millis(5_000)),
         )
         .expect("export call succeeds");
+    let SettledProviderReceipt::Ready { result, .. } = receipt else {
+        panic!("expected prepared bundle success");
+    };
 
     assert_eq!(
         result,
-        ExportCallResult::Ready(ProviderCallResult::Ok(StructuralValue(json!({
+        ProviderCallResult::Ok(StructuralValue(json!({
             "value": 7,
             "input": { "from": "prepared" }
-        }))))
+        })))
     );
 }

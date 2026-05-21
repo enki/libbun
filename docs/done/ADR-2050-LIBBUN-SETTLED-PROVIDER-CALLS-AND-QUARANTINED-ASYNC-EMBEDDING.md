@@ -1,6 +1,6 @@
 # ADR-2050: libbun Settled Provider Calls and Quarantined Async Embedding
 
-Status: Proposed
+Status: Done
 Date: 2026-05-21
 
 Related: ADR-2033, ADR-2035, ADR-2038, ADR-2049

@@ -1,6 +1,6 @@
 # ADR-2049: Bundled Plugin and File-Free Runtime
 
-Status: Open
+Status: Done
 Date: 2026-05-20
 
 ADR-2038 remains the native consumption law: downstream hosts load Bun/JSC/WebKit

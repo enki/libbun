@@ -8,6 +8,8 @@ use std::collections::BTreeMap;
 use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
+use std::time::Instant;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -22,7 +24,7 @@ pub mod release;
 pub type LibbunResult<T> = Result<T, LibbunError>;
 
 pub mod plugin_abi {
-    pub const LIBBUN_PLUGIN_ABI_VERSION: u32 = 1;
+    pub const LIBBUN_PLUGIN_ABI_VERSION: u32 = 2;
 
     pub const LIBBUN_PLUGIN_STATUS_OK: u32 = 0;
     pub const LIBBUN_PLUGIN_STATUS_ERROR: u32 = 1;
@@ -378,32 +380,245 @@ pub enum ProviderDomainClass {
 pub struct ProviderRequest {
     pub contract: ProviderContractIdentity,
     pub domain: ProviderDomainClass,
-    pub module: BunModuleHandle,
+    pub module: BunModuleSpec,
     pub export: String,
     pub input: StructuralValue,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ProviderHostReceipt {
-    Ready(ProviderReady),
-    Parked(ProviderParked),
+pub struct ProviderDeadline {
+    pub deadline_ms: u64,
+}
+
+impl ProviderDeadline {
+    pub fn from_millis(deadline_ms: u64) -> Self {
+        Self { deadline_ms }
+    }
+
+    pub fn after(duration: Duration) -> Self {
+        Self {
+            deadline_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSettleOptions {
+    pub deadline: ProviderDeadline,
+}
+
+impl ProviderSettleOptions {
+    pub fn new(deadline: ProviderDeadline) -> Self {
+        Self { deadline }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProviderReady {
-    pub contract: ProviderContractIdentity,
-    pub artifact: BunArtifactFingerprint,
-    pub result: ProviderCallResult,
+pub enum SettledProviderReceipt {
+    Ready {
+        contract: ProviderContractIdentity,
+        artifact: BunArtifactFingerprint,
+        result: ProviderCallResult,
+        output: Vec<OutputRecord>,
+        settlement: ProviderSettlementDiagnostics,
+    },
+    Failed(ProviderExecutionFailure),
+}
+
+impl SettledProviderReceipt {
+    pub fn output(&self) -> &[OutputRecord] {
+        match self {
+            Self::Ready { output, .. } => output,
+            Self::Failed(failure) => &failure.output,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSettlementDiagnostics {
+    pub operation: ProviderExecutionOperation,
+    pub module_specifier_or_url: String,
+    pub export_name: String,
+    pub provider_domain_class: ProviderDomainClass,
+    pub elapsed_ms: u64,
+    pub deadline_ms: u64,
+    pub pending_async_task_count: usize,
+    pub output_record_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProviderParked {
-    pub contract: ProviderContractIdentity,
-    pub artifact: BunArtifactFingerprint,
-    pub handle: BunAsyncHandle,
+pub struct ProviderExecutionFailure {
+    pub operation: ProviderExecutionOperation,
+    pub module_specifier_or_url: String,
+    pub export_name: String,
+    pub provider_domain_class: ProviderDomainClass,
+    pub js_error_name: Option<String>,
+    pub js_error_message: Option<String>,
+    pub js_error_stack: Option<String>,
+    pub detail_extraction_failed: bool,
+    pub pending_async_task_count: usize,
+    pub elapsed_ms: u64,
+    pub deadline_ms: u64,
+    pub output_record_count: usize,
+    pub output: Vec<OutputRecord>,
+}
+
+impl ProviderExecutionFailure {
+    fn new(
+        operation: ProviderExecutionOperation,
+        request: &ProviderRequest,
+        options: ProviderSettleOptions,
+        started_at: Instant,
+        pending_async_task_count: usize,
+        output: Vec<OutputRecord>,
+        message: impl Into<String>,
+    ) -> Self {
+        let message = message.into();
+        let (js_error_name, js_error_stack) = js_error_fields(&message);
+        Self {
+            operation,
+            module_specifier_or_url: module_specifier_or_url(&request.module),
+            export_name: request.export.clone(),
+            provider_domain_class: request.domain,
+            js_error_name,
+            js_error_message: Some(message),
+            js_error_stack,
+            detail_extraction_failed: false,
+            pending_async_task_count,
+            elapsed_ms: elapsed_ms(started_at),
+            deadline_ms: options.deadline.deadline_ms,
+            output_record_count: output.len(),
+            output,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderExecutionOperation {
+    RuntimeInitialize,
+    AdapterModuleLoad,
+    ProviderModuleImport,
+    ProviderExportLookup,
+    ProviderFactoryValidate,
+    ProviderFactoryInvoke,
+    ProviderCallableValidate,
+    ProviderCallableInvoke,
+    ProviderPromiseSettle,
+    ProviderDeadlineElapsed,
+}
+
+impl ProviderSettlementDiagnostics {
+    fn from_request(
+        operation: ProviderExecutionOperation,
+        request: &ProviderRequest,
+        options: ProviderSettleOptions,
+        started_at: Instant,
+        pending_async_task_count: usize,
+        output_record_count: usize,
+    ) -> Self {
+        Self {
+            operation,
+            module_specifier_or_url: module_specifier_or_url(&request.module),
+            export_name: request.export.clone(),
+            provider_domain_class: request.domain,
+            elapsed_ms: elapsed_ms(started_at),
+            deadline_ms: options.deadline.deadline_ms,
+            pending_async_task_count,
+            output_record_count,
+        }
+    }
+}
+
+fn module_specifier_or_url(module: &BunModuleSpec) -> String {
+    match module {
+        BunModuleSpec::Source { module_id, .. } => format!("source:{module_id}"),
+        BunModuleSpec::Path { path } => path.display().to_string(),
+        BunModuleSpec::PreparedBundle { bundle_id, .. } => format!("prepared-bundle:{bundle_id}"),
+    }
+}
+
+fn elapsed_ms(started_at: Instant) -> u64 {
+    started_at
+        .elapsed()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX)
+}
+
+fn deadline_elapsed(started_at: Instant, deadline: ProviderDeadline) -> bool {
+    started_at.elapsed() >= Duration::from_millis(deadline.deadline_ms)
+}
+
+fn export_failure_operation(error: &LibbunError) -> ProviderExecutionOperation {
+    let message = error.to_string();
+    if message.contains("missing export") {
+        ProviderExecutionOperation::ProviderExportLookup
+    } else if message.contains("not callable") {
+        ProviderExecutionOperation::ProviderCallableValidate
+    } else {
+        ProviderExecutionOperation::ProviderCallableInvoke
+    }
+}
+
+fn js_error_fields(message: &str) -> (Option<String>, Option<String>) {
+    let name = message
+        .split_once(':')
+        .map(|(name, _)| name.trim())
+        .filter(|name| !name.is_empty() && !name.contains(' ') && !name.contains('\n'))
+        .map(str::to_string);
+    let stack = if message.contains("\n    at ") || message.contains("\nat ") {
+        Some(message.to_string())
+    } else {
+        None
+    };
+    (name, stack)
+}
+
+fn settled_ready_or_failure(
+    request: ProviderRequest,
+    options: ProviderSettleOptions,
+    started_at: Instant,
+    pending_async_task_count: usize,
+    output: Vec<OutputRecord>,
+    result: ProviderCallResult,
+    operation: ProviderExecutionOperation,
+) -> LibbunResult<SettledProviderReceipt> {
+    if let ProviderCallResult::Err(error) = &result {
+        if error.code == "provider_rejected" {
+            return Ok(SettledProviderReceipt::Failed(
+                ProviderExecutionFailure::new(
+                    operation,
+                    &request,
+                    options,
+                    started_at,
+                    pending_async_task_count,
+                    output,
+                    error.message.clone(),
+                ),
+            ));
+        }
+    }
+
+    Ok(SettledProviderReceipt::Ready {
+        contract: request.contract.clone(),
+        artifact: artifact_fingerprint(),
+        result,
+        settlement: ProviderSettlementDiagnostics::from_request(
+            operation,
+            &request,
+            options,
+            started_at,
+            pending_async_task_count,
+            output.len(),
+        ),
+        output,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -497,6 +712,164 @@ pub trait BunEmbeddingRuntime {
         handle: &BunAsyncHandle,
     ) -> LibbunResult<Option<ProviderCallResult>>;
 
+    fn call_provider_until_settled(
+        &mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> LibbunResult<SettledProviderReceipt> {
+        let started_at = Instant::now();
+        let mut output = self.drain_captured_output();
+        let mut pending_async_task_count = 0;
+
+        if request.domain == ProviderDomainClass::RustSubstrateAuthority {
+            return Ok(SettledProviderReceipt::Ready {
+                contract: request.contract.clone(),
+                artifact: artifact_fingerprint(),
+                result: ProviderCallResult::Err(ProviderError {
+                    code: "rust_substrate_authority_rejected".to_string(),
+                    message: "libbun cannot execute Rust-substrate provider exports".to_string(),
+                }),
+                settlement: ProviderSettlementDiagnostics::from_request(
+                    ProviderExecutionOperation::ProviderCallableValidate,
+                    &request,
+                    options,
+                    started_at,
+                    pending_async_task_count,
+                    output.len(),
+                ),
+                output,
+            });
+        }
+
+        let module = match self.load_module(request.module.clone()) {
+            Ok(module) => {
+                output.extend(self.drain_captured_output());
+                module
+            }
+            Err(err) => {
+                output.extend(self.drain_captured_output());
+                return Ok(SettledProviderReceipt::Failed(
+                    ProviderExecutionFailure::new(
+                        ProviderExecutionOperation::ProviderModuleImport,
+                        &request,
+                        options,
+                        started_at,
+                        pending_async_task_count,
+                        output,
+                        err.to_string(),
+                    ),
+                ));
+            }
+        };
+
+        let export_result = match self.call_export(&module, &request.export, request.input.clone())
+        {
+            Ok(result) => {
+                output.extend(self.drain_captured_output());
+                result
+            }
+            Err(err) => {
+                output.extend(self.drain_captured_output());
+                return Ok(SettledProviderReceipt::Failed(
+                    ProviderExecutionFailure::new(
+                        export_failure_operation(&err),
+                        &request,
+                        options,
+                        started_at,
+                        pending_async_task_count,
+                        output,
+                        err.to_string(),
+                    ),
+                ));
+            }
+        };
+
+        match export_result {
+            ExportCallResult::Ready(result) => settled_ready_or_failure(
+                request,
+                options,
+                started_at,
+                pending_async_task_count,
+                output,
+                result,
+                ProviderExecutionOperation::ProviderCallableInvoke,
+            ),
+            ExportCallResult::Pending(handle) => loop {
+                if deadline_elapsed(started_at, options.deadline) {
+                    output.extend(self.drain_captured_output());
+                    return Ok(SettledProviderReceipt::Failed(
+                        ProviderExecutionFailure::new(
+                            ProviderExecutionOperation::ProviderDeadlineElapsed,
+                            &request,
+                            options,
+                            started_at,
+                            pending_async_task_count.max(1),
+                            output,
+                            format!(
+                                "provider deadline elapsed while settling `{}` after {} ms",
+                                request.export,
+                                elapsed_ms(started_at)
+                            ),
+                        ),
+                    ));
+                }
+
+                match self.resolve_async(&handle) {
+                    Ok(Some(result)) => {
+                        output.extend(self.drain_captured_output());
+                        break settled_ready_or_failure(
+                            request,
+                            options,
+                            started_at,
+                            pending_async_task_count,
+                            output,
+                            result,
+                            ProviderExecutionOperation::ProviderPromiseSettle,
+                        );
+                    }
+                    Ok(None) => {
+                        output.extend(self.drain_captured_output());
+                    }
+                    Err(err) => {
+                        output.extend(self.drain_captured_output());
+                        break Ok(SettledProviderReceipt::Failed(
+                            ProviderExecutionFailure::new(
+                                ProviderExecutionOperation::ProviderPromiseSettle,
+                                &request,
+                                options,
+                                started_at,
+                                pending_async_task_count,
+                                output,
+                                err.to_string(),
+                            ),
+                        ));
+                    }
+                }
+
+                match self.pump_event_loop(PumpBudget { max_ticks: 1 }) {
+                    Ok(outcome) => {
+                        pending_async_task_count = outcome.pending_async_work;
+                        output.extend(self.drain_captured_output());
+                    }
+                    Err(err) => {
+                        output.extend(self.drain_captured_output());
+                        break Ok(SettledProviderReceipt::Failed(
+                            ProviderExecutionFailure::new(
+                                ProviderExecutionOperation::ProviderPromiseSettle,
+                                &request,
+                                options,
+                                started_at,
+                                pending_async_task_count,
+                                output,
+                                err.to_string(),
+                            ),
+                        ));
+                    }
+                }
+            },
+        }
+    }
+
     fn captured_output(&self) -> &[OutputRecord];
 
     fn drain_captured_output(&mut self) -> Vec<OutputRecord>;
@@ -569,6 +942,136 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
         Ok(host)
     }
 
+    pub fn from_runtime(config: BunRuntimeConfig, runtime: R) -> Self {
+        let output_policies = OutputPolicies::from_config(&config);
+        let mut host = Self {
+            runtime,
+            output: CapturedOutput::default(),
+            output_handler: None,
+            output_policies,
+            shutdown: false,
+        };
+        host.collect_output();
+        host
+    }
+
+    pub fn call_provider_until_settled(
+        &mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> LibbunResult<SettledProviderReceipt> {
+        self.ensure_live()?;
+        let result = self.runtime.call_provider_until_settled(request, options);
+        if let Ok(receipt) = &result {
+            self.collect_returned_output(receipt.output());
+        }
+        self.collect_output();
+        result
+    }
+
+    pub fn captured_output(&self) -> &[OutputRecord] {
+        self.output.records()
+    }
+
+    pub fn drain_captured_output(&mut self) -> Vec<OutputRecord> {
+        self.output.drain()
+    }
+
+    pub fn shutdown(&mut self) -> LibbunResult<()> {
+        if self.shutdown {
+            return Ok(());
+        }
+        let result = self.runtime.shutdown();
+        self.collect_output();
+        result?;
+        self.shutdown = true;
+        Ok(())
+    }
+
+    fn ensure_live(&self) -> LibbunResult<()> {
+        if self.shutdown {
+            Err(LibbunError::RuntimeShutdown)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn collect_output(&mut self) {
+        for record in self.runtime.drain_captured_output() {
+            self.collect_output_record(record);
+        }
+    }
+
+    fn collect_returned_output(&mut self, records: &[OutputRecord]) {
+        for record in records {
+            self.collect_output_record(record.clone());
+        }
+    }
+
+    fn collect_output_record(&mut self, record: OutputRecord) {
+        if !self.output_policies.captures(record.stream) {
+            return;
+        }
+        if let Some(handler) = self.output_handler.as_mut() {
+            handler(record.clone());
+        }
+        self.output.push(record);
+    }
+}
+
+pub struct LowLevelBunHost<R: BunEmbeddingRuntime> {
+    runtime: R,
+    output: CapturedOutput,
+    output_handler: Option<OutputHandler>,
+    output_policies: OutputPolicies,
+    shutdown: bool,
+}
+
+impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
+    pub fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
+        let output_policies = OutputPolicies::from_config(&config);
+        let runtime = R::initialize(config)?;
+        let mut host = Self {
+            runtime,
+            output: CapturedOutput::default(),
+            output_handler: None,
+            output_policies,
+            shutdown: false,
+        };
+        host.collect_output();
+        Ok(host)
+    }
+
+    pub fn initialize_with_output_handler(
+        config: BunRuntimeConfig,
+        output_handler: impl FnMut(OutputRecord) + Send + 'static,
+    ) -> LibbunResult<Self> {
+        let output_policies = OutputPolicies::from_config(&config);
+        let runtime = R::initialize(config)?;
+        let mut host = Self {
+            runtime,
+            output: CapturedOutput::default(),
+            output_handler: Some(Box::new(output_handler)),
+            output_policies,
+            shutdown: false,
+        };
+        host.collect_output();
+        Ok(host)
+    }
+
+    pub fn from_runtime(config: BunRuntimeConfig, runtime: R) -> Self {
+        let output_policies = OutputPolicies::from_config(&config);
+        let mut host = Self {
+            runtime,
+            output: CapturedOutput::default(),
+            output_handler: None,
+            output_policies,
+            shutdown: false,
+        };
+        host.collect_output();
+        host
+    }
+
     pub fn load_module(&mut self, spec: BunModuleSpec) -> LibbunResult<BunModuleHandle> {
         self.ensure_live()?;
         let result = self.runtime.load_module(spec);
@@ -588,36 +1091,18 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
         result
     }
 
-    pub fn call_provider(&mut self, request: ProviderRequest) -> LibbunResult<ProviderHostReceipt> {
+    pub fn call_provider_until_settled(
+        &mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> LibbunResult<SettledProviderReceipt> {
         self.ensure_live()?;
-        if request.domain == ProviderDomainClass::RustSubstrateAuthority {
-            return Ok(ProviderHostReceipt::Ready(ProviderReady {
-                contract: request.contract,
-                artifact: artifact_fingerprint(),
-                result: ProviderCallResult::Err(ProviderError {
-                    code: "rust_substrate_authority_rejected".to_string(),
-                    message: "libbun cannot execute Rust-substrate provider exports".to_string(),
-                }),
-            }));
+        let result = self.runtime.call_provider_until_settled(request, options);
+        if let Ok(receipt) = &result {
+            self.collect_returned_output(receipt.output());
         }
-
-        let result = self
-            .runtime
-            .call_export(&request.module, &request.export, request.input);
         self.collect_output();
-
-        match result? {
-            ExportCallResult::Ready(result) => Ok(ProviderHostReceipt::Ready(ProviderReady {
-                contract: request.contract,
-                artifact: artifact_fingerprint(),
-                result,
-            })),
-            ExportCallResult::Pending(handle) => Ok(ProviderHostReceipt::Parked(ProviderParked {
-                contract: request.contract,
-                artifact: artifact_fingerprint(),
-                handle,
-            })),
-        }
+        result
     }
 
     pub fn pump_event_loop(&mut self, budget: PumpBudget) -> LibbunResult<PumpOutcome> {
@@ -666,14 +1151,24 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
 
     fn collect_output(&mut self) {
         for record in self.runtime.drain_captured_output() {
-            if !self.output_policies.captures(record.stream) {
-                continue;
-            }
-            if let Some(handler) = self.output_handler.as_mut() {
-                handler(record.clone());
-            }
-            self.output.push(record);
+            self.collect_output_record(record);
         }
+    }
+
+    fn collect_returned_output(&mut self, records: &[OutputRecord]) {
+        for record in records {
+            self.collect_output_record(record.clone());
+        }
+    }
+
+    fn collect_output_record(&mut self, record: OutputRecord) {
+        if !self.output_policies.captures(record.stream) {
+            return;
+        }
+        if let Some(handler) = self.output_handler.as_mut() {
+            handler(record.clone());
+        }
+        self.output.push(record);
     }
 }
 
@@ -691,7 +1186,30 @@ where
     }
 }
 
+impl<R> std::fmt::Debug for LowLevelBunHost<R>
+where
+    R: BunEmbeddingRuntime + std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LowLevelBunHost")
+            .field("runtime", &self.runtime)
+            .field("output", &self.output)
+            .field("output_policies", &self.output_policies)
+            .field("shutdown", &self.shutdown)
+            .finish_non_exhaustive()
+    }
+}
+
 impl<R> Drop for BunHost<R>
+where
+    R: BunEmbeddingRuntime,
+{
+    fn drop(&mut self) {
+        let _ = self.shutdown();
+    }
+}
+
+impl<R> Drop for LowLevelBunHost<R>
 where
     R: BunEmbeddingRuntime,
 {

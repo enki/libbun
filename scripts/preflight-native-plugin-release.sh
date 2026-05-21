@@ -93,6 +93,7 @@ validate_linux_plugin_exports() {
       libbun_plugin_runtime_call_export|\
       libbun_plugin_runtime_pump_event_loop|\
       libbun_plugin_runtime_resolve_async|\
+      libbun_plugin_runtime_call_provider_until_settled|\
       libbun_plugin_runtime_drain_output|\
       libbun_plugin_runtime_shutdown)
         ;;
@@ -176,6 +177,10 @@ if [[ "$(uname -s)" == "Linux" && "$runtime_mode" == "in-process" ]]; then
   export LIBBUN_NATIVE_LINK_MANIFEST="$pic_manifest"
   scripts/inspect-linux-native-relocations.sh "$LIBBUN_NATIVE_LINK_MANIFEST"
 fi
+
+release_manifest="${LIBBUN_NATIVE_LINK_MANIFEST:-"$native_build_dir/libbun_native_link_manifest.txt"}"
+echo "==> preflight ${release_version}: reject static native link inputs for release packaging"
+scripts/assert-distributable-native-link.sh "$release_manifest" "native plugin release preflight"
 
 echo "==> preflight ${release_version}: build native plugin"
 if [[ "$runtime_mode" == "helper-process" ]]; then
