@@ -643,7 +643,8 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         }
         let mut ticks = 0;
         for _ in 0..budget.max_ticks {
-            self.vm_mut().event_loop_mut().tick();
+            self.vm_mut().tick();
+            self.vm_mut().auto_tick();
             ticks += 1;
         }
         self.drain_output()?;
