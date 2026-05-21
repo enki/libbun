@@ -530,6 +530,10 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             unsafe { vm.as_ptr().as_mut().expect("vm pointer checked") },
             &config.environment,
         )?;
+        // Bun's module loader/transpiler expects this VM-owned initialization
+        // before any provider import can reach source loading.
+        unsafe { vm.as_ptr().as_mut().expect("vm pointer checked") }
+            .load_extra_env_and_source_code_printer();
 
         Ok(Self {
             vm,
