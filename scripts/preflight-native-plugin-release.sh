@@ -56,11 +56,11 @@ require zstd
 
 cd "$repo_root"
 
-cargo_debug_artifact_dir() {
+cargo_release_artifact_dir() {
   if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
     case "$CARGO_TARGET_DIR" in
-      /*) printf '%s/debug\n' "$CARGO_TARGET_DIR" ;;
-      *) printf '%s/%s/debug\n' "$repo_root" "$CARGO_TARGET_DIR" ;;
+      /*) printf '%s/release\n' "$CARGO_TARGET_DIR" ;;
+      *) printf '%s/%s/release\n' "$repo_root" "$CARGO_TARGET_DIR" ;;
     esac
     return
   fi
@@ -179,17 +179,17 @@ fi
 
 echo "==> preflight ${release_version}: build native plugin"
 if [[ "$runtime_mode" == "helper-process" ]]; then
-  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features legacy-linux-helper-process
+  cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml --features legacy-linux-helper-process
 elif [[ "$(uname -s)" == "Linux" ]]; then
-  LIBBUN_NATIVE_LINK_BUN=1 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+  LIBBUN_NATIVE_LINK_BUN=1 RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml --features linux-in-process
 else
-  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml
 fi
 
-plugin_debug_dir="$(cargo_debug_artifact_dir "$repo_root/plugin/target/debug")"
-plugin_path="$(find "$plugin_debug_dir" -maxdepth 1 -name "$plugin_name" -print -quit)"
+plugin_release_dir="$(cargo_release_artifact_dir "$repo_root/plugin/target/release")"
+plugin_path="$(find "$plugin_release_dir" -maxdepth 1 -name "$plugin_name" -print -quit)"
 if [[ -z "$plugin_path" || ! -f "$plugin_path" ]]; then
-  echo "native plugin binary was not produced under $plugin_debug_dir: $plugin_name" >&2
+  echo "native plugin binary was not produced under $plugin_release_dir: $plugin_name" >&2
   exit 1
 fi
 validate_linux_plugin_exports "$plugin_path"
@@ -197,11 +197,11 @@ validate_linux_plugin_exports "$plugin_path"
 helper_path=""
 if [[ "$runtime_mode" == "helper-process" ]]; then
   echo "==> preflight ${release_version}: build Linux native helper"
-  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
-  runtime_debug_dir="$(cargo_debug_artifact_dir "$repo_root/runtime/target/debug")"
-  helper_path="$(find "$runtime_debug_dir" -maxdepth 1 -name "$helper_name" -print -quit)"
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --release --manifest-path runtime/Cargo.toml
+  runtime_release_dir="$(cargo_release_artifact_dir "$repo_root/runtime/target/release")"
+  helper_path="$(find "$runtime_release_dir" -maxdepth 1 -name "$helper_name" -print -quit)"
   if [[ -z "$helper_path" || ! -f "$helper_path" ]]; then
-    echo "native helper binary was not produced under $runtime_debug_dir: $helper_name" >&2
+    echo "native helper binary was not produced under $runtime_release_dir: $helper_name" >&2
     exit 1
   fi
 fi

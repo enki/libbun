@@ -411,7 +411,7 @@ Required work:
 ```text
 LIBBUN_NATIVE_LINK_BUN=1
 RUSTFLAGS="-C link-arg=-fuse-ld=lld"
-cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml --features linux-in-process
 ```
 
 - run the dynamic loader smoke test through `LIBBUN_PLUGIN_PATH`.

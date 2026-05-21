@@ -171,6 +171,23 @@ fn dynamic_plugin_facade_conformance() {
     );
     assert!(std::env::var_os(OVERLAY_ENV_KEY).is_none());
 
+    let module_load_error = host
+        .load_module(BunModuleSpec::Source {
+            module_id: "dynamic-conformance-throwing-import".to_string(),
+            source: r#"
+                throw new Error("dynamic module import diagnostic boom");
+            "#
+            .to_string(),
+        })
+        .expect_err("module import throw should fail module load");
+    let module_load_message = module_load_error.to_string();
+    assert!(
+        module_load_message.contains("module import")
+            && module_load_message.contains("specifier")
+            && module_load_message.contains("dynamic module import diagnostic boom"),
+        "module-load diagnostic must name the import operation, specifier, and JS exception detail; got {module_load_message}"
+    );
+
     let substrate_receipt = host
         .call_provider(ProviderRequest {
             contract: ProviderContractIdentity {

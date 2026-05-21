@@ -286,7 +286,7 @@ Build the macOS in-process plugin after preparing the native link manifest:
 
 ```sh
 scripts/prepare-native-bun-link.sh
-LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml
 ```
 
 Build the Linux in-process plugin with release-grade PIC WebKit inputs:
@@ -299,7 +299,7 @@ scripts/fetch-webkit-pic-artifact.sh --target x86_64-unknown-linux-gnu \
 LIBBUN_NATIVE_LINK_MANIFEST=vendor/bun/build/release/libbun_native_link_manifest.pic.txt \
   LIBBUN_NATIVE_LINK_BUN=1 \
   RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
-  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+  cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml --features linux-in-process
 ```
 
 The older helper-backed Linux transport is quarantined for legacy diagnostics.
@@ -309,9 +309,9 @@ feature and opt-in environment variable:
 ```sh
 scripts/prepare-native-bun-link.sh
 LIBBUN_ENABLE_LEGACY_LINUX_HELPER=1 \
-  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml \
+  cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml \
     --features legacy-linux-helper-process
-LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
+LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --release --manifest-path runtime/Cargo.toml
 ```
 
 Use `LIBBUN_NATIVE_BUN_BUILD_DIR=vendor/bun/build/native-$(uname -m)-$(uname -s)`

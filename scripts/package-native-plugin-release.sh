@@ -237,7 +237,7 @@ replaceable libbun-runtime-native helper described by libbun-native-bundle.json.
   runtime_build_notes="For Linux helper-backed bundle builds, build the plugin without
 LIBBUN_NATIVE_LINK_BUN and build the helper executable with:
 
-  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --release --manifest-path runtime/Cargo.toml
 
 Host applications must keep the plugin replaceable. Users can build a modified
 compatible plugin from the corresponding source and configure the host to load
@@ -253,10 +253,10 @@ plugin crate's linux-in-process feature, and generate a PIC WebKit manifest
 from the pinned WebKit PIC release input:
 
   scripts/fetch-webkit-pic-artifact.sh --target ${platform} --manifest <base-manifest> --out <pic-manifest>
-  LIBBUN_NATIVE_LINK_MANIFEST=<pic-manifest> LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process"
+  LIBBUN_NATIVE_LINK_MANIFEST=<pic-manifest> LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml --features linux-in-process"
   else
     runtime_build_notes="For in-process plugin builds, set LIBBUN_NATIVE_LINK_BUN=1 when building
-plugin/Cargo.toml."
+plugin/Cargo.toml in release profile."
   fi
 
   runtime_build_notes="${runtime_build_notes}
@@ -393,7 +393,7 @@ input metadata at:
 Build outline:
 
   scripts/prepare-native-bun-link.sh
-  cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+  LIBBUN_NATIVE_LINK_BUN=1 cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml
 
 ${runtime_build_notes}
 SOURCE

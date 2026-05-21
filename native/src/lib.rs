@@ -124,25 +124,54 @@ impl NativeBunRuntime {
     fn js_error_to_string(&self, value: JSValue, fallback: &str) -> String {
         let global = self.vm().global();
         if value.is_object() {
-            if let Ok(Some(message)) = value.get(global, "message") {
-                if let Some(text) = js_value_to_string(global, message) {
-                    return text;
-                }
+            let stack = value
+                .get(global, "stack")
+                .ok()
+                .flatten()
+                .and_then(|stack| js_value_to_string(global, stack));
+            if let Some(stack) = stack.filter(|stack| !stack.trim().is_empty()) {
+                return bounded_js_diagnostic_text(stack);
             }
-            if let Ok(Some(message)) = value.fast_get(global, BuiltinName::Message) {
-                if let Some(text) = js_value_to_string(global, message) {
-                    return text;
+
+            let message = value
+                .get(global, "message")
+                .ok()
+                .flatten()
+                .and_then(|message| js_value_to_string(global, message))
+                .or_else(|| {
+                    value
+                        .fast_get(global, BuiltinName::Message)
+                        .ok()
+                        .flatten()
+                        .and_then(|message| js_value_to_string(global, message))
+                });
+            let name = value
+                .fast_get(global, BuiltinName::name)
+                .ok()
+                .flatten()
+                .and_then(|name| js_value_to_string(global, name));
+            match (name, message) {
+                (Some(name), Some(message))
+                    if !name.trim().is_empty() && !message.trim().is_empty() =>
+                {
+                    return bounded_js_diagnostic_text(format!("{name}: {message}"));
                 }
-            }
-            if let Ok(Some(name)) = value.fast_get(global, BuiltinName::name) {
-                if let Some(text) = js_value_to_string(global, name) {
-                    return text;
+                (_, Some(message)) if !message.trim().is_empty() => {
+                    return bounded_js_diagnostic_text(message);
                 }
+                (Some(name), _) if !name.trim().is_empty() => {
+                    return bounded_js_diagnostic_text(name);
+                }
+                _ => {}
             }
-            return js_value_to_string_lossy(global, value).unwrap_or_else(|| fallback.to_string());
+            return js_value_to_string_lossy(global, value)
+                .map(bounded_js_diagnostic_text)
+                .unwrap_or_else(|| fallback.to_string());
         }
 
-        js_value_to_string_lossy(global, value).unwrap_or_else(|| fallback.to_string())
+        js_value_to_string_lossy(global, value)
+            .map(bounded_js_diagnostic_text)
+            .unwrap_or_else(|| fallback.to_string())
     }
 
     fn evaluate_source_module(&mut self, id: &str, source: &str) -> LibbunResult<JSValue> {
@@ -176,19 +205,26 @@ impl NativeBunRuntime {
     }
 
     fn import_module_specifier(&mut self, specifier: &str) -> LibbunResult<JSValue> {
+        let import_specifier = specifier.to_owned();
         let specifier = BunString::from_bytes(specifier.as_bytes());
         let promise = JSModuleLoader::import_ptr(self.vm().global, &specifier).map_err(|err| {
             let exception = self.vm().global().take_exception(err);
             let error = exception.to_error().unwrap_or(exception);
-            LibbunError::module_load(self.js_error_to_string(error, "module import threw"))
+            LibbunError::module_load(format!(
+                "module import threw for specifier `{import_specifier}`: {}",
+                self.js_error_to_string(error, "JavaScriptCore did not expose exception details")
+            ))
         })?;
-        self.resolve_module_promise(AnyPromise::Internal(promise.as_ptr()), "module import")
+        self.resolve_module_promise(
+            AnyPromise::Internal(promise.as_ptr()),
+            &format!("module import `{import_specifier}`"),
+        )
     }
 
     fn resolve_module_promise(
         &mut self,
         promise: AnyPromise,
-        operation: &'static str,
+        operation: &str,
     ) -> LibbunResult<JSValue> {
         self.vm_mut().wait_for_promise(promise);
 
@@ -409,6 +445,22 @@ fn js_value_to_string_lossy(global: &JSGlobalObject, value: JSValue) -> Option<S
         }
         _ => js_value_to_string(global, value),
     }
+}
+
+fn bounded_js_diagnostic_text(text: impl Into<String>) -> String {
+    const MAX_JS_DIAGNOSTIC_BYTES: usize = 16 * 1024;
+    let mut text = text.into();
+    if text.len() <= MAX_JS_DIAGNOSTIC_BYTES {
+        return text;
+    }
+
+    let mut boundary = MAX_JS_DIAGNOSTIC_BYTES;
+    while !text.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    text.truncate(boundary);
+    text.push_str("\n[libbun truncated JavaScript diagnostic after 16384 bytes]");
+    text
 }
 
 fn apply_environment_overlay(

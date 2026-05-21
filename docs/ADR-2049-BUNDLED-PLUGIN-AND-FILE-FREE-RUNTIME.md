@@ -7,7 +7,7 @@ ADR-2038 remains the native consumption law: downstream hosts load Bun/JSC/WebKi
 through a replaceable dynamic plugin and never statically link the native
 adapter. ADR-2047 made an opt-in `download-plugin` Cargo build path available,
 but that path is not the final product topology for hosts that ship a native
-binary such as Swarm's `ss`.
+binary.
 
 The product boundary should be simpler:
 
@@ -130,6 +130,21 @@ are used for generated adapters they must follow the same file-free rule. Any
 future prepared-bundle materialization must be explicitly justified as a bundle
 format requirement, not reused for provider adapters.
 
+### Module Diagnostics
+
+Module-load failures are public embedding-boundary failures. They must identify
+the owner operation and the module specifier involved. If Bun/JSC throws or
+rejects during import, libbun must preserve the JavaScript exception message and
+stack when available. Returning only `module import threw`, `module load
+failed`, or another context-free string is structurally invalid because it
+forces downstream hosts to debug by source archaeology.
+
+If Bun/JSC does not expose exception details, the diagnostic must self-accuse by
+saying that the exception detail was unavailable and still include the import
+specifier, operation, and libbun boundary. Downstream hosts may wrap that error
+with their own provider/contract context, but libbun remains responsible for the
+Bun-facing module-load facts.
+
 ## Required Refactor
 
 1. Add host-bundled plugin resolution APIs that accept a host binary path,
@@ -163,6 +178,9 @@ format requirement, not reused for provider adapters.
     the libbun plugin C ABI and keeps all Bun/JSC/WebKit/native internals local.
 14. Add release/preflight gates that reject Linux plugin artifacts exporting any
     non-ABI defined dynamic symbol.
+15. Make source/path/prepared-bundle module import failures preserve the import
+    specifier and JavaScript exception message/stack, or self-accuse when Bun/JSC
+    exposes no exception details.
 
 ## Acceptance Criteria
 
@@ -191,3 +209,6 @@ format requirement, not reused for provider adapters.
   implementation symbols through the dynamic symbol table.
 - `download-plugin` is clearly documented as a development/convenience path, not
   the product shipping contract.
+- Module-load errors include the failed import specifier and JavaScript
+  exception detail when available; context-free `module import threw` diagnostics
+  are rejected.
