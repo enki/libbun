@@ -45,9 +45,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y zstd ninja-build cmake wget g++ gnupg
-          wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          for attempt in 1 2 3 4 5; do
+            wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh && break
+            if [[ "$attempt" == "5" ]]; then
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
           chmod +x /tmp/llvm.sh
-          sudo /tmp/llvm.sh 21 all
+          for attempt in 1 2 3; do
+            sudo /tmp/llvm.sh 21 all && break
+            if [[ "$attempt" == "3" ]]; then
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
           echo "/usr/lib/llvm-21/bin" >> "$GITHUB_PATH"
 
       - name: Install Rust toolchains
