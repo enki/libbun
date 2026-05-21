@@ -18,6 +18,20 @@ if [[ -z "$plugin_binary" || ! -f "$plugin_binary" ]]; then
   exit 2
 fi
 
+case "$plugin_binary" in
+  */target/debug/*|target/debug/*)
+    echo "native plugin release packages must use a release-profile plugin binary, got: $plugin_binary" >&2
+    exit 1
+    ;;
+esac
+
+case "$helper_binary" in
+  */target/debug/*|target/debug/*)
+    echo "native helper release packages must use a release-profile helper binary, got: $helper_binary" >&2
+    exit 1
+    ;;
+esac
+
 case "$version" in
   v*) release_version="$version" ;;
   *) release_version="v$version" ;;
@@ -95,6 +109,16 @@ validate_linux_plugin_exports() {
   fi
 }
 
+reject_debug_profile_markers() {
+  local artifact="$1"
+  local label="$2"
+
+  if strings "$artifact" | grep -E 'FATAL: bun-debug failed to load bundled version|BUN_DYNAMIC_JS_LOAD_PATH|/Users/runner/.*/js/node/fs\.js|build/debug|bun-debug' >/dev/null; then
+    echo "$label contains Bun debug or relocation markers; rebuild from a release Bun profile" >&2
+    exit 1
+  fi
+}
+
 sha256() {
   if command -v shasum >/dev/null 2>&1; then
     shasum -a 256 "$1" | awk '{print $1}'
@@ -120,10 +144,7 @@ if [[ ! -f "$manifest" ]]; then
   exit 2
 fi
 
-if strings "$plugin_binary" | grep -F "FATAL: bun-debug failed to load bundled version" >/dev/null; then
-  echo "native plugin contains Bun debug builtin-module disk loader; rebuild from a release Bun profile" >&2
-  exit 1
-fi
+reject_debug_profile_markers "$plugin_binary" "native plugin"
 validate_linux_plugin_exports "$plugin_binary"
 
 if [[ -z "$runtime_mode" ]]; then

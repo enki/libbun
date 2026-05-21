@@ -9,7 +9,7 @@ use libbun::{
     BunHost, BunModuleSpec, BunRuntimeConfig, LibbunError, OutputRecord, OutputStream,
     PreparedBundleModuleV1, PreparedBundleV1, ProviderCallResult, ProviderContractIdentity,
     ProviderDeadline, ProviderDomainClass, ProviderExecutionOperation, ProviderRequest,
-    ProviderSettleOptions, SettledProviderReceipt, StructuralValue,
+    ProviderSettleOptions, ProviderSettlementPhase, SettledProviderReceipt, StructuralValue,
 };
 use serde_json::json;
 
@@ -136,6 +136,16 @@ fn dynamic_plugin_facade_conformance() {
             assert_eq!(
                 settlement.operation,
                 ProviderExecutionOperation::ProviderPromiseSettle
+            );
+            assert!(
+                settlement
+                    .trace
+                    .iter()
+                    .any(|event| event.phase == ProviderSettlementPhase::ResolveAsync)
+            );
+            assert_eq!(
+                settlement.trace.last().map(|event| event.phase),
+                Some(ProviderSettlementPhase::Complete)
             );
         }
         SettledProviderReceipt::Failed(failure) => panic!("expected async success: {failure:?}"),

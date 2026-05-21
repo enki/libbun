@@ -16,8 +16,8 @@ use crate::plugin_abi::{
 use crate::release;
 use crate::{
     BunAsyncHandle, BunEmbeddingRuntime, BunModuleHandle, BunModuleSpec, BunRuntimeConfig,
-    ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, ProviderRequest,
-    ProviderSettleOptions, PumpBudget, PumpOutcome, SettledProviderReceipt, StructuralValue,
+    ExportCallResult, LibbunError, LibbunResult, OutputRecord, ProviderCallResult, PumpBudget,
+    PumpOutcome, StructuralValue,
 };
 
 type PluginAbiVersionFn = unsafe extern "C" fn() -> u32;
@@ -63,7 +63,7 @@ struct DynamicPlugin {
     runtime_call_export: RuntimeCallExportFn,
     runtime_pump_event_loop: RuntimePumpEventLoopFn,
     runtime_resolve_async: RuntimeResolveAsyncFn,
-    runtime_call_provider_until_settled: RuntimeCallProviderUntilSettledFn,
+    _runtime_call_provider_until_settled: RuntimeCallProviderUntilSettledFn,
     runtime_drain_output: RuntimeDrainOutputFn,
     runtime_shutdown: RuntimeShutdownFn,
 }
@@ -208,34 +208,6 @@ impl BunEmbeddingRuntime for DynamicBunRuntime {
         result
     }
 
-    fn call_provider_until_settled(
-        &mut self,
-        request: ProviderRequest,
-        options: ProviderSettleOptions,
-    ) -> LibbunResult<SettledProviderReceipt> {
-        if self.shutdown {
-            return Err(LibbunError::RuntimeShutdown);
-        }
-        let request = serde_json::to_vec(&request).map_err(|err| {
-            LibbunError::export_call(format!("provider request encode failed: {err}"))
-        })?;
-        let options = serde_json::to_vec(&options).map_err(|err| {
-            LibbunError::export_call(format!("provider settle options encode failed: {err}"))
-        })?;
-        let status = unsafe {
-            (self.plugin.runtime_call_provider_until_settled)(
-                self.runtime,
-                request.as_ptr(),
-                request.len(),
-                options.as_ptr(),
-                options.len(),
-            )
-        };
-        let result = self.plugin.status_json(status, LibbunError::export_call);
-        self.collect_output()?;
-        result
-    }
-
     fn captured_output(&self) -> &[OutputRecord] {
         &self.output
     }
@@ -319,7 +291,7 @@ impl DynamicPlugin {
             runtime_call_export,
             runtime_pump_event_loop,
             runtime_resolve_async,
-            runtime_call_provider_until_settled,
+            _runtime_call_provider_until_settled: runtime_call_provider_until_settled,
             runtime_drain_output,
             runtime_shutdown,
         })

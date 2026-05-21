@@ -81,12 +81,12 @@ jobs:
           CARGO_INCREMENTAL=0 \
           CARGO_PROFILE_DEV_DEBUG=0 \
           RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
-          cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+          cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml --features linux-in-process
 
       - name: Verify dynamic plugin loading
         run: |
           set -o pipefail
-          plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+          plugin_path="$(find plugin/target/release -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
           test -n "$plugin_path"
           env -u LIBBUN_RUNTIME_NATIVE_PATH \
             LIBBUN_PLUGIN_PATH="$plugin_path" \
@@ -95,11 +95,15 @@ jobs:
             echo "dynamic plugin smoke emitted a mimalloc diagnostic" >&2
             exit 1
           fi
+          if grep -E '\[(loop|filesink)\]' /tmp/libbun-dynamic-plugin-smoke.log; then
+            echo "dynamic plugin smoke leaked internal Bun diagnostics to host stdout/stderr" >&2
+            exit 1
+          fi
 
       - name: Verify dynamic facade conformance
         run: |
           set -o pipefail
-          plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+          plugin_path="$(find plugin/target/release -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
           test -n "$plugin_path"
           env -u LIBBUN_RUNTIME_NATIVE_PATH \
             LIBBUN_PLUGIN_PATH="$plugin_path" \
@@ -108,13 +112,17 @@ jobs:
             echo "dynamic plugin conformance emitted a mimalloc diagnostic" >&2
             exit 1
           fi
+          if grep -E '\[(loop|filesink)\]' /tmp/libbun-dynamic-plugin-conformance.log; then
+            echo "dynamic plugin conformance leaked internal Bun diagnostics to host stdout/stderr" >&2
+            exit 1
+          fi
 
       - name: Upload verified plugin artifact
         uses: actions/upload-artifact@v4
         with:
           name: libbun-linux-pic-plugin-${{ matrix.target }}
           path: |
-            plugin/target/debug/${{ matrix.plugin_name }}
+            plugin/target/release/${{ matrix.plugin_name }}
             vendor/bun/build/pic-${{ matrix.target }}/libbun_native_link_manifest.pic.txt
             vendor/bun/build/pic-${{ matrix.target }}/libbun_webkit_pic_artifact.json
           if-no-files-found: error

@@ -158,6 +158,16 @@ if [[ -n "$asset_dir" ]]; then
     exit 2
   fi
 
+  reject_debug_profile_markers() {
+    local artifact="$1"
+    local archive="$2"
+
+    if strings "$artifact" | grep -E 'FATAL: bun-debug failed to load bundled version|BUN_DYNAMIC_JS_LOAD_PATH|/Users/runner/.*/js/node/fs\.js|build/debug|bun-debug' >/dev/null; then
+      echo "$archive contains Bun debug or relocation markers; release plugins must be built from a release Bun profile" >&2
+      exit 1
+    fi
+  }
+
   "$repo_root/scripts/assert-no-static-link-assets.sh" \
     "native plugin release assets" \
     "$asset_dir"/libbun-plugin-native-${release_version}-*.tar.zst
@@ -215,10 +225,7 @@ if not plugin_name:
 print(bundle.parent / plugin_name)
 PY
 )"
-    if strings "$plugin_file" | grep -F "FATAL: bun-debug failed to load bundled version" >/dev/null; then
-      echo "$archive contains Bun debug builtin-module disk loader; release plugins must be built from a release Bun profile" >&2
-      exit 1
-    fi
+    reject_debug_profile_markers "$plugin_file" "$archive"
     rm -rf "$extract_dir"
   done
 fi

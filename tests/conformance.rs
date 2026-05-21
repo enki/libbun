@@ -24,6 +24,7 @@ use libbun::ProviderError;
 use libbun::ProviderExecutionOperation;
 use libbun::ProviderRequest;
 use libbun::ProviderSettleOptions;
+use libbun::ProviderSettlementPhase;
 use libbun::PumpBudget;
 use libbun::PumpOutcome;
 use libbun::SettledProviderReceipt;
@@ -563,6 +564,16 @@ fn deadline_expiry_returns_pending_async_diagnostics() {
     );
     assert_eq!(failure.deadline_ms, 0);
     assert!(failure.pending_async_task_count >= 1);
+    assert!(
+        failure
+            .trace
+            .iter()
+            .any(|event| event.phase == ProviderSettlementPhase::CallExport)
+    );
+    assert_eq!(
+        failure.trace.last().map(|event| event.phase),
+        Some(ProviderSettlementPhase::DeadlineElapsed)
+    );
 }
 
 #[test]

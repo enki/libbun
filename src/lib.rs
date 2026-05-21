@@ -435,6 +435,18 @@ impl SettledProviderReceipt {
             Self::Failed(failure) => &failure.output,
         }
     }
+
+    fn with_trace(mut self, trace: Vec<ProviderSettlementTraceEvent>) -> Self {
+        match &mut self {
+            Self::Ready { settlement, .. } => {
+                settlement.trace = trace;
+            }
+            Self::Failed(failure) => {
+                failure.trace = trace;
+            }
+        }
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -448,6 +460,27 @@ pub struct ProviderSettlementDiagnostics {
     pub deadline_ms: u64,
     pub pending_async_task_count: usize,
     pub output_record_count: usize,
+    pub trace: Vec<ProviderSettlementTraceEvent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSettlementTraceEvent {
+    pub phase: ProviderSettlementPhase,
+    pub elapsed_ms: u64,
+    pub pending_async_task_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderSettlementPhase {
+    Start,
+    ModuleLoad,
+    CallExport,
+    ResolveAsync,
+    PumpEventLoop,
+    DeadlineElapsed,
+    Complete,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -466,6 +499,7 @@ pub struct ProviderExecutionFailure {
     pub deadline_ms: u64,
     pub output_record_count: usize,
     pub output: Vec<OutputRecord>,
+    pub trace: Vec<ProviderSettlementTraceEvent>,
 }
 
 impl ProviderExecutionFailure {
@@ -494,7 +528,13 @@ impl ProviderExecutionFailure {
             deadline_ms: options.deadline.deadline_ms,
             output_record_count: output.len(),
             output,
+            trace: Vec::new(),
         }
+    }
+
+    fn with_trace(mut self, trace: Vec<ProviderSettlementTraceEvent>) -> Self {
+        self.trace = trace;
+        self
     }
 }
 
@@ -531,8 +571,31 @@ impl ProviderSettlementDiagnostics {
             deadline_ms: options.deadline.deadline_ms,
             pending_async_task_count,
             output_record_count,
+            trace: Vec::new(),
         }
     }
+
+    fn with_trace(mut self, trace: Vec<ProviderSettlementTraceEvent>) -> Self {
+        self.trace = trace;
+        self
+    }
+}
+
+fn push_settlement_trace(
+    trace: &mut Vec<ProviderSettlementTraceEvent>,
+    phase: ProviderSettlementPhase,
+    started_at: Instant,
+    pending_async_task_count: usize,
+) {
+    const MAX_TRACE_EVENTS: usize = 64;
+    if trace.len() == MAX_TRACE_EVENTS {
+        trace.remove(0);
+    }
+    trace.push(ProviderSettlementTraceEvent {
+        phase,
+        elapsed_ms: elapsed_ms(started_at),
+        pending_async_task_count,
+    });
 }
 
 fn module_specifier_or_url(module: &BunModuleSpec) -> String {
@@ -720,8 +783,21 @@ pub trait BunEmbeddingRuntime {
         let started_at = Instant::now();
         let mut output = self.drain_captured_output();
         let mut pending_async_task_count = 0;
+        let mut trace = Vec::new();
+        push_settlement_trace(
+            &mut trace,
+            ProviderSettlementPhase::Start,
+            started_at,
+            pending_async_task_count,
+        );
 
         if request.domain == ProviderDomainClass::RustSubstrateAuthority {
+            push_settlement_trace(
+                &mut trace,
+                ProviderSettlementPhase::Complete,
+                started_at,
+                pending_async_task_count,
+            );
             return Ok(SettledProviderReceipt::Ready {
                 contract: request.contract.clone(),
                 artifact: artifact_fingerprint(),
@@ -736,11 +812,18 @@ pub trait BunEmbeddingRuntime {
                     started_at,
                     pending_async_task_count,
                     output.len(),
-                ),
+                )
+                .with_trace(trace),
                 output,
             });
         }
 
+        push_settlement_trace(
+            &mut trace,
+            ProviderSettlementPhase::ModuleLoad,
+            started_at,
+            pending_async_task_count,
+        );
         let module = match self.load_module(request.module.clone()) {
             Ok(module) => {
                 output.extend(self.drain_captured_output());
@@ -757,11 +840,18 @@ pub trait BunEmbeddingRuntime {
                         pending_async_task_count,
                         output,
                         err.to_string(),
-                    ),
+                    )
+                    .with_trace(trace),
                 ));
             }
         };
 
+        push_settlement_trace(
+            &mut trace,
+            ProviderSettlementPhase::CallExport,
+            started_at,
+            pending_async_task_count,
+        );
         let export_result = match self.call_export(&module, &request.export, request.input.clone())
         {
             Ok(result) => {
@@ -779,24 +869,40 @@ pub trait BunEmbeddingRuntime {
                         pending_async_task_count,
                         output,
                         err.to_string(),
-                    ),
+                    )
+                    .with_trace(trace),
                 ));
             }
         };
 
         match export_result {
-            ExportCallResult::Ready(result) => settled_ready_or_failure(
-                request,
-                options,
-                started_at,
-                pending_async_task_count,
-                output,
-                result,
-                ProviderExecutionOperation::ProviderCallableInvoke,
-            ),
+            ExportCallResult::Ready(result) => {
+                push_settlement_trace(
+                    &mut trace,
+                    ProviderSettlementPhase::Complete,
+                    started_at,
+                    pending_async_task_count,
+                );
+                settled_ready_or_failure(
+                    request,
+                    options,
+                    started_at,
+                    pending_async_task_count,
+                    output,
+                    result,
+                    ProviderExecutionOperation::ProviderCallableInvoke,
+                )
+                .map(|receipt| receipt.with_trace(trace))
+            }
             ExportCallResult::Pending(handle) => loop {
                 if deadline_elapsed(started_at, options.deadline) {
                     output.extend(self.drain_captured_output());
+                    push_settlement_trace(
+                        &mut trace,
+                        ProviderSettlementPhase::DeadlineElapsed,
+                        started_at,
+                        pending_async_task_count.max(1),
+                    );
                     return Ok(SettledProviderReceipt::Failed(
                         ProviderExecutionFailure::new(
                             ProviderExecutionOperation::ProviderDeadlineElapsed,
@@ -810,13 +916,26 @@ pub trait BunEmbeddingRuntime {
                                 request.export,
                                 elapsed_ms(started_at)
                             ),
-                        ),
+                        )
+                        .with_trace(trace),
                     ));
                 }
 
+                push_settlement_trace(
+                    &mut trace,
+                    ProviderSettlementPhase::ResolveAsync,
+                    started_at,
+                    pending_async_task_count,
+                );
                 match self.resolve_async(&handle) {
                     Ok(Some(result)) => {
                         output.extend(self.drain_captured_output());
+                        push_settlement_trace(
+                            &mut trace,
+                            ProviderSettlementPhase::Complete,
+                            started_at,
+                            pending_async_task_count,
+                        );
                         break settled_ready_or_failure(
                             request,
                             options,
@@ -825,7 +944,8 @@ pub trait BunEmbeddingRuntime {
                             output,
                             result,
                             ProviderExecutionOperation::ProviderPromiseSettle,
-                        );
+                        )
+                        .map(|receipt| receipt.with_trace(trace));
                     }
                     Ok(None) => {
                         output.extend(self.drain_captured_output());
@@ -841,11 +961,18 @@ pub trait BunEmbeddingRuntime {
                                 pending_async_task_count,
                                 output,
                                 err.to_string(),
-                            ),
+                            )
+                            .with_trace(trace),
                         ));
                     }
                 }
 
+                push_settlement_trace(
+                    &mut trace,
+                    ProviderSettlementPhase::PumpEventLoop,
+                    started_at,
+                    pending_async_task_count,
+                );
                 match self.pump_event_loop(PumpBudget { max_ticks: 1 }) {
                     Ok(outcome) => {
                         pending_async_task_count = outcome.pending_async_work;
@@ -862,7 +989,8 @@ pub trait BunEmbeddingRuntime {
                                 pending_async_task_count,
                                 output,
                                 err.to_string(),
-                            ),
+                            )
+                            .with_trace(trace),
                         ));
                     }
                 }

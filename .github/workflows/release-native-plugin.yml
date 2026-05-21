@@ -109,30 +109,30 @@ jobs:
         run: |
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
             CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 \
-              cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml \
+              cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml \
                 --features legacy-linux-helper-process
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
             LIBBUN_NATIVE_LINK_BUN=1 \
             CARGO_INCREMENTAL=0 \
             CARGO_PROFILE_DEV_DEBUG=0 \
             RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
-            cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml --features linux-in-process
+            cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml --features linux-in-process
           else
-            LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+            LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml
           fi
 
       - name: Build Linux native helper
         if: matrix.runtime_mode == 'helper-process'
-        run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --manifest-path runtime/Cargo.toml
+        run: LIBBUN_NATIVE_LINK_BUN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo +nightly-2026-05-06 build --release --manifest-path runtime/Cargo.toml
 
       - name: Verify dynamic plugin loading
         run: |
           set -o pipefail
-          plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+          plugin_path="$(find plugin/target/release -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
           test -n "$plugin_path"
           helper_path=""
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
-            helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
+            helper_path="$(find runtime/target/release -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
             test -n "$helper_path"
           fi
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
@@ -146,6 +146,10 @@ jobs:
             echo "dynamic plugin smoke emitted a mimalloc diagnostic" >&2
             exit 1
           fi
+          if grep -E '\[(loop|filesink)\]' /tmp/libbun-dynamic-plugin-smoke.log; then
+            echo "dynamic plugin smoke leaked internal Bun diagnostics to host stdout/stderr" >&2
+            exit 1
+          fi
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
             env LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$helper_path" \
               cargo test --features dynamic-loading dynamic_plugin_facade_conformance -- --exact --nocapture 2>&1 | tee /tmp/libbun-dynamic-plugin-conformance.log
@@ -157,15 +161,19 @@ jobs:
             echo "dynamic plugin conformance emitted a mimalloc diagnostic" >&2
             exit 1
           fi
+          if grep -E '\[(loop|filesink)\]' /tmp/libbun-dynamic-plugin-conformance.log; then
+            echo "dynamic plugin conformance leaked internal Bun diagnostics to host stdout/stderr" >&2
+            exit 1
+          fi
 
       - name: Package release assets
         run: |
           version="${{ steps.release-version.outputs.version }}"
-          plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+          plugin_path="$(find plugin/target/release -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
           helper_path=""
           legacy_helper="0"
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
-            helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
+            helper_path="$(find runtime/target/release -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
             legacy_helper="1"
           fi
           LIBBUN_NATIVE_RUNTIME_MODE="${{ matrix.runtime_mode }}" \
@@ -177,14 +185,18 @@ jobs:
         run: |
           set -o pipefail
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then
-            helper_path="$(find runtime/target/debug -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
+            helper_path="$(find runtime/target/release -maxdepth 1 -name '${{ matrix.helper_name }}' -print -quit)"
             replacement_dir="$(mktemp -d)"
             cp "$helper_path" "$replacement_dir/${{ matrix.helper_name }}"
-            plugin_path="$(find plugin/target/debug -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+            plugin_path="$(find plugin/target/release -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
             LIBBUN_PLUGIN_PATH="$plugin_path" LIBBUN_RUNTIME_NATIVE_PATH="$replacement_dir/${{ matrix.helper_name }}" \
               cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee /tmp/libbun-replacement-plugin-smoke.log
             if grep -q "mimalloc: error" /tmp/libbun-replacement-plugin-smoke.log; then
               echo "replacement plugin smoke emitted a mimalloc diagnostic" >&2
+              exit 1
+            fi
+            if grep -E '\[(loop|filesink)\]' /tmp/libbun-replacement-plugin-smoke.log; then
+              echo "replacement plugin smoke leaked internal Bun diagnostics to host stdout/stderr" >&2
               exit 1
             fi
           else
@@ -225,20 +237,24 @@ jobs:
               CARGO_INCREMENTAL=0 \
               CARGO_PROFILE_DEV_DEBUG=0 \
               RUSTFLAGS="-C link-arg=-fuse-ld=lld" \
-                cargo +nightly-2026-05-06 build --manifest-path "$replacement_src/plugin/Cargo.toml" --features linux-in-process
+                cargo +nightly-2026-05-06 build --release --manifest-path "$replacement_src/plugin/Cargo.toml" --features linux-in-process
             else
               LIBBUN_NATIVE_LINK_BUN=1 \
               CARGO_TARGET_DIR="$replacement_target" \
               CARGO_INCREMENTAL=0 \
               CARGO_PROFILE_DEV_DEBUG=0 \
-              cargo +nightly-2026-05-06 build --manifest-path plugin/Cargo.toml
+              cargo +nightly-2026-05-06 build --release --manifest-path plugin/Cargo.toml
             fi
-            replacement_plugin="$(find "$replacement_target/debug" -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
+            replacement_plugin="$(find "$replacement_target/release" -maxdepth 1 -name '${{ matrix.plugin_name }}' -print -quit)"
             test -n "$replacement_plugin"
             env -u LIBBUN_RUNTIME_NATIVE_PATH LIBBUN_PLUGIN_PATH="$replacement_plugin" \
               cargo test --features dynamic-loading dynamic_plugin_provider_flow -- --exact --nocapture 2>&1 | tee /tmp/libbun-replacement-plugin-smoke.log
             if grep -q "mimalloc: error" /tmp/libbun-replacement-plugin-smoke.log; then
               echo "replacement plugin smoke emitted a mimalloc diagnostic" >&2
+              exit 1
+            fi
+            if grep -E '\[(loop|filesink)\]' /tmp/libbun-replacement-plugin-smoke.log; then
+              echo "replacement plugin smoke leaked internal Bun diagnostics to host stdout/stderr" >&2
               exit 1
             fi
           fi
