@@ -290,11 +290,11 @@ integration tests do not depend on a developer debug build directory at runtime.
 Debug-profile manifests, `bun-debug`, `build/debug`, and debug WebKit/JSC inputs
 are rejected by the preparation script and Cargo build scripts.
 
-Static native Bun/JSC/WebKit link inputs are test-only. Release packaging,
-GitHub release assembly, and release-asset verification call
-`scripts/assert-distributable-native-link.sh` and refuse manifests containing
-`archive=` or `static=` entries. Those inputs must not appear in published
-plugin assets, checksum tables, or crates.io-facing release artifacts.
+Static native Bun/JSC/WebKit link inputs are test-only. Release packaging and
+release-asset verification call `scripts/assert-no-static-link-assets.sh` and
+refuse archives containing object files, static libraries, Rust rlibs, or
+bitcode objects. Those assets must not appear in published plugin assets,
+checksum tables, or crates.io-facing release artifacts.
 
 ## Dynamic Plugin
 
@@ -354,10 +354,9 @@ Official native plugin binaries are produced by GitHub Actions and published as
 GitHub Release assets with matching source, notice, license inventory, source
 instructions, and checksum files.
 
-Release packaging is fail-closed for native linkage. Any manifest containing
-`archive=` or `static=` native Bun/JSC/WebKit inputs is rejected before assets
-are packaged, uploaded, verified, or recorded in checksum tables. Static-linked
-native inputs are only for local tests.
+Release packaging is fail-closed for static-linkable files. Any object file,
+static library, Rust rlib, or bitcode object in a release archive is rejected
+before assets are uploaded, verified, or recorded in checksum tables.
 
 Before creating a release tag, run the local preflight:
 

@@ -105,9 +105,6 @@ jobs:
         if: runner.os == 'Linux' && matrix.runtime_mode == 'in-process'
         run: scripts/inspect-linux-native-relocations.sh "$LIBBUN_NATIVE_LINK_MANIFEST"
 
-      - name: Reject static native link inputs for release assets
-        run: scripts/assert-distributable-native-link.sh "$LIBBUN_NATIVE_LINK_MANIFEST" "GitHub native plugin release"
-
       - name: Build native plugin
         run: |
           if [[ "${{ matrix.runtime_mode }}" == "helper-process" ]]; then

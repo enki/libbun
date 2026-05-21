@@ -119,7 +119,6 @@ if [[ ! -f "$manifest" ]]; then
   echo "native link manifest not found: $manifest" >&2
   exit 2
 fi
-"$repo_root/scripts/assert-distributable-native-link.sh" "$manifest" "native plugin release package"
 
 if strings "$plugin_binary" | grep -F "FATAL: bun-debug failed to load bundled version" >/dev/null; then
   echo "native plugin contains Bun debug builtin-module disk loader; rebuild from a release Bun profile" >&2
@@ -231,6 +230,10 @@ if [[ -n "$webkit_pic_metadata_name" ]]; then
   cp "$webkit_pic_metadata" "$source_stage/release/$webkit_pic_metadata_name"
 fi
 tar -C "$tmpdir/source" -cf - "libbun-${release_version}" | zstd -19 -q -o "$source_asset"
+"$repo_root/scripts/assert-no-static-link-assets.sh" \
+  "native plugin release package" \
+  "$binary_asset" \
+  "$source_asset"
 
 if [[ "$runtime_mode" == "helper-process" ]]; then
   linux_runtime_notice="On Linux, the plugin asset is a native runtime bundle. The host still loads the

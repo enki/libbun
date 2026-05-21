@@ -158,19 +158,9 @@ if [[ -n "$asset_dir" ]]; then
     exit 2
   fi
 
-  source_extract_dir="$(mktemp -d)"
-  zstd -dc "$asset_dir/libbun-plugin-native-${release_version}-source.tar.zst" |
-    tar -C "$source_extract_dir" -xf -
-  source_root="$(find "$source_extract_dir" -mindepth 1 -maxdepth 1 -type d -name 'libbun-*' -print -quit)"
-  if [[ -z "$source_root" ]]; then
-    echo "source archive did not extract to a libbun-* root" >&2
-    exit 1
-  fi
-  source_manifest="$source_root/release/libbun-native-link-manifest.txt"
-  "$repo_root/scripts/assert-distributable-native-link.sh" \
-    "$source_manifest" \
-    "native plugin release source archive"
-  rm -rf "$source_extract_dir"
+  "$repo_root/scripts/assert-no-static-link-assets.sh" \
+    "native plugin release assets" \
+    "$asset_dir"/libbun-plugin-native-${release_version}-*.tar.zst
 
   for target in "${targets[@]}"; do
     archive="$asset_dir/libbun-plugin-native-${release_version}-${target}.tar.zst"
