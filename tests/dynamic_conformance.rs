@@ -43,14 +43,16 @@ fn dynamic_plugin_facade_conformance() {
     let handler_records = Arc::clone(&records);
     let config = BunRuntimeConfig::new("dynamic-conformance-test-host", tempdir.path())
         .with_environment_overlay([(OVERLAY_ENV_KEY, "overlay-value")]);
-    let mut host =
-        BunHost::<DynamicBunRuntime>::initialize_with_output_handler(config, move |record| {
+    let mut host = BunHost::<DynamicBunRuntime>::initialize_diagnostic_with_output_handler(
+        config,
+        move |record| {
             handler_records
                 .lock()
                 .expect("handler records lock")
                 .push(record);
-        })
-        .expect("host initializes");
+        },
+    )
+    .expect("host initializes");
 
     let provider_source = r#"
                 export function sync(input) {

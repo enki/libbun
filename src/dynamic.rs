@@ -9,7 +9,6 @@ use std::sync::TryLockError;
 
 use libloading::Library;
 use serde::de::DeserializeOwned;
-use sha2::Digest;
 
 use crate::plugin_abi::{
     LIBBUN_PLUGIN_ABI_VERSION, LIBBUN_PLUGIN_STATUS_ERROR, LIBBUN_PLUGIN_STATUS_OK,
@@ -59,7 +58,6 @@ pub struct DynamicBunRuntime {
 struct DynamicPlugin {
     _library: ManuallyDrop<Library>,
     path: PathBuf,
-    sha256: Option<String>,
     buffer_free: PluginBufferFreeFn,
     runtime_create: RuntimeCreateFn,
     runtime_destroy: RuntimeDestroyFn,
@@ -147,7 +145,6 @@ impl BunEmbeddingRuntime for DynamicBunRuntime {
     fn diagnostic_metadata(&self) -> ProviderRuntimeDiagnosticMetadata {
         ProviderRuntimeDiagnosticMetadata {
             dynamic_plugin_path: Some(self.plugin.path.clone()),
-            dynamic_plugin_sha256: self.plugin.sha256.clone(),
             ..ProviderRuntimeDiagnosticMetadata::default()
         }
     }
@@ -297,7 +294,6 @@ impl DynamicPlugin {
             // Keep the plugin image loaded until process exit.
             _library: ManuallyDrop::new(library),
             path: path.to_path_buf(),
-            sha256: sha256_file(path).ok(),
             buffer_free,
             runtime_create,
             runtime_destroy,
@@ -346,17 +342,6 @@ impl DynamicPlugin {
         unsafe { (self.buffer_free)(buffer) };
         bytes
     }
-}
-
-fn sha256_file(path: &Path) -> std::io::Result<String> {
-    let bytes = std::fs::read(path)?;
-    let digest = sha2::Sha256::digest(bytes);
-    let mut out = String::with_capacity(digest.len() * 2);
-    for byte in digest {
-        use std::fmt::Write;
-        let _ = write!(out, "{byte:02x}");
-    }
-    Ok(format!("sha256:{out}"))
 }
 
 fn load_symbol<T: Copy>(library: &Library, symbol: &[u8]) -> LibbunResult<T> {

@@ -27,6 +27,14 @@ pub mod dynamic;
 pub mod helper_protocol;
 pub mod plugin_checksums;
 pub mod release;
+mod retained_backend;
+
+pub use retained_backend::{
+    BackendPoisonDiagnostic, BackendState, BunProviderBackend, FinishedInvocation,
+    InvocationDiagnosticsPolicy, InvocationOutputLedger, InvocationOutputPolicy,
+    InvocationProfileLedger, InvocationProfileSpan, LateOutputPolicy, ProviderInvocationDescriptor,
+    ProviderInvocationLease, SettledInvocationOutcome,
+};
 
 pub type LibbunResult<T> = Result<T, LibbunError>;
 
@@ -475,7 +483,6 @@ pub struct ProviderDiagnosticEvent {
     pub libbun_abi_version: u32,
     pub bun_revision: String,
     pub dynamic_plugin_path: Option<PathBuf>,
-    pub dynamic_plugin_sha256: Option<String>,
     pub runtime_instance_id: String,
     pub process_id: u32,
     pub thread_id: String,
@@ -550,7 +557,6 @@ pub struct ProviderRuntimeDiagnosticMetadata {
     pub libbun_abi_version: u32,
     pub bun_revision: String,
     pub dynamic_plugin_path: Option<PathBuf>,
-    pub dynamic_plugin_sha256: Option<String>,
 }
 
 impl Default for ProviderRuntimeDiagnosticMetadata {
@@ -561,7 +567,6 @@ impl Default for ProviderRuntimeDiagnosticMetadata {
             libbun_abi_version: LIBBUN_ABI_VERSION,
             bun_revision: env!("LIBBUN_BUN_SOURCE_COMMIT").to_string(),
             dynamic_plugin_path: None,
-            dynamic_plugin_sha256: None,
         }
     }
 }
@@ -830,7 +835,6 @@ impl ProviderDiagnosticsHandle {
             libbun_abi_version: metadata.libbun_abi_version,
             bun_revision: metadata.bun_revision,
             dynamic_plugin_path: metadata.dynamic_plugin_path,
-            dynamic_plugin_sha256: metadata.dynamic_plugin_sha256,
             runtime_instance_id: metadata.runtime_instance_id,
             process_id: std::process::id(),
             thread_id: format!("{:?}", std::thread::current().id()),
@@ -1803,7 +1807,7 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
         Ok(host)
     }
 
-    pub fn initialize_with_output_handler(
+    pub fn initialize_diagnostic_with_output_handler(
         config: BunRuntimeConfig,
         output_handler: impl FnMut(OutputRecord) + Send + 'static,
     ) -> LibbunResult<Self> {
@@ -1874,9 +1878,43 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
             options,
             Some(&self.diagnostics),
         );
-        if let Ok(receipt) = &result {
-            self.collect_returned_output(receipt.output());
+        match result {
+            Ok(receipt) => {
+                let late_output = self.runtime.drain_captured_output();
+                if !late_output.is_empty() {
+                    let late_output_count = late_output.len();
+                    for record in late_output {
+                        self.collect_output_record(record);
+                    }
+                    return Err(LibbunError::backend_state(
+                        "bun_host_post_settlement_output_without_invocation_ledger_forbidden",
+                        format!(
+                            "provider invocation produced {late_output_count} output record(s) after the terminal receipt ledger had settled; use BunProviderBackend affine invocation leases for retained execution and fix the provider/runtime adapter so all output is emitted before settlement"
+                        ),
+                    ));
+                }
+                self.collect_returned_output(receipt.output());
+                Ok(receipt)
+            }
+            Err(error) => {
+                self.collect_output();
+                Err(error)
+            }
         }
+    }
+
+    pub(crate) fn call_provider_until_settled_for_invocation_ledger(
+        &mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> LibbunResult<SettledProviderReceipt> {
+        self.ensure_live()?;
+        let result = call_provider_until_settled_observed(
+            &mut self.runtime,
+            request,
+            options,
+            Some(&self.diagnostics),
+        );
         self.collect_output();
         result
     }
@@ -1964,7 +2002,7 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
         Ok(host)
     }
 
-    pub fn initialize_with_output_handler(
+    pub fn initialize_diagnostic_with_output_handler(
         config: BunRuntimeConfig,
         output_handler: impl FnMut(OutputRecord) + Send + 'static,
     ) -> LibbunResult<Self> {
@@ -2054,11 +2092,29 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
             options,
             Some(&self.diagnostics),
         );
-        if let Ok(receipt) = &result {
-            self.collect_returned_output(receipt.output());
+        match result {
+            Ok(receipt) => {
+                let late_output = self.runtime.drain_captured_output();
+                if !late_output.is_empty() {
+                    let late_output_count = late_output.len();
+                    for record in late_output {
+                        self.collect_output_record(record);
+                    }
+                    return Err(LibbunError::backend_state(
+                        "low_level_bun_host_post_settlement_output_without_invocation_ledger_forbidden",
+                        format!(
+                            "provider invocation produced {late_output_count} output record(s) after the terminal receipt ledger had settled; use BunProviderBackend affine invocation leases for retained execution and fix the provider/runtime adapter so all output is emitted before settlement"
+                        ),
+                    ));
+                }
+                self.collect_returned_output(receipt.output());
+                Ok(receipt)
+            }
+            Err(error) => {
+                self.collect_output();
+                Err(error)
+            }
         }
-        self.collect_output();
-        result
     }
 
     pub fn diagnostics_handle(&self) -> ProviderDiagnosticsHandle {
@@ -2193,6 +2249,8 @@ pub enum LibbunError {
     EventLoopPump { message: String },
     #[error("runtime has already shut down")]
     RuntimeShutdown,
+    #[error("retained provider backend state violation `{code}`: {message}")]
+    BackendState { code: String, message: String },
     #[error("shutdown failed: {message}")]
     Shutdown { message: String },
 }
@@ -2218,6 +2276,13 @@ impl LibbunError {
 
     pub fn event_loop_pump(message: impl Into<String>) -> Self {
         Self::EventLoopPump {
+            message: message.into(),
+        }
+    }
+
+    pub fn backend_state(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::BackendState {
+            code: code.into(),
             message: message.into(),
         }
     }

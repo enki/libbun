@@ -3,13 +3,16 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use libbun::BackendState;
 use libbun::BunAsyncHandle;
 use libbun::BunEmbeddingRuntime;
 use libbun::BunHost;
 use libbun::BunModuleHandle;
 use libbun::BunModuleSpec;
+use libbun::BunProviderBackend;
 use libbun::BunRuntimeConfig;
 use libbun::ExportCallResult;
+use libbun::InvocationOutputPolicy;
 use libbun::LibbunError;
 use libbun::LibbunResult;
 use libbun::LowLevelBunHost;
@@ -26,6 +29,7 @@ use libbun::ProviderDiagnosticPhase;
 use libbun::ProviderDomainClass;
 use libbun::ProviderError;
 use libbun::ProviderExecutionOperation;
+use libbun::ProviderInvocationDescriptor;
 use libbun::ProviderRequest;
 use libbun::ProviderRuntimeState;
 use libbun::ProviderSettleOptions;
@@ -42,6 +46,7 @@ struct ConformanceRuntime {
     modules: BTreeMap<String, ModuleBehavior>,
     async_results: BTreeMap<String, PendingResult>,
     output: Vec<OutputRecord>,
+    late_output_after_empty_drain: Option<OutputRecord>,
     next_async: u64,
     shutdown: bool,
 }
@@ -54,6 +59,9 @@ enum ModuleBehavior {
     NeverSettles,
     ProviderError,
     PromiseReject,
+    PromiseRejectWithOutput,
+    LoadOutputEcho,
+    LateAfterSettle,
     InvalidCallable,
 }
 
@@ -74,6 +82,7 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                 stream: OutputStream::Log,
                 text: format!("initialized {}", config.host_id),
             }],
+            late_output_after_empty_drain: None,
             next_async: 1,
             shutdown: false,
         })
@@ -89,6 +98,15 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                     "export:never" => ModuleBehavior::NeverSettles,
                     "export:error" => ModuleBehavior::ProviderError,
                     "export:reject" => ModuleBehavior::PromiseReject,
+                    "export:reject_with_output" => ModuleBehavior::PromiseRejectWithOutput,
+                    "export:load_output_echo" => {
+                        self.output.push(OutputRecord {
+                            stream: OutputStream::Log,
+                            text: "module load output".to_string(),
+                        });
+                        ModuleBehavior::LoadOutputEcho
+                    }
+                    "export:late_after_settle" => ModuleBehavior::LateAfterSettle,
                     "export:invalid_callable" => ModuleBehavior::InvalidCallable,
                     "export:import_error" => {
                         return Err(LibbunError::module_load(
@@ -213,6 +231,46 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
                 );
                 Ok(ExportCallResult::Pending(handle))
             }
+            ModuleBehavior::PromiseRejectWithOutput => {
+                self.output.push(OutputRecord {
+                    stream: OutputStream::Stdout,
+                    text: "reject before await".to_string(),
+                });
+                let handle = BunAsyncHandle {
+                    id: format!("async-{}", self.next_async),
+                };
+                self.next_async += 1;
+                self.async_results.insert(
+                    handle.id.clone(),
+                    PendingResult {
+                        remaining_ticks: 1,
+                        result: ProviderCallResult::Err(ProviderError {
+                            code: "provider_rejected".to_string(),
+                            message: "Error: async provider boom\n    at provider.test".to_string(),
+                        }),
+                        output_on_ready: vec![OutputRecord {
+                            stream: OutputStream::Stderr,
+                            text: "reject async output".to_string(),
+                        }],
+                        emitted_ready_output: false,
+                    },
+                );
+                Ok(ExportCallResult::Pending(handle))
+            }
+            ModuleBehavior::LoadOutputEcho => {
+                self.output.push(OutputRecord {
+                    stream: OutputStream::Stdout,
+                    text: "called default".to_string(),
+                });
+                Ok(ExportCallResult::Ready(ProviderCallResult::Ok(input)))
+            }
+            ModuleBehavior::LateAfterSettle => {
+                self.late_output_after_empty_drain = Some(OutputRecord {
+                    stream: OutputStream::Log,
+                    text: "late output after settled receipt".to_string(),
+                });
+                Ok(ExportCallResult::Ready(ProviderCallResult::Ok(input)))
+            }
             ModuleBehavior::InvalidCallable => {
                 Err(LibbunError::export_call("export `default` is not callable"))
             }
@@ -266,6 +324,12 @@ impl BunEmbeddingRuntime for ConformanceRuntime {
     }
 
     fn drain_captured_output(&mut self) -> Vec<OutputRecord> {
+        if self.output.is_empty() {
+            if let Some(record) = self.late_output_after_empty_drain.take() {
+                self.output.push(record);
+                return Vec::new();
+            }
+        }
         std::mem::take(&mut self.output)
     }
 
@@ -294,6 +358,34 @@ fn contract() -> ProviderContractIdentity {
 
 fn settle_options() -> ProviderSettleOptions {
     ProviderSettleOptions::new(ProviderDeadline::from_millis(1_000))
+}
+
+fn invocation_profile_phases(finished: &libbun::FinishedInvocation) -> Vec<&str> {
+    assert_eq!(
+        finished.profile.schema,
+        "libbun.invocation_profile.ledger.v1"
+    );
+    assert_eq!(finished.profile.invocation_id, finished.invocation_id);
+    assert!(
+        !finished.profile.spans.is_empty(),
+        "finished invocation must carry libbun-owned profile spans"
+    );
+    for span in finished.profile.spans.iter() {
+        assert_eq!(span.schema, "libbun.invocation_profile.span.v1");
+    }
+    finished
+        .profile
+        .spans
+        .iter()
+        .map(|span| span.phase.as_str())
+        .collect()
+}
+
+fn assert_profile_contains(phases: &[&str], expected: &str) {
+    assert!(
+        phases.contains(&expected),
+        "expected retained invocation profile to contain phase `{expected}`, got {phases:?}"
+    );
 }
 
 fn source_request(source: &str, input: StructuralValue) -> ProviderRequest {
@@ -646,7 +738,7 @@ fn shutdown_is_deterministic_and_blocks_later_calls() {
 fn output_handler_receives_records_without_polling_runtime() {
     let records = Arc::new(Mutex::new(Vec::new()));
     let handler_records = Arc::clone(&records);
-    let mut host = BunHost::<ConformanceRuntime>::initialize_with_output_handler(
+    let mut host = BunHost::<ConformanceRuntime>::initialize_diagnostic_with_output_handler(
         BunRuntimeConfig::new("test-host", "/tmp"),
         move |record| {
             handler_records
@@ -678,6 +770,373 @@ fn host_can_drain_captured_output_history() {
     let initial = host.drain_captured_output();
     assert_eq!(initial.len(), 1);
     assert!(host.captured_output().is_empty());
+}
+
+#[test]
+fn bun_host_post_settlement_output_without_invocation_ledger_fails_closed() {
+    let mut host = host();
+    let _ = host.drain_captured_output();
+
+    let error = match host.call_provider_until_settled(
+        source_request("export:late_after_settle", StructuralValue::null()),
+        settle_options(),
+    ) {
+        Ok(_) => panic!("post-settlement output must not be silently retained outside a ledger"),
+        Err(error) => error,
+    };
+    assert!(matches!(error, LibbunError::BackendState { .. }));
+    assert!(
+        error
+            .to_string()
+            .contains("bun_host_post_settlement_output_without_invocation_ledger_forbidden")
+    );
+    let captured = host.drain_captured_output();
+    assert_eq!(captured.len(), 1);
+    assert_eq!(captured[0].text, "late output after settled receipt");
+}
+
+#[test]
+fn retained_backend_invocation_ledger_excludes_startup_output_and_reuses_backend() {
+    let mut backend = BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new(
+        "retained-test-host",
+        "/tmp",
+    ))
+    .expect("retained backend opens");
+    assert_eq!(backend.state(), BackendState::Ready);
+    assert_eq!(backend.startup_output().len(), 1);
+    assert_eq!(
+        backend.startup_output()[0].text,
+        "initialized retained-test-host"
+    );
+
+    let first = backend
+        .begin_invocation(ProviderInvocationDescriptor::new("retained-call-1"))
+        .expect("first invocation begins")
+        .settle_provider(
+            source_request("export:echo", StructuralValue(json!({ "first": true }))),
+            settle_options(),
+        )
+        .expect("first invocation settles")
+        .finish()
+        .expect("first invocation finishes");
+    assert_eq!(backend.state(), BackendState::Ready);
+    assert_eq!(first.output.invocation_id, "retained-call-1");
+    assert_eq!(first.output.record_count, 1);
+    assert_eq!(first.output.records[0].text, "called default");
+    let first_phases = invocation_profile_phases(&first);
+    assert_profile_contains(&first_phases, "backend_begin_invocation");
+    assert_profile_contains(&first_phases, "provider_module_load");
+    assert_profile_contains(&first_phases, "provider_call_dispatch");
+    assert_profile_contains(&first_phases, "provider_call_settlement");
+    assert_profile_contains(&first_phases, "backend_finish_invocation");
+    assert_profile_contains(&first_phases, "output_ledger_finish");
+
+    let second = backend
+        .begin_invocation(ProviderInvocationDescriptor::new("retained-call-2"))
+        .expect("second invocation begins")
+        .settle_provider(
+            source_request(
+                "export:async_echo",
+                StructuralValue(json!({ "second": true })),
+            ),
+            settle_options(),
+        )
+        .expect("second invocation settles")
+        .finish()
+        .expect("second invocation finishes");
+    assert_eq!(backend.state(), BackendState::Ready);
+    assert_eq!(second.output.invocation_id, "retained-call-2");
+    assert_eq!(second.output.record_count, 3);
+    assert!(second.output.records.iter().any(|record| {
+        record.stream == OutputStream::Stdout && record.text == "async before await"
+    }));
+    assert!(second.output.records.iter().any(|record| {
+        record.stream == OutputStream::Stderr && record.text == "async after await"
+    }));
+    assert!(second.output.records.iter().any(|record| {
+        record.stream == OutputStream::Log && record.text == "async settled log"
+    }));
+    let second_phases = invocation_profile_phases(&second);
+    assert_profile_contains(&second_phases, "provider_settlement");
+    assert_profile_contains(&second_phases, "provider_event_loop_pump");
+}
+
+#[test]
+fn retained_backend_provider_rejection_is_terminal_receipt_not_backend_poison() {
+    let mut backend =
+        BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("retained backend opens");
+
+    let finished = backend
+        .begin_invocation(ProviderInvocationDescriptor::new("rejected-call"))
+        .expect("invocation begins")
+        .settle_provider(
+            source_request("export:reject", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("provider rejection still produces a terminal receipt")
+        .finish()
+        .expect("rejected invocation finishes");
+
+    assert_eq!(backend.state(), BackendState::Ready);
+    assert!(matches!(
+        finished.receipt,
+        SettledProviderReceipt::Failed(_)
+    ));
+    let phases = invocation_profile_phases(&finished);
+    assert_profile_contains(&phases, "provider_call_settlement");
+    assert_profile_contains(&phases, "backend_finish_invocation");
+}
+
+#[test]
+fn retained_backend_invocation_ledger_captures_all_provider_output_phases_once() {
+    let mut backend =
+        BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("retained backend opens");
+
+    let module_load_and_call = backend
+        .begin_invocation(ProviderInvocationDescriptor::new("module-load-and-call"))
+        .expect("invocation begins")
+        .settle_provider(
+            source_request("export:load_output_echo", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("invocation settles")
+        .finish()
+        .expect("invocation finishes");
+    assert_eq!(backend.state(), BackendState::Ready);
+    assert_eq!(module_load_and_call.output.record_count, 2);
+    assert_eq!(
+        module_load_and_call
+            .output
+            .records
+            .iter()
+            .map(|record| record.text.as_str())
+            .collect::<Vec<_>>(),
+        vec!["module load output", "called default"]
+    );
+    let after = backend
+        .begin_invocation(ProviderInvocationDescriptor::new(
+            "after-module-load-ledger",
+        ))
+        .expect("backend remains reusable after module-load output ledger")
+        .settle_provider(
+            source_request("export:echo", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("second invocation settles")
+        .finish()
+        .expect("second invocation finishes");
+    assert_eq!(after.output.record_count, 1);
+}
+
+#[test]
+fn retained_backend_invocation_ledger_captures_async_and_rejection_output_once() {
+    let mut backend =
+        BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("retained backend opens");
+
+    let async_finished = backend
+        .begin_invocation(ProviderInvocationDescriptor::new("async-output"))
+        .expect("invocation begins")
+        .settle_provider(
+            source_request("export:async_echo", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("invocation settles")
+        .finish()
+        .expect("invocation finishes");
+    assert_eq!(async_finished.output.record_count, 3);
+    assert_eq!(
+        async_finished
+            .output
+            .records
+            .iter()
+            .map(|record| record.text.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "async before await",
+            "async after await",
+            "async settled log"
+        ]
+    );
+
+    let rejected = backend
+        .begin_invocation(ProviderInvocationDescriptor::new("rejected-output"))
+        .expect("invocation begins")
+        .settle_provider(
+            source_request("export:reject_with_output", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("provider rejection still produces a terminal receipt")
+        .finish()
+        .expect("rejected invocation finishes");
+    assert_eq!(backend.state(), BackendState::Ready);
+    assert!(matches!(
+        rejected.receipt,
+        SettledProviderReceipt::Failed(_)
+    ));
+    assert_eq!(rejected.output.record_count, 2);
+    assert_eq!(
+        rejected
+            .output
+            .records
+            .iter()
+            .map(|record| record.text.as_str())
+            .collect::<Vec<_>>(),
+        vec!["reject before await", "reject async output"]
+    );
+}
+
+#[test]
+fn retained_backend_drop_output_policy_preserves_diagnostic_record_count() {
+    let mut backend =
+        BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("retained backend opens");
+
+    let finished = backend
+        .begin_invocation(
+            ProviderInvocationDescriptor::new("drop-output")
+                .with_output_policy(InvocationOutputPolicy::Drop),
+        )
+        .expect("invocation begins")
+        .settle_provider(
+            source_request("export:echo", StructuralValue::null()),
+            settle_options(),
+        )
+        .expect("invocation settles")
+        .finish()
+        .expect("invocation finishes");
+
+    assert_eq!(backend.state(), BackendState::Ready);
+    assert_eq!(finished.output.record_count, 1);
+    assert!(finished.output.records.is_empty());
+}
+
+#[test]
+fn retained_backend_post_settlement_output_poisons_before_reuse() {
+    let mut backend =
+        BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("retained backend opens");
+
+    let error = match backend
+        .begin_invocation(ProviderInvocationDescriptor::new("late-output"))
+        .expect("invocation begins")
+        .settle_provider(
+            source_request("export:late_after_settle", StructuralValue::null()),
+            settle_options(),
+        ) {
+        Ok(_) => panic!("late output after the invocation ledger settles must poison backend"),
+        Err(error) => error,
+    };
+
+    assert!(matches!(error, LibbunError::BackendState { .. }));
+    assert_eq!(backend.state(), BackendState::Poisoned);
+    let poison = backend
+        .poison_diagnostic()
+        .expect("late output poison diagnostic is retained");
+    assert_eq!(
+        poison.code,
+        "retained_backend_post_settlement_host_output_poisoned"
+    );
+    assert_eq!(poison.output.len(), 1);
+    assert_eq!(poison.output[0].text, "late output after settled receipt");
+    let profile = poison
+        .profile
+        .as_ref()
+        .expect("poison diagnostic must retain libbun-owned invocation profile");
+    assert_eq!(profile.schema, "libbun.invocation_profile.ledger.v1");
+    assert_eq!(profile.invocation_id, "late-output");
+    let poison_phases = profile
+        .spans
+        .iter()
+        .map(|span| span.phase.as_str())
+        .collect::<Vec<_>>();
+    assert_profile_contains(&poison_phases, "provider_call_settlement");
+    assert_profile_contains(&poison_phases, "backend_poison");
+    let reuse_error =
+        match backend.begin_invocation(ProviderInvocationDescriptor::new("after-late-output")) {
+            Ok(_) => panic!("poisoned backend must not be reused"),
+            Err(error) => error,
+        };
+    assert!(matches!(reuse_error, LibbunError::BackendState { .. }));
+}
+
+#[test]
+fn retained_backend_shutdown_consumes_backend_cleanly() {
+    let mut backend =
+        BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("retained backend opens");
+
+    backend.shutdown().expect("shutdown succeeds");
+    assert_eq!(backend.state(), BackendState::Shutdown);
+    backend.shutdown().expect("shutdown is idempotent");
+
+    let error = match backend.begin_invocation(ProviderInvocationDescriptor::new("after-shutdown"))
+    {
+        Ok(_) => panic!("shutdown backend must not begin invocations"),
+        Err(error) => error,
+    };
+    assert!(matches!(error, LibbunError::BackendState { .. }));
+    assert!(
+        error
+            .to_string()
+            .contains("retained_backend_begin_invocation_after_shutdown_forbidden")
+    );
+}
+
+#[test]
+fn retained_backend_dropped_invocation_lease_poisons_reuse() {
+    let mut backend =
+        BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("retained backend opens");
+
+    {
+        let _lease = backend
+            .begin_invocation(ProviderInvocationDescriptor::new("dropped-lease"))
+            .expect("invocation begins");
+    }
+
+    assert_eq!(backend.state(), BackendState::Poisoned);
+    let poison = backend
+        .poison_diagnostic()
+        .expect("dropped lease should leave poison diagnostic");
+    assert_eq!(
+        poison.code,
+        "retained_backend_invocation_lease_dropped_without_settlement_poisoned"
+    );
+    let error = match backend.begin_invocation(ProviderInvocationDescriptor::new("after-poison")) {
+        Ok(_) => panic!("poisoned backend cannot begin another invocation"),
+        Err(error) => error,
+    };
+    assert!(matches!(error, LibbunError::BackendState { .. }));
+}
+
+#[test]
+fn retained_backend_dropped_settled_outcome_poisons_reuse() {
+    let mut backend =
+        BunProviderBackend::<ConformanceRuntime>::open(BunRuntimeConfig::new("test-host", "/tmp"))
+            .expect("retained backend opens");
+
+    {
+        let _outcome = backend
+            .begin_invocation(ProviderInvocationDescriptor::new("dropped-outcome"))
+            .expect("invocation begins")
+            .settle_provider(
+                source_request("export:echo", StructuralValue::null()),
+                settle_options(),
+            )
+            .expect("invocation settles");
+    }
+
+    assert_eq!(backend.state(), BackendState::Poisoned);
+    let poison = backend
+        .poison_diagnostic()
+        .expect("dropped outcome should leave poison diagnostic");
+    assert_eq!(
+        poison.code,
+        "retained_backend_settled_outcome_dropped_without_finish_poisoned"
+    );
 }
 
 #[test]
