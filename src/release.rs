@@ -189,18 +189,61 @@ impl BundledNativePluginResolver {
         }
 
         if let Some(host_binary_path) = &self.host_binary_path {
-            let plugin_dir = host_binary_path.parent().ok_or_else(|| {
-                LibbunError::initialize(format!(
-                    "host binary path `{}` has no parent directory for bundled libbun plugin resolution",
-                    host_binary_path.display()
-                ))
-            })?;
-            return resolve_bundled_plugin_in_dir(asset, plugin_dir);
+            return resolve_bundled_plugin_for_host_binary(asset, host_binary_path);
         }
 
         Err(LibbunError::initialize(format!(
             "bundled libbun plugin resolution requires {LIBBUN_PLUGIN_PATH_ENV}, a plugin directory, or a host binary path"
         )))
+    }
+}
+
+fn resolve_bundled_plugin_for_host_binary(
+    asset: NativePluginAsset,
+    host_binary_path: &Path,
+) -> LibbunResult<ResolvedNativePlugin> {
+    let mut plugin_dirs = Vec::new();
+    let plugin_dir = host_binary_path.parent().ok_or_else(|| {
+        LibbunError::initialize(format!(
+            "host binary path `{}` has no parent directory for bundled libbun plugin resolution",
+            host_binary_path.display()
+        ))
+    })?;
+    push_unique_plugin_dir(&mut plugin_dirs, plugin_dir);
+    if let Ok(canonical_host_binary_path) = std::fs::canonicalize(host_binary_path)
+        && let Some(canonical_plugin_dir) = canonical_host_binary_path.parent()
+    {
+        push_unique_plugin_dir(&mut plugin_dirs, canonical_plugin_dir);
+    }
+
+    let mut expected_dirs = Vec::new();
+    for plugin_dir in plugin_dirs {
+        let plugin_path = asset.plugin_path_in_dir(&plugin_dir);
+        if plugin_path.is_file() {
+            return Ok(ResolvedNativePlugin {
+                path: plugin_path,
+                source: NativePluginSource::Bundled,
+                asset,
+            });
+        }
+        expected_dirs.push(plugin_dir);
+    }
+
+    Err(LibbunError::initialize(format!(
+        "bundled libbun plugin `{}` was not found in {}",
+        asset.plugin_filename,
+        expected_dirs
+            .iter()
+            .map(|dir| format!("`{}`", dir.display()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )))
+}
+
+fn push_unique_plugin_dir(plugin_dirs: &mut Vec<PathBuf>, plugin_dir: &Path) {
+    let plugin_dir = plugin_dir.to_path_buf();
+    if !plugin_dirs.contains(&plugin_dir) {
+        plugin_dirs.push(plugin_dir);
     }
 }
 

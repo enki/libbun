@@ -86,6 +86,34 @@ fn bundled_resolver_uses_plugin_next_to_host_binary() {
     assert_eq!(resolved.source, NativePluginSource::Bundled);
 }
 
+#[cfg(unix)]
+#[test]
+fn bundled_resolver_uses_plugin_next_to_canonical_host_binary() {
+    let asset = current_native_plugin_asset().expect("current target is supported");
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let installed_bin_dir = tempdir.path().join("installed-bin");
+    let real_bin_dir = tempdir.path().join("real-bin");
+    std::fs::create_dir_all(&installed_bin_dir).expect("installed bin dir");
+    std::fs::create_dir_all(&real_bin_dir).expect("real bin dir");
+    let real_host_binary = real_bin_dir.join("ss");
+    let symlink_host_binary = installed_bin_dir.join("ss");
+    let plugin_path = real_bin_dir.join(asset.plugin_filename);
+    std::fs::write(&real_host_binary, b"host").expect("write host placeholder");
+    std::fs::write(&plugin_path, b"not a real dynamic library").expect("write plugin placeholder");
+    std::os::unix::fs::symlink(&real_host_binary, &symlink_host_binary).expect("symlink host");
+
+    let resolved = BundledNativePluginResolver::new()
+        .with_host_binary_path(&symlink_host_binary)
+        .resolve()
+        .expect("bundled plugin resolves through canonical host binary");
+
+    assert_eq!(
+        std::fs::canonicalize(&resolved.path).expect("resolved plugin canonicalizes"),
+        std::fs::canonicalize(&plugin_path).expect("expected plugin canonicalizes")
+    );
+    assert_eq!(resolved.source, NativePluginSource::Bundled);
+}
+
 #[test]
 fn bundled_resolver_does_not_consult_cache_root() {
     let asset = current_native_plugin_asset().expect("current target is supported");
