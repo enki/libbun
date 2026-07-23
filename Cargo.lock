@@ -379,6 +379,7 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 name = "libbun"
 version = "0.2.3"
 dependencies = [
+ "libbun-prepared-export-wire",
  "libc",
  "libloading",
  "serde",
@@ -391,6 +392,10 @@ dependencies = [
  "ureq",
  "zstd",
 ]
+
+[[package]]
+name = "libbun-prepared-export-wire"
+version = "0.0.0"
 
 [[package]]
 name = "libc"

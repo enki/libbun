@@ -17,12 +17,13 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 use std::time::Instant;
 
-const WIRE_REQUEST_MAGIC: [u8; 4] = *b"LBPE";
-const WIRE_TERMINAL_MAGIC: [u8; 4] = *b"LBPT";
-const WIRE_VERSION: u16 = 1;
-const WIRE_HEADER_LEN: usize = 11;
-const MAX_REQUEST_BYTES: usize = 16 * 1024 * 1024;
-const MAX_CANDIDATE_BYTES: usize = 16 * 1024 * 1024;
+use libbun_prepared_export_wire::DriveRequest;
+use libbun_prepared_export_wire::MAX_CANDIDATE_BYTES;
+use libbun_prepared_export_wire::MAX_REQUEST_BYTES;
+use libbun_prepared_export_wire::TERMINAL_HEADER_LEN;
+use libbun_prepared_export_wire::TERMINAL_MAGIC;
+use libbun_prepared_export_wire::VERSION;
+use libbun_prepared_export_wire::WorkerFaultKind;
 const MAX_DIAGNOSTIC_BYTES: usize = 4096;
 
 /// One invocation-bound export prepared for exactly one mechanical drive.
@@ -53,11 +54,11 @@ pub fn install_prepared_export(
 ) -> PreparedExport {
     PreparedExport {
         worker: WorkerLaunch::Bundled,
-        request: encode_private_drive_material(
+        request: libbun_prepared_export_wire::encode_drive_material(DriveRequest {
             prepared_artifact,
             selected_export,
             opaque_invocation,
-        ),
+        }),
     }
 }
 
@@ -168,25 +169,6 @@ fn worker_asset_name() -> &'static str {
     } else {
         "libbun-runtime-native"
     }
-}
-
-fn encode_private_drive_material(
-    prepared_artifact: Vec<u8>,
-    selected_export: String,
-    opaque_invocation: Vec<u8>,
-) -> Vec<u8> {
-    let selected_export = selected_export.into_bytes();
-    let capacity = prepared_artifact
-        .len()
-        .saturating_add(selected_export.len())
-        .saturating_add(opaque_invocation.len())
-        .saturating_add(24);
-    let mut request = Vec::with_capacity(capacity);
-    for field in [prepared_artifact, selected_export, opaque_invocation] {
-        request.extend_from_slice(&(field.len() as u64).to_be_bytes());
-        request.extend_from_slice(&field);
-    }
-    request
 }
 
 /// Mechanical cancellation observation shared with a drive supervisor.
@@ -651,43 +633,31 @@ fn receive_once<T>(receiver: &mpsc::Receiver<T>, slot: &mut Option<T>) {
 }
 
 fn write_request(writer: &mut impl Write, request: &[u8]) -> io::Result<()> {
-    writer.write_all(&WIRE_REQUEST_MAGIC)?;
-    writer.write_all(&WIRE_VERSION.to_be_bytes())?;
-    writer.write_all(&(request.len() as u32).to_be_bytes())?;
-    writer.write_all(request)?;
-    writer.flush()
+    libbun_prepared_export_wire::write_drive_request(writer, request)
 }
 
 fn read_single_candidate(reader: &mut impl Read) -> Result<Vec<u8>, FaultSeed> {
-    let mut header = [0_u8; WIRE_HEADER_LEN];
+    let mut header = [0_u8; TERMINAL_HEADER_LEN];
     reader.read_exact(&mut header).map_err(|error| {
         FaultSeed::new(
             MechanicalFaultKind::WorkerProtocol,
             format!("worker terminal frame is missing or truncated: {error}"),
         )
     })?;
-    if header[..4] != WIRE_TERMINAL_MAGIC {
+    if header[..4] != TERMINAL_MAGIC {
         return Err(FaultSeed::new(
             MechanicalFaultKind::WorkerProtocol,
             "worker terminal frame has invalid magic",
         ));
     }
     let version = u16::from_be_bytes([header[4], header[5]]);
-    if version != WIRE_VERSION {
+    if version != VERSION {
         return Err(FaultSeed::new(
             MechanicalFaultKind::Correspondence,
-            format!("worker wire version {version} does not match {WIRE_VERSION}"),
+            format!("worker wire version {version} does not match {VERSION}"),
         ));
     }
-    if header[6] != 0 {
-        return Err(FaultSeed::new(
-            MechanicalFaultKind::WorkerProtocol,
-            format!(
-                "worker emitted unsupported terminal candidate kind {}",
-                header[6]
-            ),
-        ));
-    }
+    let candidate_kind = header[6];
     let length = u32::from_be_bytes([header[7], header[8], header[9], header[10]]) as usize;
     if length > MAX_CANDIDATE_BYTES {
         return Err(FaultSeed::new(
@@ -704,7 +674,8 @@ fn read_single_candidate(reader: &mut impl Read) -> Result<Vec<u8>, FaultSeed> {
     })?;
     let mut extra = [0_u8; 1];
     match reader.read(&mut extra) {
-        Ok(0) => Ok(bytes),
+        Ok(0) if candidate_kind == 0 => Ok(bytes),
+        Ok(0) => Err(worker_candidate_fault(candidate_kind, bytes)),
         Ok(_) => Err(FaultSeed::new(
             MechanicalFaultKind::WorkerProtocol,
             "worker emitted duplicate or contradictory terminal data",
@@ -714,6 +685,29 @@ fn read_single_candidate(reader: &mut impl Read) -> Result<Vec<u8>, FaultSeed> {
             format!("worker terminal pipe EOF observation failed: {error}"),
         )),
     }
+}
+
+fn worker_candidate_fault(kind: u8, diagnostic: Vec<u8>) -> FaultSeed {
+    let kind = match kind {
+        value if value == WorkerFaultKind::Preparation as u8 => MechanicalFaultKind::Preparation,
+        value if value == WorkerFaultKind::InputLowering as u8 => {
+            MechanicalFaultKind::InputLowering
+        }
+        value if value == WorkerFaultKind::JavaScriptRejection as u8 => {
+            MechanicalFaultKind::JavaScriptRejection
+        }
+        value if value == WorkerFaultKind::CargoExtraction as u8 => {
+            MechanicalFaultKind::CargoExtraction
+        }
+        value if value == WorkerFaultKind::Internal as u8 => MechanicalFaultKind::WorkerTermination,
+        value => {
+            return FaultSeed::new(
+                MechanicalFaultKind::WorkerProtocol,
+                format!("worker emitted unsupported terminal candidate kind {value}"),
+            );
+        }
+    };
+    FaultSeed::new(kind, String::from_utf8_lossy(&diagnostic).into_owned())
 }
 
 fn drain_bounded_stderr(stderr: &mut ChildStderr) -> Result<(), FaultSeed> {

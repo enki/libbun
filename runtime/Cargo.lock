@@ -2871,8 +2871,10 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libbun"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
+ "libbun-prepared-export-wire",
+ "libc",
  "serde",
  "serde_json",
  "sha2",
@@ -2881,7 +2883,7 @@ dependencies = [
 
 [[package]]
 name = "libbun-native"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "bun_ast",
  "bun_core",
@@ -2896,12 +2898,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libbun-prepared-export-wire"
+version = "0.0.0"
+
+[[package]]
 name = "libbun-runtime-native"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "bun_platform",
  "libbun",
  "libbun-native",
+ "libbun-prepared-export-wire",
  "serde_json",
 ]
 

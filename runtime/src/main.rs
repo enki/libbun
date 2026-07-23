@@ -1,130 +1,169 @@
 use std::io;
 
-use libbun::helper_protocol::HelperHello;
-use libbun::helper_protocol::HelperRequest;
-use libbun::helper_protocol::HelperRequestPayload;
-use libbun::helper_protocol::HelperResponse;
-use libbun::helper_protocol::HelperResponsePayload;
-use libbun::helper_protocol::LIBBUN_HELPER_PROTOCOL_VERSION;
-use libbun::helper_protocol::read_frame;
-use libbun::helper_protocol::write_frame;
-use libbun::plugin_abi::LIBBUN_PLUGIN_ABI_VERSION;
-use libbun::{LibbunError, LowLevelBunHost};
+use libbun::BunEmbeddingRuntime;
+use libbun::BunModuleSpec;
+use libbun::BunRuntimeConfig;
+use libbun::ExportCallResult;
+use libbun::PreparedBundleV1;
+use libbun::ProviderCallResult;
+use libbun::PumpBudget;
+use libbun::SinkPolicy;
+use libbun::StructuralValue;
 use libbun_native::NativeBunRuntime;
+use libbun_prepared_export_wire::DriveRequest;
+use libbun_prepared_export_wire::WorkerFaultKind;
 
 #[cfg(target_os = "linux")]
 use bun_platform as _;
 
 fn main() {
-    if let Err(err) = run() {
-        eprintln!("libbun-runtime-native failed: {err}");
+    if let Err(error) = run_one_drive() {
+        eprintln!("libbun one-shot worker failed: {error}");
         std::process::exit(1);
     }
 }
 
-fn run() -> io::Result<()> {
-    let stdin = io::stdin();
-    let stdout = io::stdout();
-    let mut reader = stdin.lock();
-    let mut writer = stdout.lock();
-    let mut state = HelperState::default();
+fn run_one_drive() -> io::Result<()> {
+    let request = match libbun_prepared_export_wire::read_drive_request(&mut io::stdin().lock()) {
+        Ok(request) => request,
+        Err(error) => {
+            return libbun_prepared_export_wire::write_fault(
+                &mut io::stdout().lock(),
+                WorkerFaultKind::Internal,
+                &format!("private drive request admission failed: {error}"),
+            );
+        }
+    };
 
-    while let Some(request) = read_frame::<_, HelperRequest>(&mut reader)? {
-        let id = request.id;
-        let exit = matches!(request.payload, HelperRequestPayload::Exit);
-        let result = state.handle(request.payload).map_err(|err| err.to_string());
-        write_frame(&mut writer, &HelperResponse { id, result })?;
-        if exit {
-            break;
+    match drive(request) {
+        Ok(cargo) => {
+            libbun_prepared_export_wire::write_cargo(&mut io::stdout().lock(), &cargo)?;
+        }
+        Err(failure) => {
+            libbun_prepared_export_wire::write_fault(
+                &mut io::stdout().lock(),
+                failure.kind,
+                &failure.diagnostic,
+            )?;
         }
     }
     Ok(())
 }
 
-#[derive(Default)]
-struct HelperState {
-    host: Option<LowLevelBunHost<NativeBunRuntime>>,
+fn drive(request: DriveRequest) -> Result<Vec<u8>, WorkerFailure> {
+    let input: serde_json::Value =
+        serde_json::from_slice(&request.opaque_invocation).map_err(|error| {
+            WorkerFailure::new(
+                WorkerFaultKind::InputLowering,
+                format!("opaque invocation lowering failed: {error}"),
+            )
+        })?;
+    let bundle = PreparedBundleV1::from_bytes(&request.prepared_artifact).map_err(|error| {
+        WorkerFailure::new(
+            WorkerFaultKind::Preparation,
+            format!("prepared artifact admission failed: {error}"),
+        )
+    })?;
+    let bundle_id = bundle.bundle_id.clone();
+
+    let working_directory = std::env::current_dir().map_err(|error| {
+        WorkerFailure::new(
+            WorkerFaultKind::Preparation,
+            format!("worker current-directory admission failed: {error}"),
+        )
+    })?;
+    let mut config = BunRuntimeConfig::new("libbun-one-shot-worker", working_directory);
+    config.stdout = SinkPolicy::Drop;
+    config.stderr = SinkPolicy::Drop;
+    config.log = SinkPolicy::Drop;
+    let mut runtime = NativeBunRuntime::initialize(config).map_err(|error| {
+        WorkerFailure::new(
+            WorkerFaultKind::Preparation,
+            format!("fresh Bun VM admission failed: {error}"),
+        )
+    })?;
+    let module = runtime
+        .load_module(BunModuleSpec::PreparedBundle {
+            bundle_id,
+            bytes: request.prepared_artifact,
+        })
+        .map_err(|error| {
+            WorkerFailure::new(
+                WorkerFaultKind::Preparation,
+                format!("prepared module load failed: {error}"),
+            )
+        })?;
+    let result = runtime
+        .call_export(&module, &request.selected_export, StructuralValue(input))
+        .map_err(|error| {
+            WorkerFailure::new(
+                WorkerFaultKind::Preparation,
+                format!("prepared export call admission failed: {error}"),
+            )
+        })?;
+
+    settle_result(&mut runtime, result)
 }
 
-impl HelperState {
-    fn handle(
-        &mut self,
-        payload: HelperRequestPayload,
-    ) -> libbun::LibbunResult<HelperResponsePayload> {
-        match payload {
-            HelperRequestPayload::Hello(hello) => self.hello(hello),
-            HelperRequestPayload::Create { config } => {
-                self.host = Some(LowLevelBunHost::<NativeBunRuntime>::initialize(config)?);
-                Ok(HelperResponsePayload::Unit)
+fn settle_result(
+    runtime: &mut NativeBunRuntime,
+    mut result: ExportCallResult,
+) -> Result<Vec<u8>, WorkerFailure> {
+    loop {
+        match result {
+            ExportCallResult::Ready(ProviderCallResult::Ok(value)) => {
+                return serde_json::to_vec(&value.0).map_err(|error| {
+                    WorkerFailure::new(
+                        WorkerFaultKind::CargoExtraction,
+                        format!("opaque cargo extraction failed: {error}"),
+                    )
+                });
             }
-            HelperRequestPayload::LoadModule { spec } => self
-                .host_mut()?
-                .load_module(spec)
-                .map(HelperResponsePayload::Module),
-            HelperRequestPayload::CallExport {
-                module,
-                export,
-                input,
-            } => self
-                .host_mut()?
-                .call_export(&module, &export, input)
-                .map(HelperResponsePayload::Export),
-            HelperRequestPayload::PumpEventLoop { budget } => self
-                .host_mut()?
-                .pump_event_loop(budget)
-                .map(HelperResponsePayload::Pump),
-            HelperRequestPayload::ResolveAsync { handle } => self
-                .host_mut()?
-                .resolve_async(&handle)
-                .map(HelperResponsePayload::Resolve),
-            HelperRequestPayload::CallProviderUntilSettled { request, options } => self
-                .host_mut()?
-                .call_provider_until_settled(request, options)
-                .map(HelperResponsePayload::SettledProvider),
-            HelperRequestPayload::DrainOutput => {
-                let records = self
-                    .host
-                    .as_mut()
-                    .map(LowLevelBunHost::drain_captured_output)
-                    .unwrap_or_default();
-                Ok(HelperResponsePayload::Output(records))
+            ExportCallResult::Ready(ProviderCallResult::Err(error)) => {
+                return Err(WorkerFailure::new(
+                    WorkerFaultKind::JavaScriptRejection,
+                    error.message,
+                ));
             }
-            HelperRequestPayload::Shutdown => {
-                if let Some(host) = self.host.as_mut() {
-                    host.shutdown()?;
+            ExportCallResult::Pending(handle) => {
+                runtime
+                    .pump_event_loop(PumpBudget { max_ticks: 256 })
+                    .map_err(|error| {
+                        WorkerFailure::new(
+                            WorkerFaultKind::CargoExtraction,
+                            format!("private event-loop drive failed: {error}"),
+                        )
+                    })?;
+                if let Some(settled) = runtime.resolve_async(&handle).map_err(|error| {
+                    WorkerFailure::new(
+                        WorkerFaultKind::CargoExtraction,
+                        format!("private promise observation failed: {error}"),
+                    )
+                })? {
+                    result = ExportCallResult::Ready(settled);
+                } else {
+                    result = ExportCallResult::Pending(handle);
                 }
-                Ok(HelperResponsePayload::Unit)
-            }
-            HelperRequestPayload::Exit => {
-                if let Some(mut host) = self.host.take() {
-                    host.shutdown()?;
-                }
-                Ok(HelperResponsePayload::Unit)
             }
         }
     }
+}
 
-    fn hello(&self, hello: HelperHello) -> libbun::LibbunResult<HelperResponsePayload> {
-        if hello.plugin_abi_version != LIBBUN_PLUGIN_ABI_VERSION {
-            return Err(LibbunError::initialize(format!(
-                "plugin ABI {} is incompatible with helper ABI {}",
-                hello.plugin_abi_version, LIBBUN_PLUGIN_ABI_VERSION
-            )));
-        }
-        if hello.helper_protocol_version != LIBBUN_HELPER_PROTOCOL_VERSION {
-            return Err(LibbunError::initialize(format!(
-                "plugin helper protocol {} is incompatible with helper protocol {}",
-                hello.helper_protocol_version, LIBBUN_HELPER_PROTOCOL_VERSION
-            )));
-        }
-        Ok(HelperResponsePayload::Hello(HelperHello::current(
-            std::env::consts::ARCH,
-        )))
-    }
+struct WorkerFailure {
+    kind: WorkerFaultKind,
+    diagnostic: String,
+}
 
-    fn host_mut(&mut self) -> libbun::LibbunResult<&mut LowLevelBunHost<NativeBunRuntime>> {
-        self.host.as_mut().ok_or_else(|| {
-            LibbunError::initialize("Linux native helper runtime has not been created")
-        })
+impl WorkerFailure {
+    fn new(kind: WorkerFaultKind, diagnostic: impl Into<String>) -> Self {
+        let mut diagnostic = diagnostic.into();
+        if diagnostic.len() > 4096 {
+            let mut boundary = 4096;
+            while !diagnostic.is_char_boundary(boundary) {
+                boundary -= 1;
+            }
+            diagnostic.truncate(boundary);
+        }
+        Self { kind, diagnostic }
     }
 }
