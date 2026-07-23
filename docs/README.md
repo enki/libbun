@@ -24,9 +24,9 @@ Read these as one contract:
 1. [Retained backend and prepared-export lifecycle](LIBBUN-LIFECYCLE-CONTRACT.md)
    fixes the highest owner, sealed inputs, closed terminal algebra, refusal,
    retry, backend reuse, authored settlement, consuming shutdown, and Drop.
-2. [Worker containment, retirement, and quarantine](LIBBUN-WORKER-CONTAINMENT-CONTRACT.md)
-   fixes exact process custody, bounded quiescence, output pumps, platform
-   containment, retirement proof, and the durable reaper.
+2. [Worker invocation readiness, retirement, and quarantine](LIBBUN-WORKER-CONTAINMENT-CONTRACT.md)
+   fixes exact process custody, bounded invocation readiness and retirement,
+   output pumps, platform containment, both proofs, and the durable reaper.
 3. [Worker build, package, and release](LIBBUN-WORKER-RELEASE-CONTRACT.md)
    fixes the Rust privacy boundary, linked binary, package inventory, CI,
    release, hostile tests, and stale-shape gates.
@@ -43,20 +43,34 @@ producer-minted, generatively branded `SelectedProviderPackage` and
 `ProviderInvocation` products. Neither product has a public raw constructor,
 selector getter, parts projection, clone, serde implementation, or replay path.
 
-An admitted invocation becomes an affine `PreparedExport`. After worker spawn,
-private `DriveCustody` owns the exact containment, child, request and terminal
-pipes, output pumps, completion channels, join handles, provisional candidate,
-deadline, cancellation observation, and retained-backend continuation.
+Backend startup creates the retained worker before it receives a bounded offer.
+After reservation, an admitted invocation becomes an affine `PreparedExport`;
+private `DriveCustody` owns its reservation, request and terminal work, output
+generation, provisional candidate, deadline, cancellation observation, and the
+sealed retained-worker continuation.
 
 `DriveCustody` can be consumed only into:
 
-- `RetirementProof`, after exact bounded quiescence; or
+- `InvocationReadyProof`, after the exact invocation is settled and drained
+  while the same worker remains alive, contained, and Ready at the same epoch;
+- `RetirementProof`, after worker death, exact bounded containment emptiness,
+  leader reap, worker protocol/diagnostic EOF, closed channels, and joined
+  persistent pumps; or
 - `RetirementQuarantine`, which transfers the intact custody to the durable
   reaper and produces a typed mechanical fault.
 
-Cargo, cancellation, and deadline evidence are minted only from
-`RetirementProof`. A retirement, containment, wait, EOF, channel, or join fault
-dominates every provisional cargo/cancel/deadline choice.
+Fulfilled/rejected cargo and cooperative cancellation are minted only from
+`InvocationReadyProof` and return the same live worker to Ready. Forced
+cancellation, deadline, supervisor unwind, and active-worker shutdown are
+settled only after `RetirementProof` and return no live session. A retirement,
+containment, wait, EOF, channel, or join fault prevents retirement proof and
+transfers intact custody to `RetirementQuarantine`.
+
+A refused pre-reservation offer consumes `OfferReadyProof`, which proves that
+no reservation or selected invocation moved to the worker and permits retry
+with the unchanged branded inputs. `PreparedExport` exists only after
+reservation, so its consuming pre-execution cancellation operation is
+`cancel_before_dispatch`; worker spawn belongs to backend startup.
 
 Terminal products keep the backend continuation sealed and expose finite
 consuming operations such as retry, reuse for the next invocation, or shutdown.
@@ -93,7 +107,7 @@ error.
 - Exact first source edit: delete `install_prepared_export` from
   `src/prepared_export.rs` and its re-export from `src/lib.rs`.
 - Owner boundary: `BunProviderBackend`, its by-value admission operation, and
-  private `DriveCustody`/retirement owner.
+  private `DriveCustody` invocation-readiness/retirement owner.
 - First stale caller: every caller passing artifact bytes, export text, and
   invocation bytes separately.
 - Replacement input: producer-minted branded `SelectedProviderPackage` plus
@@ -102,8 +116,8 @@ error.
   `internal-adapter`, `drive_prepared_export`, `libbun-native`,
   `libbun-prepared-export-wire`, `Child::wait`, `process::abort`,
   `JavaScriptRejection` as a mechanical fault, plugin, dynamic loading,
-  fallback, `into_parts`, public raw selectors, callback proof, and unsafe
-  `Send`/`Sync`.
+  fallback, `cancel_before_spawn`, cargo from `RetirementProof`,
+  `into_parts`, public raw selectors, callback proof, and unsafe `Send`/`Sync`.
 
 The first edit is a poison cut. It does not add a fixed error, empty terminal,
 default cargo, fallback, or compatibility route. Compiler fallout identifies
@@ -117,15 +131,18 @@ earlier owner product.
 1. Poison `install_prepared_export` and its root re-export. Add compile-fail
    tripwires proving the raw constructor is absent.
 2. Create the opaque, by-value `BunProviderBackend` owner and the private state
-   needed for Ready, Admitted, Poisoned, Quarantined, and ShuttingDown custody.
+   needed for Ready, Restartable-with-no-worker, Admitted, Poisoned,
+   Quarantined, and ShuttingDown custody.
 3. Move producer admission to generatively branded `SelectedProviderPackage`
    and `ProviderInvocation`; delete every raw constructor, selector, serde,
    clone, parts, and path/export projection.
 4. Define the closed retained admission/refusal/retry and terminal continuation
-   products. Refusal and retry consume the same backend, session epoch, package,
-   and invocation.
+   products. Refusal and retry consume `OfferReadyProof` with the same backend,
+   live session epoch, package, and invocation and no reservation transfer.
 5. Rewrite `PreparedExport` around private `DriveCustody`, provisional
-   selection, `RetirementProof`, and intact `RetirementQuarantine`.
+   selection, `InvocationReadyProof`, `RetirementProof`, and intact
+   `RetirementQuarantine`. Name the post-reservation pre-execution operation
+   `cancel_before_dispatch`; do not recreate `cancel_before_spawn`.
 6. Add the durable process-wide reaper. Drop paths enqueue intact custody only;
    reaper creation, wake, panic, and retry failures retain the queue item.
 7. Move the wire codec into private modules compiled only by the facade owner
@@ -137,21 +154,29 @@ earlier owner product.
    namespace containment, macOS spawn-denying sandboxing, and atomic Windows
    job assignment. Unsupported platforms fail admission; there is no process
    group fallback.
-10. Replace blocking output with pumps that start before Bun receives its write
-    descriptors, retain bounded bytes, discard after overflow while continuing
-    to drain, and prove barriers/EOF.
+10. Replace blocking output with persistent pumps that start before Bun
+    receives its write descriptors, retain bounded bytes, discard after
+    overflow while continuing to drain, prove per-invocation barriers without
+    stopping, and prove EOF/join only during retirement.
 11. Implement retained worker offer/reserve/refuse/drive/cancel/ready/shutdown
-    protocol and consuming backend shutdown. Restore no generic runtime trait,
-    callback, module handle, promise handle, or public event-loop control.
+    protocol and consuming backend shutdown. Fulfilled/rejected cargo and
+    cooperative cancellation consume `InvocationReadyProof`; forced
+    cancellation, deadline, unwind, and active-worker shutdown consume
+    `RetirementProof`; quarantine retains unresolved custody. Restore no generic
+    runtime trait, callback, module handle, promise handle, or public event-loop
+    control.
 12. Migrate the source producer and downstream semantic consumer to the branded
     inputs and finite terminal continuation operations. Compiler fallout is the
     caller map; no adapter source or raw export selection survives.
 13. Require an actually linked binary, one workspace lock, current manifests,
     and a packageable facade with no unpublished library dependency.
 14. Build the worker-only package/release factory and run the full hostile,
-    privacy, real-worker, extracted-package, compliance, and target gates.
-15. Run completion searches, link validation, repeat lock/package generation,
-    current-tree evidence capture, and independent full-SCC review.
+    privacy, real-worker, extracted-package, compliance, and target gates,
+    including same-epoch reuse after `InvocationReadyProof` and absence of any
+    live descendant after `RetirementProof`.
+15. Run completion searches, link validation, contradiction checks, repeat
+    lock/package generation, current-tree evidence capture, and independent
+    full-SCC review.
 
 Tests are added with the owner edit they guard. They do not precede or replace
 the first owner-boundary source edit.
@@ -159,10 +184,13 @@ the first owner-boundary source edit.
 ## Handoff
 
 The implementation lane starts at step 1 only. It must reference these frozen
-documents in its edit gate and repair contract. Discovery is complete unless a
-proposed edit changes the highest owner, sealed input, public terminal algebra,
-fault settlement, containment primitive, or release boundary. Such a change
-requires a new independent contract review before source edits continue.
+documents in its edit gate and repair contract. `OfferReadyProof`,
+`InvocationReadyProof`, `RetirementProof`, and `RetirementQuarantine` are fixed
+distinct products; a source editor may not merge or substitute their evidence.
+Discovery is complete unless a proposed edit changes the highest owner, sealed
+input, public terminal algebra, proof transition, fault settlement, containment
+primitive, or release boundary. Such a change requires a new independent
+contract review before source edits continue.
 
 The rejected commit remains useful only as a negative test fixture and compiler
 fallout map. It is not a base to preserve.

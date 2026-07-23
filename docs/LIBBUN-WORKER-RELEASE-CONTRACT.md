@@ -83,8 +83,11 @@ Default-parallel CI must run:
 4. locked release Bun link preparation;
 5. actual linked worker build;
 6. nonzero linked runtime/native engine tests;
-7. retained-backend refusal/retry/reuse/cancel/unwind/Drop/shutdown tests;
-8. one-shot deadline/cancel/cargo/fault/retirement/quarantine tests;
+7. retained-backend `OfferReadyProof` refusal/retry and
+   `InvocationReadyProof` fulfilled/rejected/cooperative-cancel same-worker
+   reuse tests;
+8. forced-cancel/deadline/unwind/shutdown `RetirementProof`, replacement-epoch,
+   fault, Drop, and quarantine tests;
 9. target-specific containment hostile tests;
 10. output saturation, overflow, barrier, EOF, channel, wait, and join tests;
 11. worker package creation;
@@ -133,6 +136,8 @@ unsafe impl Send / unsafe impl Sync
 Child::wait
 process::abort
 mechanical JavaScriptRejection
+cancel_before_spawn
+fulfilled/rejected cargo minted from RetirementProof
 ```
 
 Binary symbol scans must show no Rust drive entry point, plugin ABI, shared
@@ -144,7 +149,13 @@ Release is permitted only when:
 
 - the retained backend and one-shot worker lifecycle contracts pass current
   hostile evidence;
-- every public terminal is post-proof or typed quarantine fault;
+- every fulfilled/rejected cargo or same-worker cooperative-cancel terminal is
+  post-`InvocationReadyProof`;
+- every forced-cancel, deadline, unwind, active-worker shutdown, or retired
+  fault terminal is post-`RetirementProof`, or is a typed quarantine fault that
+  retains `RetirementQuarantine`;
+- no `RetirementProof` path claims a live Ready worker, and no
+  `InvocationReadyProof` path claims worker death or containment emptiness;
 - the runtime binary is actually linked and executed;
 - the extracted package is executed;
 - locks and package metadata are stable;

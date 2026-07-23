@@ -14,7 +14,7 @@ worker release.
 The frozen replacement contract is indexed in [docs/README.md](docs/README.md):
 
 - [retained backend and prepared-export lifecycle](docs/LIBBUN-LIFECYCLE-CONTRACT.md);
-- [worker containment, retirement, and quarantine](docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md);
+- [worker invocation readiness, retirement, and quarantine](docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md);
 - [worker build, package, and release](docs/LIBBUN-WORKER-RELEASE-CONTRACT.md).
 
 ## Frozen Product Boundary
@@ -22,13 +22,18 @@ The frozen replacement contract is indexed in [docs/README.md](docs/README.md):
 `BunProviderBackend` is the highest owner. It consumes producer-minted,
 generatively branded selected-package and invocation products. An admitted
 one-shot invocation becomes an affine `PreparedExport`; private `DriveCustody`
-owns all worker and output custody until bounded `RetirementProof` or intact
-`RetirementQuarantine`.
+owns all invocation and worker custody until bounded `InvocationReadyProof`,
+`RetirementProof`, or intact `RetirementQuarantine`.
 
-Cargo, cancellation, and deadline evidence are terminal only after retirement
-proof. JavaScript fulfillment and rejection are closed authored cargo.
-Undefined, unserializable, missing-export, worker, protocol, containment,
-output, and retirement failures are distinct typed faults.
+`InvocationReadyProof` proves one invocation settled and drained while the same
+worker remains alive and reusable. It is required for fulfilled/rejected cargo
+and cooperative cancellation. `RetirementProof` exclusively proves worker
+death and complete containment teardown; it is required for forced
+cancellation, deadline, unwind, and active-worker shutdown and cannot return the
+same live session. `RetirementQuarantine` retains unresolved retirement custody.
+JavaScript fulfillment and rejection are closed authored cargo. Undefined,
+unserializable, missing-export, worker, protocol, containment, output, and
+retirement failures are distinct typed faults.
 
 The worker is a linked binary-only product. There is no public raw constructor,
 parts projection, callback proof, in-process native entry point, plugin,
