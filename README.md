@@ -1,47 +1,40 @@
 # libbun
 
-`libbun` is the one-shot mechanical boundary for driving an already-selected
-Bun prepared export in a fresh worker process.
+`libbun` is the Rust ownership boundary for retained Bun provider backends and
+worker-only prepared-export execution.
 
-```rust
-use std::time::Duration;
-use libbun::{DriveControl, MechanicalTerminal, install_prepared_export};
+## Status
 
-let prepared = install_prepared_export(
-    prepared_artifact_bytes,
-    selected_export,
-    opaque_invocation_bytes,
-);
-let terminal = prepared.drive(DriveControl::with_deadline_after(
-    Duration::from_secs(30),
-));
+The implementation at
+`f1c450b042e4aa2c0c7abe05f9e95c86b8c1e697` is rejected and is not
+release-eligible. It removed the required retained backend and did not prove
+bounded worker retirement, exact containment, Rust privacy, or an executable
+worker release.
 
-match terminal {
-    MechanicalTerminal::Cargo(cargo) => consume(cargo.into_bytes()),
-    MechanicalTerminal::Cancelled(_) => cancelled(),
-    MechanicalTerminal::DeadlineElapsed(_) => deadline_elapsed(),
-    MechanicalTerminal::MechanicalFault(fault) => mechanical_fault(fault.kind()),
-}
-```
+The frozen replacement contract is indexed in [docs/README.md](docs/README.md):
 
-`PreparedExport` is affine: it has private fields, cannot be cloned or
-serialized, and `drive` consumes it. Each drive resolves the bundled sibling
-`libbun-runtime-native` worker, spawns it in a private retirement boundary,
-and returns only after normal exit or kill, reap, pipe closure, and supervisor
-thread join. Cargo remains provisional until that retirement completes.
+- [retained backend and prepared-export lifecycle](docs/LIBBUN-LIFECYCLE-CONTRACT.md);
+- [worker containment, retirement, and quarantine](docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md);
+- [worker build, package, and release](docs/LIBBUN-WORKER-RELEASE-CONTRACT.md).
 
-Libbun does not own provider contracts, TSON admission, authored result
-interpretation, semantic settlement, reusable runtimes, module or promise
-handles, event-loop controls, callbacks, plugin paths, or execution fallback.
-The worker protocol is an unpublished implementation package.
+## Frozen Product Boundary
 
-The native worker requires Bun's pinned nightly and generated vendored inputs:
+`BunProviderBackend` is the highest owner. It consumes producer-minted,
+generatively branded selected-package and invocation products. An admitted
+one-shot invocation becomes an affine `PreparedExport`; private `DriveCustody`
+owns all worker and output custody until bounded `RetirementProof` or intact
+`RetirementQuarantine`.
 
-```sh
-scripts/configure-vendored-bun.sh
-cargo +nightly-2026-05-06 build --release --manifest-path runtime/Cargo.toml
-```
+Cargo, cancellation, and deadline evidence are terminal only after retirement
+proof. JavaScript fulfillment and rejection are closed authored cargo.
+Undefined, unserializable, missing-export, worker, protocol, containment,
+output, and retirement failures are distinct typed faults.
 
-Release bundles place `libbun-runtime-native` beside the host executable. A
-missing or incompatible worker is a typed mechanical fault; execution never
-falls back in process.
+The worker is a linked binary-only product. There is no public raw constructor,
+parts projection, callback proof, in-process native entry point, plugin,
+dynamic loader, compatibility fallback, unsafe `Send`/`Sync`, process-group
+containment fallback, blocking/aborting Drop, or unlinked release mode.
+
+Do not implement against the rejected public API shown by the current source.
+Implementation starts with the poison and owner-move order recorded in the
+[decision and handoff index](docs/README.md#fifteen-step-hard-cut-order).
