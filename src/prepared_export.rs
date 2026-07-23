@@ -1,0 +1,1042 @@
+use std::ffi::OsString;
+use std::io;
+use std::io::Read;
+use std::io::Write;
+use std::path::PathBuf;
+use std::process::Child;
+use std::process::ChildStderr;
+use std::process::Command;
+use std::process::ExitStatus;
+use std::process::Stdio;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::sync::mpsc;
+use std::thread;
+use std::thread::JoinHandle;
+use std::time::Duration;
+use std::time::Instant;
+
+const WIRE_REQUEST_MAGIC: [u8; 4] = *b"LBPE";
+const WIRE_TERMINAL_MAGIC: [u8; 4] = *b"LBPT";
+const WIRE_VERSION: u16 = 1;
+const WIRE_HEADER_LEN: usize = 11;
+const MAX_REQUEST_BYTES: usize = 16 * 1024 * 1024;
+const MAX_CANDIDATE_BYTES: usize = 16 * 1024 * 1024;
+const MAX_DIAGNOSTIC_BYTES: usize = 4096;
+
+/// One invocation-bound export prepared for exactly one mechanical drive.
+///
+/// The fields and minting operation are private. Driving consumes the value so
+/// a prepared export cannot be replayed or shared between invocations.
+pub struct PreparedExport {
+    worker: WorkerLaunch,
+    request: Vec<u8>,
+}
+
+enum WorkerLaunch {
+    Bundled,
+    #[cfg(test)]
+    Exact {
+        program: PathBuf,
+        arguments: Vec<OsString>,
+    },
+}
+
+/// Finite adapter-install operation for one already-selected artifact, export,
+/// and opaque invocation. The loading material is consumed into an affine
+/// prepared export and cannot be projected back out.
+pub fn install_prepared_export(
+    prepared_artifact: Vec<u8>,
+    selected_export: String,
+    opaque_invocation: Vec<u8>,
+) -> PreparedExport {
+    PreparedExport {
+        worker: WorkerLaunch::Bundled,
+        request: encode_private_drive_material(
+            prepared_artifact,
+            selected_export,
+            opaque_invocation,
+        ),
+    }
+}
+
+impl PreparedExport {
+    /// Performs the complete mechanical drive and consumes this prepared
+    /// export. Every return path has retired the fresh worker boundary.
+    pub fn drive(self, control: DriveControl) -> MechanicalTerminal {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.drive_guarded(control)))
+        {
+            Ok(terminal) => terminal,
+            Err(_) => MechanicalTerminal::MechanicalFault(MechanicalFault::new(
+                MechanicalFaultKind::SupervisorUnwind,
+                "prepared-export supervisor unwound after retiring its worker boundary",
+            )),
+        }
+    }
+
+    fn drive_guarded(self, control: DriveControl) -> MechanicalTerminal {
+        if control.cancellation.is_selected() {
+            return MechanicalTerminal::Cancelled(Cancelled::mint());
+        }
+        if control.deadline_is_elapsed() {
+            return MechanicalTerminal::DeadlineElapsed(DeadlineElapsed::mint());
+        }
+        if self.request.len() > MAX_REQUEST_BYTES {
+            return MechanicalTerminal::MechanicalFault(MechanicalFault::new(
+                MechanicalFaultKind::RequestWrite,
+                "prepared-export request exceeds the bounded internal wire limit",
+            ));
+        }
+
+        let (worker_program, worker_arguments) = match self.worker.resolve() {
+            Ok(worker) => worker,
+            Err(error) => {
+                return MechanicalTerminal::MechanicalFault(MechanicalFault::new(
+                    MechanicalFaultKind::WorkerAdmission,
+                    format!("fresh prepared-export worker resolution failed: {error}"),
+                ));
+            }
+        };
+        let mut command = Command::new(worker_program);
+        command
+            .args(worker_arguments)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        configure_retirement_boundary(&mut command);
+
+        let child = match command.spawn() {
+            Ok(child) => child,
+            Err(error) => {
+                return MechanicalTerminal::MechanicalFault(MechanicalFault::new(
+                    MechanicalFaultKind::WorkerAdmission,
+                    format!("fresh prepared-export worker spawn failed: {error}"),
+                ));
+            }
+        };
+
+        let mut guard = match DriveGuard::admit(child, self.request) {
+            Ok(guard) => guard,
+            Err(fault) => return MechanicalTerminal::MechanicalFault(fault),
+        };
+        let selected = guard.select_terminal(&control);
+        match guard.retire() {
+            Ok(()) => selected.into_terminal(),
+            Err(fault) => MechanicalTerminal::MechanicalFault(fault),
+        }
+    }
+
+    #[cfg(test)]
+    fn from_test_worker(
+        worker_program: PathBuf,
+        worker_arguments: Vec<OsString>,
+        opaque_request: Vec<u8>,
+    ) -> Self {
+        Self {
+            worker: WorkerLaunch::Exact {
+                program: worker_program,
+                arguments: worker_arguments,
+            },
+            request: opaque_request,
+        }
+    }
+}
+
+impl WorkerLaunch {
+    fn resolve(self) -> io::Result<(PathBuf, Vec<OsString>)> {
+        match self {
+            Self::Bundled => {
+                let executable = std::env::current_exe()?;
+                let directory = executable.parent().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::NotFound,
+                        "host executable has no parent directory for bundled worker resolution",
+                    )
+                })?;
+                Ok((directory.join(worker_asset_name()), Vec::new()))
+            }
+            #[cfg(test)]
+            Self::Exact { program, arguments } => Ok((program, arguments)),
+        }
+    }
+}
+
+fn worker_asset_name() -> &'static str {
+    if cfg!(windows) {
+        "libbun-runtime-native.exe"
+    } else {
+        "libbun-runtime-native"
+    }
+}
+
+fn encode_private_drive_material(
+    prepared_artifact: Vec<u8>,
+    selected_export: String,
+    opaque_invocation: Vec<u8>,
+) -> Vec<u8> {
+    let selected_export = selected_export.into_bytes();
+    let capacity = prepared_artifact
+        .len()
+        .saturating_add(selected_export.len())
+        .saturating_add(opaque_invocation.len())
+        .saturating_add(24);
+    let mut request = Vec::with_capacity(capacity);
+    for field in [prepared_artifact, selected_export, opaque_invocation] {
+        request.extend_from_slice(&(field.len() as u64).to_be_bytes());
+        request.extend_from_slice(&field);
+    }
+    request
+}
+
+/// Mechanical cancellation observation shared with a drive supervisor.
+///
+/// This signal carries no worker handle and cannot mint a terminal result.
+#[derive(Clone)]
+pub struct DriveCancellation {
+    selected: Arc<AtomicBool>,
+}
+
+/// Mechanical deadline and cancellation admitted for one drive.
+pub struct DriveControl {
+    deadline: Option<Instant>,
+    cancellation: DriveCancellation,
+}
+
+impl DriveControl {
+    pub fn unbounded() -> Self {
+        Self {
+            deadline: None,
+            cancellation: DriveCancellation {
+                selected: Arc::new(AtomicBool::new(false)),
+            },
+        }
+    }
+
+    pub fn with_deadline_after(duration: Duration) -> Self {
+        Self {
+            deadline: Instant::now().checked_add(duration),
+            cancellation: DriveCancellation {
+                selected: Arc::new(AtomicBool::new(false)),
+            },
+        }
+    }
+
+    pub fn cancellable() -> (Self, DriveCancellation) {
+        let cancellation = DriveCancellation {
+            selected: Arc::new(AtomicBool::new(false)),
+        };
+        (
+            Self {
+                deadline: None,
+                cancellation: cancellation.clone(),
+            },
+            cancellation,
+        )
+    }
+
+    pub fn cancellable_with_deadline_after(duration: Duration) -> (Self, DriveCancellation) {
+        let cancellation = DriveCancellation {
+            selected: Arc::new(AtomicBool::new(false)),
+        };
+        (
+            Self {
+                deadline: Instant::now().checked_add(duration),
+                cancellation: cancellation.clone(),
+            },
+            cancellation,
+        )
+    }
+}
+
+impl DriveCancellation {
+    pub fn cancel(&self) {
+        self.selected.store(true, Ordering::Release);
+    }
+
+    fn is_selected(&self) -> bool {
+        self.selected.load(Ordering::Acquire)
+    }
+}
+
+impl DriveControl {
+    fn deadline_is_elapsed(&self) -> bool {
+        self.deadline
+            .is_some_and(|deadline| Instant::now() >= deadline)
+    }
+}
+
+/// The sole public outcome of a quiescent prepared-export drive.
+#[derive(Debug)]
+pub enum MechanicalTerminal {
+    Cargo(Cargo),
+    Cancelled(Cancelled),
+    DeadlineElapsed(DeadlineElapsed),
+    MechanicalFault(MechanicalFault),
+}
+
+/// Bounded opaque worker cargo. Libbun does not interpret these bytes.
+#[derive(Debug)]
+pub struct Cargo {
+    bytes: Vec<u8>,
+    _evidence: TerminalEvidence,
+}
+
+impl Cargo {
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+#[derive(Debug)]
+pub struct Cancelled {
+    _evidence: TerminalEvidence,
+}
+
+#[derive(Debug)]
+pub struct DeadlineElapsed {
+    _evidence: TerminalEvidence,
+}
+
+#[derive(Debug)]
+pub struct MechanicalFault {
+    kind: MechanicalFaultKind,
+    diagnostic: Box<str>,
+    _evidence: TerminalEvidence,
+}
+
+impl MechanicalFault {
+    pub fn kind(&self) -> MechanicalFaultKind {
+        self.kind
+    }
+
+    pub fn diagnostic(&self) -> &str {
+        &self.diagnostic
+    }
+
+    fn new(kind: MechanicalFaultKind, diagnostic: impl Into<String>) -> Self {
+        let diagnostic = bounded_diagnostic(diagnostic.into()).into_boxed_str();
+        Self {
+            kind,
+            diagnostic,
+            _evidence: TerminalEvidence,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum MechanicalFaultKind {
+    WorkerAdmission,
+    RequestWrite,
+    Preparation,
+    InputLowering,
+    JavaScriptRejection,
+    CargoExtraction,
+    WorkerProtocol,
+    WorkerTermination,
+    Pipe,
+    Wait,
+    Retirement,
+    ThreadJoin,
+    Correspondence,
+    SupervisorUnwind,
+}
+
+#[derive(Debug)]
+struct TerminalEvidence;
+
+impl Cancelled {
+    fn mint() -> Self {
+        Self {
+            _evidence: TerminalEvidence,
+        }
+    }
+}
+
+impl DeadlineElapsed {
+    fn mint() -> Self {
+        Self {
+            _evidence: TerminalEvidence,
+        }
+    }
+}
+
+enum SelectedTerminal {
+    Cargo(Vec<u8>),
+    Cancelled,
+    DeadlineElapsed,
+    MechanicalFault(FaultSeed),
+}
+
+impl SelectedTerminal {
+    fn into_terminal(self) -> MechanicalTerminal {
+        match self {
+            Self::Cargo(bytes) => MechanicalTerminal::Cargo(Cargo {
+                bytes,
+                _evidence: TerminalEvidence,
+            }),
+            Self::Cancelled => MechanicalTerminal::Cancelled(Cancelled::mint()),
+            Self::DeadlineElapsed => MechanicalTerminal::DeadlineElapsed(DeadlineElapsed::mint()),
+            Self::MechanicalFault(fault) => MechanicalTerminal::MechanicalFault(fault.into_fault()),
+        }
+    }
+}
+
+struct FaultSeed {
+    kind: MechanicalFaultKind,
+    diagnostic: String,
+}
+
+impl FaultSeed {
+    fn new(kind: MechanicalFaultKind, diagnostic: impl Into<String>) -> Self {
+        Self {
+            kind,
+            diagnostic: diagnostic.into(),
+        }
+    }
+
+    fn into_fault(self) -> MechanicalFault {
+        MechanicalFault::new(self.kind, self.diagnostic)
+    }
+}
+
+struct DriveGuard {
+    child: Option<Child>,
+    process_boundary: ProcessBoundary,
+    writer: Option<JoinHandle<()>>,
+    reader: Option<JoinHandle<()>>,
+    stderr: Option<JoinHandle<()>>,
+    writer_result: mpsc::Receiver<Result<(), FaultSeed>>,
+    reader_result: mpsc::Receiver<Result<Vec<u8>, FaultSeed>>,
+    stderr_result: mpsc::Receiver<Result<(), FaultSeed>>,
+    retired: bool,
+}
+
+impl DriveGuard {
+    fn admit(mut child: Child, request: Vec<u8>) -> Result<Self, MechanicalFault> {
+        let process_boundary = ProcessBoundary::for_child(&child);
+        let mut stdin = child.stdin.take().ok_or_else(|| {
+            MechanicalFault::new(
+                MechanicalFaultKind::Pipe,
+                "fresh worker did not provide its private request pipe",
+            )
+        })?;
+        let mut stdout = child.stdout.take().ok_or_else(|| {
+            MechanicalFault::new(
+                MechanicalFaultKind::Pipe,
+                "fresh worker did not provide its private terminal pipe",
+            )
+        })?;
+        let mut stderr = child.stderr.take().ok_or_else(|| {
+            MechanicalFault::new(
+                MechanicalFaultKind::Pipe,
+                "fresh worker did not provide its bounded diagnostic pipe",
+            )
+        })?;
+
+        let (writer_tx, writer_result) = mpsc::sync_channel(1);
+        let writer = thread::Builder::new()
+            .name("libbun-prepared-export-writer".to_string())
+            .spawn(move || {
+                let result = write_request(&mut stdin, &request).map_err(|error| {
+                    FaultSeed::new(
+                        MechanicalFaultKind::RequestWrite,
+                        format!("private worker request write failed: {error}"),
+                    )
+                });
+                let _ = writer_tx.send(result);
+            })
+            .map_err(|error| {
+                MechanicalFault::new(
+                    MechanicalFaultKind::ThreadJoin,
+                    format!("private worker writer thread spawn failed: {error}"),
+                )
+            })?;
+
+        let (reader_tx, reader_result) = mpsc::sync_channel(1);
+        let reader = thread::Builder::new()
+            .name("libbun-prepared-export-reader".to_string())
+            .spawn(move || {
+                let result = read_single_candidate(&mut stdout);
+                let _ = reader_tx.send(result);
+            })
+            .map_err(|error| {
+                MechanicalFault::new(
+                    MechanicalFaultKind::ThreadJoin,
+                    format!("private worker reader thread spawn failed: {error}"),
+                )
+            })?;
+
+        let (stderr_tx, stderr_result) = mpsc::sync_channel(1);
+        let stderr_thread = thread::Builder::new()
+            .name("libbun-prepared-export-stderr".to_string())
+            .spawn(move || {
+                let result = drain_bounded_stderr(&mut stderr);
+                let _ = stderr_tx.send(result);
+            })
+            .map_err(|error| {
+                MechanicalFault::new(
+                    MechanicalFaultKind::ThreadJoin,
+                    format!("private worker diagnostic thread spawn failed: {error}"),
+                )
+            })?;
+
+        Ok(Self {
+            child: Some(child),
+            process_boundary,
+            writer: Some(writer),
+            reader: Some(reader),
+            stderr: Some(stderr_thread),
+            writer_result,
+            reader_result,
+            stderr_result,
+            retired: false,
+        })
+    }
+
+    fn select_terminal(&mut self, control: &DriveControl) -> SelectedTerminal {
+        let mut writer = None;
+        let mut reader = None;
+        let mut stderr = None;
+        let mut exit = None;
+        let mut boundary_closed_after_exit = false;
+        let mut pipe_fault_observed_at = None;
+
+        loop {
+            receive_once(&self.writer_result, &mut writer);
+            receive_once(&self.reader_result, &mut reader);
+            receive_once(&self.stderr_result, &mut stderr);
+
+            if exit.is_none() {
+                match self
+                    .child
+                    .as_mut()
+                    .expect("live drive owns child")
+                    .try_wait()
+                {
+                    Ok(status) => exit = status,
+                    Err(error) => {
+                        return SelectedTerminal::MechanicalFault(FaultSeed::new(
+                            MechanicalFaultKind::Wait,
+                            format!("fresh worker wait observation failed: {error}"),
+                        ));
+                    }
+                }
+            }
+
+            if let Some(status) = exit
+                && !status.success()
+            {
+                return SelectedTerminal::MechanicalFault(worker_exit_fault(status));
+            }
+
+            if writer.as_ref().is_some_and(Result::is_err)
+                || reader.as_ref().is_some_and(Result::is_err)
+                || stderr.as_ref().is_some_and(Result::is_err)
+            {
+                let first_observation = pipe_fault_observed_at.get_or_insert_with(Instant::now);
+                // A child that exits nonzero commonly closes its pipes just
+                // before wait status becomes observable. Give wait a bounded
+                // opportunity to preserve the stronger termination class.
+                if exit.is_some() || first_observation.elapsed() >= Duration::from_millis(10) {
+                    if let Some(Err(fault)) = writer.take_if(|result| result.is_err()) {
+                        return SelectedTerminal::MechanicalFault(fault);
+                    }
+                    if let Some(Err(fault)) = reader.take_if(|result| result.is_err()) {
+                        return SelectedTerminal::MechanicalFault(fault);
+                    }
+                    if let Some(Err(fault)) = stderr.take_if(|result| result.is_err()) {
+                        return SelectedTerminal::MechanicalFault(fault);
+                    }
+                }
+            }
+
+            if control.cancellation.is_selected() {
+                return SelectedTerminal::Cancelled;
+            }
+            if control.deadline_is_elapsed() {
+                return SelectedTerminal::DeadlineElapsed;
+            }
+
+            if exit.is_some() && !boundary_closed_after_exit {
+                if let Err(error) = self.process_boundary.terminate_descendants() {
+                    return SelectedTerminal::MechanicalFault(FaultSeed::new(
+                        MechanicalFaultKind::Retirement,
+                        format!("fresh worker descendant retirement failed: {error}"),
+                    ));
+                }
+                boundary_closed_after_exit = true;
+            }
+
+            if exit.is_some()
+                && writer.as_ref().is_some_and(Result::is_ok)
+                && reader.as_ref().is_some_and(Result::is_ok)
+                && stderr.as_ref().is_some_and(Result::is_ok)
+            {
+                let Ok(bytes) = reader.take().expect("reader result checked") else {
+                    unreachable!("reader error returned above")
+                };
+                return SelectedTerminal::Cargo(bytes);
+            }
+
+            thread::sleep(Duration::from_millis(1));
+        }
+    }
+
+    fn retire(&mut self) -> Result<(), MechanicalFault> {
+        if self.retired {
+            return Ok(());
+        }
+
+        let mut cleanup_fault = None;
+        if let Err(error) = self.process_boundary.terminate_descendants() {
+            cleanup_fault.get_or_insert_with(|| {
+                MechanicalFault::new(
+                    MechanicalFaultKind::Retirement,
+                    format!("worker process-boundary termination failed: {error}"),
+                )
+            });
+        }
+        if let Some(child) = self.child.as_mut()
+            && let Err(error) = child.wait()
+        {
+            cleanup_fault.get_or_insert_with(|| {
+                MechanicalFault::new(
+                    MechanicalFaultKind::Wait,
+                    format!("worker reap failed: {error}"),
+                )
+            });
+        }
+
+        for (name, handle) in [
+            ("writer", self.writer.take()),
+            ("reader", self.reader.take()),
+            ("diagnostic", self.stderr.take()),
+        ] {
+            if handle.is_some_and(|handle| handle.join().is_err()) {
+                cleanup_fault.get_or_insert_with(|| {
+                    MechanicalFault::new(
+                        MechanicalFaultKind::ThreadJoin,
+                        format!("worker {name} thread panicked during retirement"),
+                    )
+                });
+            }
+        }
+        self.child.take();
+        self.retired = cleanup_fault.is_none();
+        cleanup_fault.map_or(Ok(()), Err)
+    }
+}
+
+impl Drop for DriveGuard {
+    fn drop(&mut self) {
+        if self.retired {
+            return;
+        }
+        if self.retire().is_err() {
+            // Continuing the host without proof of irreversible worker
+            // retirement would violate the mechanical boundary.
+            std::process::abort();
+        }
+    }
+}
+
+fn receive_once<T>(receiver: &mpsc::Receiver<T>, slot: &mut Option<T>) {
+    if slot.is_none()
+        && let Ok(value) = receiver.try_recv()
+    {
+        *slot = Some(value);
+    }
+}
+
+fn write_request(writer: &mut impl Write, request: &[u8]) -> io::Result<()> {
+    writer.write_all(&WIRE_REQUEST_MAGIC)?;
+    writer.write_all(&WIRE_VERSION.to_be_bytes())?;
+    writer.write_all(&(request.len() as u32).to_be_bytes())?;
+    writer.write_all(request)?;
+    writer.flush()
+}
+
+fn read_single_candidate(reader: &mut impl Read) -> Result<Vec<u8>, FaultSeed> {
+    let mut header = [0_u8; WIRE_HEADER_LEN];
+    reader.read_exact(&mut header).map_err(|error| {
+        FaultSeed::new(
+            MechanicalFaultKind::WorkerProtocol,
+            format!("worker terminal frame is missing or truncated: {error}"),
+        )
+    })?;
+    if header[..4] != WIRE_TERMINAL_MAGIC {
+        return Err(FaultSeed::new(
+            MechanicalFaultKind::WorkerProtocol,
+            "worker terminal frame has invalid magic",
+        ));
+    }
+    let version = u16::from_be_bytes([header[4], header[5]]);
+    if version != WIRE_VERSION {
+        return Err(FaultSeed::new(
+            MechanicalFaultKind::Correspondence,
+            format!("worker wire version {version} does not match {WIRE_VERSION}"),
+        ));
+    }
+    if header[6] != 0 {
+        return Err(FaultSeed::new(
+            MechanicalFaultKind::WorkerProtocol,
+            format!(
+                "worker emitted unsupported terminal candidate kind {}",
+                header[6]
+            ),
+        ));
+    }
+    let length = u32::from_be_bytes([header[7], header[8], header[9], header[10]]) as usize;
+    if length > MAX_CANDIDATE_BYTES {
+        return Err(FaultSeed::new(
+            MechanicalFaultKind::WorkerProtocol,
+            format!("worker terminal candidate length {length} exceeds bounded limit"),
+        ));
+    }
+    let mut bytes = vec![0_u8; length];
+    reader.read_exact(&mut bytes).map_err(|error| {
+        FaultSeed::new(
+            MechanicalFaultKind::WorkerProtocol,
+            format!("worker terminal candidate payload is truncated: {error}"),
+        )
+    })?;
+    let mut extra = [0_u8; 1];
+    match reader.read(&mut extra) {
+        Ok(0) => Ok(bytes),
+        Ok(_) => Err(FaultSeed::new(
+            MechanicalFaultKind::WorkerProtocol,
+            "worker emitted duplicate or contradictory terminal data",
+        )),
+        Err(error) => Err(FaultSeed::new(
+            MechanicalFaultKind::Pipe,
+            format!("worker terminal pipe EOF observation failed: {error}"),
+        )),
+    }
+}
+
+fn drain_bounded_stderr(stderr: &mut ChildStderr) -> Result<(), FaultSeed> {
+    let mut total = 0_usize;
+    let mut buffer = [0_u8; 8192];
+    loop {
+        let read = stderr.read(&mut buffer).map_err(|error| {
+            FaultSeed::new(
+                MechanicalFaultKind::Pipe,
+                format!("worker diagnostic pipe read failed: {error}"),
+            )
+        })?;
+        if read == 0 {
+            return Ok(());
+        }
+        total = total.saturating_add(read);
+        if total > MAX_CANDIDATE_BYTES {
+            return Err(FaultSeed::new(
+                MechanicalFaultKind::Pipe,
+                "worker diagnostic output exceeds bounded limit",
+            ));
+        }
+    }
+}
+
+fn worker_exit_fault(status: ExitStatus) -> FaultSeed {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            return FaultSeed::new(
+                MechanicalFaultKind::WorkerTermination,
+                format!("fresh worker terminated by signal {signal}"),
+            );
+        }
+    }
+    FaultSeed::new(
+        MechanicalFaultKind::WorkerTermination,
+        format!("fresh worker exited unsuccessfully with {status}"),
+    )
+}
+
+fn bounded_diagnostic(mut diagnostic: String) -> String {
+    if diagnostic.len() <= MAX_DIAGNOSTIC_BYTES {
+        return diagnostic;
+    }
+    let mut boundary = MAX_DIAGNOSTIC_BYTES;
+    while !diagnostic.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    diagnostic.truncate(boundary);
+    diagnostic
+}
+
+struct ProcessBoundary {
+    #[cfg(unix)]
+    process_group: libc::pid_t,
+    #[cfg(not(unix))]
+    process_id: u32,
+}
+
+impl ProcessBoundary {
+    fn for_child(child: &Child) -> Self {
+        Self {
+            #[cfg(unix)]
+            process_group: child.id() as libc::pid_t,
+            #[cfg(not(unix))]
+            process_id: child.id(),
+        }
+    }
+
+    fn terminate_descendants(&self) -> io::Result<()> {
+        #[cfg(unix)]
+        {
+            let result = unsafe { libc::kill(-self.process_group, libc::SIGKILL) };
+            if result == 0 {
+                return Ok(());
+            }
+            let error = io::Error::last_os_error();
+            if error.raw_os_error() == Some(libc::ESRCH) {
+                Ok(())
+            } else {
+                Err(error)
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = self.process_id;
+            Ok(())
+        }
+    }
+}
+
+#[cfg(unix)]
+fn configure_retirement_boundary(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    unsafe {
+        command.pre_exec(|| {
+            if libc::setpgid(0, 0) == -1 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+}
+
+#[cfg(not(unix))]
+fn configure_retirement_boundary(_command: &mut Command) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Serialize;
+    use serde::de::DeserializeOwned;
+    use static_assertions::assert_not_impl_any;
+
+    assert_not_impl_any!(PreparedExport: Clone, Copy, Serialize, DeserializeOwned);
+    assert_not_impl_any!(Cargo: Clone, Copy, Serialize, DeserializeOwned);
+    assert_not_impl_any!(Cancelled: Clone, Copy, Serialize, DeserializeOwned);
+    assert_not_impl_any!(DeadlineElapsed: Clone, Copy, Serialize, DeserializeOwned);
+    assert_not_impl_any!(MechanicalFault: Clone, Copy, Serialize, DeserializeOwned);
+
+    enum WorkerBehavior {
+        Cargo(Vec<u8>),
+        CargoThenHang(Vec<u8>),
+        Malformed,
+        Truncated,
+        Duplicate(Vec<u8>),
+        Oversized,
+        NeverSettles,
+        ExitNonzero,
+        CargoWithInheritedDescriptor(Vec<u8>),
+        ProcessId,
+    }
+
+    impl PreparedExport {
+        fn test_worker(behavior: WorkerBehavior) -> Self {
+            const WORKER: &str = r#"
+import os
+import subprocess
+import sys
+import time
+
+mode = sys.argv[1]
+payload = bytes.fromhex(sys.argv[2]) if len(sys.argv) > 2 else b''
+sys.stdin.buffer.read()
+
+def frame(value):
+    return b'LBPT' + (1).to_bytes(2, 'big') + b'\x00' + len(value).to_bytes(4, 'big') + value
+
+if mode == 'cargo':
+    sys.stdout.buffer.write(frame(payload))
+elif mode == 'cargo-hang':
+    sys.stdout.buffer.write(frame(payload))
+    sys.stdout.buffer.flush()
+    time.sleep(300)
+elif mode == 'malformed':
+    sys.stdout.buffer.write(b'wrong-frame')
+elif mode == 'truncated':
+    sys.stdout.buffer.write(b'LBPT' + (1).to_bytes(2, 'big') + b'\x00' + (99).to_bytes(4, 'big') + b'x')
+elif mode == 'duplicate':
+    sys.stdout.buffer.write(frame(payload) + frame(payload))
+elif mode == 'oversized':
+    sys.stdout.buffer.write(b'LBPT' + (1).to_bytes(2, 'big') + b'\x00' + (16 * 1024 * 1024 + 1).to_bytes(4, 'big'))
+elif mode == 'never':
+    time.sleep(300)
+elif mode == 'nonzero':
+    sys.exit(23)
+elif mode == 'inherited-fd':
+    subprocess.Popen(['sleep', '300'])
+    sys.stdout.buffer.write(frame(payload))
+elif mode == 'pid':
+    sys.stdout.buffer.write(frame(str(os.getpid()).encode()))
+else:
+    sys.exit(24)
+sys.stdout.buffer.flush()
+"#;
+            let (mode, payload) = match behavior {
+                WorkerBehavior::Cargo(payload) => ("cargo", payload),
+                WorkerBehavior::CargoThenHang(payload) => ("cargo-hang", payload),
+                WorkerBehavior::Malformed => ("malformed", Vec::new()),
+                WorkerBehavior::Truncated => ("truncated", Vec::new()),
+                WorkerBehavior::Duplicate(payload) => ("duplicate", payload),
+                WorkerBehavior::Oversized => ("oversized", Vec::new()),
+                WorkerBehavior::NeverSettles => ("never", Vec::new()),
+                WorkerBehavior::ExitNonzero => ("nonzero", Vec::new()),
+                WorkerBehavior::CargoWithInheritedDescriptor(payload) => ("inherited-fd", payload),
+                WorkerBehavior::ProcessId => ("pid", Vec::new()),
+            };
+            Self::from_test_worker(
+                PathBuf::from("python3"),
+                vec![
+                    OsString::from("-c"),
+                    OsString::from(WORKER),
+                    OsString::from(mode),
+                    OsString::from(hex(&payload)),
+                ],
+                b"one opaque invocation".to_vec(),
+            )
+        }
+    }
+
+    fn hex(bytes: &[u8]) -> String {
+        const DIGITS: &[u8; 16] = b"0123456789abcdef";
+        let mut encoded = String::with_capacity(bytes.len() * 2);
+        for byte in bytes {
+            encoded.push(DIGITS[(byte >> 4) as usize] as char);
+            encoded.push(DIGITS[(byte & 0xf) as usize] as char);
+        }
+        encoded
+    }
+
+    #[test]
+    fn opaque_provider_looking_bytes_cross_the_real_drive_unchanged() {
+        let bytes = br#"{\"kind\":\"err\",\"provider\":true}\xff\0not-tson"#.to_vec();
+        let prepared = PreparedExport::test_worker(WorkerBehavior::Cargo(bytes.clone()));
+
+        let MechanicalTerminal::Cargo(cargo) = prepared.drive(DriveControl::unbounded()) else {
+            panic!("expected cargo terminal");
+        };
+
+        assert_eq!(cargo.into_bytes(), bytes);
+    }
+
+    #[test]
+    fn cargo_followed_by_a_hung_worker_is_discarded_at_deadline() {
+        let prepared = PreparedExport::test_worker(WorkerBehavior::CargoThenHang(b"late".to_vec()));
+
+        assert!(matches!(
+            prepared.drive(DriveControl::with_deadline_after(Duration::from_millis(75))),
+            MechanicalTerminal::DeadlineElapsed(_)
+        ));
+    }
+
+    #[test]
+    fn cancellation_before_spawn_does_not_require_a_worker_asset() {
+        let prepared = PreparedExport::from_test_worker(
+            PathBuf::from("/definitely/missing/libbun-worker"),
+            Vec::new(),
+            Vec::new(),
+        );
+        let (control, cancellation) = DriveControl::cancellable();
+        cancellation.cancel();
+
+        assert!(matches!(
+            prepared.drive(control),
+            MechanicalTerminal::Cancelled(_)
+        ));
+    }
+
+    #[test]
+    fn never_settling_worker_is_cancelled_and_retired() {
+        let prepared = PreparedExport::test_worker(WorkerBehavior::NeverSettles);
+        let (control, cancellation) = DriveControl::cancellable();
+        let cancelling = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(40));
+            cancellation.cancel();
+        });
+
+        assert!(matches!(
+            prepared.drive(control),
+            MechanicalTerminal::Cancelled(_)
+        ));
+        cancelling.join().expect("cancellation thread joins");
+    }
+
+    #[test]
+    fn malformed_truncated_duplicate_and_oversized_frames_are_typed_faults() {
+        for prepared in [
+            PreparedExport::test_worker(WorkerBehavior::Malformed),
+            PreparedExport::test_worker(WorkerBehavior::Truncated),
+            PreparedExport::test_worker(WorkerBehavior::Duplicate(b"x".to_vec())),
+            PreparedExport::test_worker(WorkerBehavior::Oversized),
+        ] {
+            let MechanicalTerminal::MechanicalFault(fault) =
+                prepared.drive(DriveControl::with_deadline_after(Duration::from_secs(2)))
+            else {
+                panic!("invalid worker frame must be a typed fault");
+            };
+            assert_eq!(fault.kind(), MechanicalFaultKind::WorkerProtocol);
+        }
+    }
+
+    #[test]
+    fn nonzero_worker_exit_is_a_typed_fault_after_reap() {
+        let prepared = PreparedExport::test_worker(WorkerBehavior::ExitNonzero);
+        let MechanicalTerminal::MechanicalFault(fault) =
+            prepared.drive(DriveControl::with_deadline_after(Duration::from_secs(2)))
+        else {
+            panic!("nonzero worker exit must be a typed fault");
+        };
+        assert_eq!(fault.kind(), MechanicalFaultKind::WorkerTermination);
+    }
+
+    #[test]
+    fn inherited_protocol_descriptor_descendant_is_retired_before_cargo_returns() {
+        let bytes = b"retired descendant".to_vec();
+        let prepared = PreparedExport::test_worker(WorkerBehavior::CargoWithInheritedDescriptor(
+            bytes.clone(),
+        ));
+
+        let MechanicalTerminal::Cargo(cargo) =
+            prepared.drive(DriveControl::with_deadline_after(Duration::from_secs(2)))
+        else {
+            panic!("successful leader plus retired descendant should return cargo");
+        };
+        assert_eq!(cargo.into_bytes(), bytes);
+    }
+
+    #[test]
+    fn each_drive_uses_a_fresh_worker_process() {
+        let pid = |prepared: PreparedExport| {
+            let MechanicalTerminal::Cargo(cargo) =
+                prepared.drive(DriveControl::with_deadline_after(Duration::from_secs(2)))
+            else {
+                panic!("worker pid fixture must return cargo");
+            };
+            cargo.into_bytes()
+        };
+
+        assert_ne!(
+            pid(PreparedExport::test_worker(WorkerBehavior::ProcessId)),
+            pid(PreparedExport::test_worker(WorkerBehavior::ProcessId))
+        );
+    }
+}

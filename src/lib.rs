@@ -26,8 +26,14 @@ use sha2::Digest;
 pub mod dynamic;
 pub mod helper_protocol;
 pub mod plugin_checksums;
+mod prepared_export;
 pub mod release;
 mod retained_backend;
+
+pub use prepared_export::{
+    Cancelled, Cargo, DeadlineElapsed, DriveCancellation, DriveControl, MechanicalFault,
+    MechanicalFaultKind, MechanicalTerminal, PreparedExport, install_prepared_export,
+};
 
 pub use retained_backend::{
     BackendPoisonDiagnostic, BackendState, BunProviderBackend, FinishedInvocation,
