@@ -6,10 +6,17 @@ worker-only prepared-export execution.
 ## Status
 
 The implementation at
-`f1c450b042e4aa2c0c7abe05f9e95c86b8c1e697` is rejected and is not
-release-eligible. It removed the required retained backend and did not prove
-bounded worker retirement, exact containment, Rust privacy, or an executable
-worker release.
+`d5d007e09b89eb3d7d23ba8380eb723b7bd6948d` is rejected and is not
+release-eligible. Its source remains a fresh-worker, raw-constructor
+implementation and its governing documents still require the proof and
+quarantine corrections below. The earlier
+`f1c450b042e4aa2c0c7abe05f9e95c86b8c1e697` tree remains historical negative
+evidence only.
+
+After the governing documents contain the frozen correction, source editing is
+eligible for locked Step 1 only: delete the raw installer and its root
+re-export. No positive lifecycle or release work is eligible before that poison
+cut and its compile-fail tripwires land.
 
 The frozen replacement contract is indexed in [docs/README.md](docs/README.md):
 
@@ -20,26 +27,33 @@ The frozen replacement contract is indexed in [docs/README.md](docs/README.md):
 ## Frozen Product Boundary
 
 `BunProviderBackend` is the highest owner. It consumes producer-minted,
-generatively branded selected-package and invocation products. An admitted
-one-shot invocation becomes an affine `PreparedExport`; private `DriveCustody`
-owns all invocation and worker custody until bounded `InvocationReadyProof`,
-`RetirementProof`, or intact `RetirementQuarantine`.
+generatively branded selected-package and invocation products. Private
+`OfferCustody` owns the bounded offer; private `ReservedCustody` owns an
+accepted but undispatched reservation; private `DriveCustody` begins only when
+the dispatch permit and selected inputs are consumed.
 
-`InvocationReadyProof` proves one invocation settled and drained while the same
-worker remains alive and reusable. It is required for fulfilled/rejected cargo
-and cooperative cancellation. `RetirementProof` exclusively proves worker
-death and complete containment teardown; it is required for forced
-cancellation, deadline, unwind, and active-worker shutdown and cannot return the
-same live session. `RetirementQuarantine` retains unresolved retirement custody.
+`OfferReadyProof` governs refusal and unchanged retry.
+`ReservationReleaseProof` proves that one exact reservation was closed before
+dispatch, with no selected package or invocation transmitted, and permits
+same-worker same-epoch reuse. `InvocationReadyProof` proves that one dispatched
+invocation settled and drained while the same worker remains alive and Ready.
+`RetirementProof` exclusively proves worker death and complete containment,
+pipe, channel, pump, receiver, and join discharge.
+
+Private `RetirementQuarantine<Purpose>` owns all unresolved retirement custody
+until `DurableReaper::adopt` consumes it by value exactly once and publishes its
+preallocated node into durable queue ownership. A concrete public quarantine
+fault exposes only a bounded non-authoritative `QuarantineObservation`. When
+backend recovery is meaningful, the fault privately seals exactly one opaque
+affine `QuarantineCompletionClaim<Purpose>`. There is no public quarantine
+identifier, selector, registry, receipt, backend husk, or custody handle.
+
 JavaScript fulfillment and rejection are closed authored cargo. Undefined,
 unserializable, missing-export, worker, protocol, containment, output, and
 retirement failures are distinct typed faults.
 
 The worker is a linked binary-only product. There is no public raw constructor,
-parts projection, callback proof, in-process native entry point, plugin,
-dynamic loader, compatibility fallback, unsafe `Send`/`Sync`, process-group
-containment fallback, blocking/aborting Drop, or unlinked release mode.
-
-Do not implement against the rejected public API shown by the current source.
-Implementation starts with the poison and owner-move order recorded in the
-[decision and handoff index](docs/README.md#fifteen-step-hard-cut-order).
+parts projection, callback proof, quarantine id or lookup key, raw completion
+receipt, in-process native entry point, plugin, dynamic loader, compatibility
+fallback, unsafe `Send`/`Sync`, process-group containment fallback,
+blocking/aborting Drop, or unlinked release mode.

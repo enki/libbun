@@ -13,23 +13,27 @@ gate.
 
 ## Semantic Abstraction Gate
 
-- Unit: one retained Bun provider backend, its exact worker session, and an
-  invocation selected by the source producer.
+- Unit: one retained Bun provider backend, its exact contained worker session,
+  and a sequence of one-shot branded provider invocations.
 - Highest owner: opaque `BunProviderBackend` by value.
-- Selected inputs: producer-minted `SelectedProviderPackage` and
-  `ProviderInvocation`, each generatively branded to the same selection.
-- Receipt/fault: a closed terminal product carrying a sealed backend
-  continuation plus authored cargo, cancellation/deadline evidence, or a typed
-  mechanical fault. A live-worker continuation is proved separately from a
-  retired-worker continuation.
-- Private phases: package correspondence, worker offer/reservation, request
-  framing, execution, output capture, cancellation, retirement, quarantine,
-  and invocation-ready proof.
-- Too low: wire frames, export strings, artifact bytes, invocation bytes,
-  process ids, job/group handles, pipe parts, callbacks, or receipts supplied by
-  callers.
-- Too high: a generic embedding runtime, generic workflow/session framework,
-  public module/promise handles, or public event-loop operations.
+- Selected inputs: producer-minted, generatively co-branded
+  `SelectedProviderPackage` and `ProviderInvocation`.
+- Pre-reservation owner: private `OfferCustody`.
+- Reserved-but-undispatched owner: private `ReservedCustody`; no request,
+  terminal, output-generation, cancellation, or per-invocation join authority
+  exists yet.
+- Dispatched owner: private `DriveCustody`.
+- Retirement owner: private `RetirementCustody`.
+- Quarantine owner before adoption: private `RetirementQuarantine<Purpose>`.
+- Quarantine owner after adoption: only the durable queue/reaper.
+- Public quarantine view: bounded non-authoritative
+  `QuarantineObservation`; a concrete recoverable terminal may privately seal
+  one opaque affine `QuarantineCompletionClaim<Purpose>`.
+- Too low: wire frames, raw bytes or strings, worker paths, process ids,
+  session epochs, containment handles, pipe parts, quarantine ids, numbers,
+  UUIDs, lookup keys, raw receipts, callbacks, or caller-supplied proofs.
+- Too high: a generic embedding runtime, workflow/session framework, public
+  module or promise handles, or public event-loop operations.
 
 ## Sealed Producer Inputs
 
@@ -61,9 +65,10 @@ ask the caller to unpack them or reconstruct their correspondence.
 
 ## Backend State And Admission
 
-`BunProviderBackend` owns one retained worker session, a restartable continuation
-whose prior worker is proved dead, or its poison/quarantine continuation. Its
-fields and variants are private.
+A public `BunProviderBackend` owns either one live Ready session or one
+no-live-worker Restartable continuation. Active offer, reservation, drive,
+retirement, shutdown, and quarantine are private custody or terminal states,
+not publicly projectable backend variants.
 
 ```rust
 pub struct BunProviderBackend {
@@ -71,13 +76,13 @@ pub struct BunProviderBackend {
 }
 
 enum BackendState {
-    Ready(RetainedCustody),
-    Restartable(RetiredCustody),
-    Poisoned(PoisonedBackend),
-    Quarantined(QuarantinedBackend),
-    ShuttingDown(ShutdownCustody),
+    Ready(ReadyCustody),
+    Restartable(RestartableCustody),
 }
 ```
+
+There is no `BackendState::Quarantined` observation-only husk. A quarantine
+result is a concrete typed fault terminal, not a backend.
 
 Admission consumes the backend, package, and invocation:
 
@@ -94,166 +99,154 @@ impl BunProviderBackend {
 }
 ```
 
-The public algebra is closed. Payload fields remain private.
-
-```rust
-pub enum PreparedAdmission<Brand> {
-    Admitted(PreparedExport<Brand>),
-    Refused(PreparedRefusal<Brand>),
-    Fault(AdmissionFaultTerminal<Brand>),
-}
-```
-
 The retained worker first receives a bounded private admission envelope. The
-offer contains no package bytes, export selector, invocation cargo, or selected
-work authority. It answers with the same session epoch:
+offer contains no selected package, export, invocation, or dispatch authority.
 
-- `Refused`: a sealed `OfferReadyProof` proves that no reservation or
-  invocation authority moved to the worker and that the same live session
-  remains Ready. The refusal product owns that proof, the same backend,
-  package, and invocation and exposes `retry(self, control)` and
-  `shutdown(self, control)` finite operations.
-- `Reserved`: this is the exact admission point. The resulting
-  `PreparedExport` owns the backend continuation, session reservation, package,
-  and invocation. Reservation does not dispatch those selected inputs; the
-  consuming `drive` operation does.
-- transport ambiguity or malformed correspondence: typed admission fault. It
-  is never a refusal. The terminal owns the backend continuation and exposes
-  only lawful recovery or shutdown operations.
+- `Refused`: private `OfferReadyProof` proves that no reservation or selected
+  authority moved and that the same worker and epoch remain Ready. The refusal
+  owns the unchanged branded selection and exposes only retry or shutdown.
+- `Reserved`: private `ReservedCustody` owns the exact reservation, selected
+  inputs, unconsumed dispatch permit, retained-worker continuation, and
+  preallocated queue node. Reservation transmits no selected package or
+  invocation.
+- transport ambiguity or malformed correspondence: a typed admission fault. It
+  is never a refusal and may preserve a live worker only through the exact proof
+  required by its actual private state.
 
-No terminal exposes separate backend/session/request parts. A caller cannot
-mix a backend from one terminal with an invocation from another.
+No terminal exposes separate backend, session, reservation, or selected-input
+parts.
 
 ## Prepared Export
 
-`PreparedExport` is affine and non-serializable. It exists only after a retained
-worker has accepted the offer and reserved the exact invocation. It can be
-driven once, retried only through a valid refusal product, have its reservation
-cancelled before invocation dispatch by consuming it, or be dropped into
-quarantine.
+`PreparedExport` is affine and non-serializable. It seals exactly one
+`ReservedCustody`.
 
 ```rust
 pub struct PreparedExport<Brand> {
-    custody: Option<private::PreparedCustody<Brand>>,
+    custody: private::ReservedCustody<Brand>,
 }
 
 impl<Brand> PreparedExport<Brand> {
-    pub fn drive(self, control: DriveControl) -> MechanicalTerminal<Brand>;
-    pub fn cancel_before_dispatch(self, control: CancelControl)
-        -> MechanicalTerminal<Brand>;
+    pub fn drive(self, control: DriveControl) -> DriveTerminal<Brand>;
+
+    pub fn cancel_before_dispatch(
+        self,
+        control: CancelControl,
+    ) -> PreDispatchCancelTerminal<Brand>;
+
+    pub fn shutdown(self, control: ShutdownControl) -> ShutdownTerminal;
 }
 ```
 
-Worker creation belongs to backend startup, before the bounded offer. After
-reservation, private `DriveCustody` owns all invocation lifecycle facts and the
-sealed retained-worker continuation. A public terminal can be minted only
-after that custody is consumed into the proof required by the transition below
-or transferred intact into `RetirementQuarantine`.
+`cancel_before_dispatch` can return the same worker only after
+`ReservationReleaseProof`. Consuming `drive` consumes the dispatch permit and
+selected inputs into private `DriveCustody`; after that point
+`ReservationReleaseProof` is impossible.
 
-## Closed Readiness And Retirement Proofs
+## Closed Readiness, Release, Retirement, And Quarantine Products
 
-The proof products are private, sealed, affine, and generatively tied to the
-exact backend session and invocation. They have no public constructors, fields,
-parts projections, serde, clone, selector getters, or borrowed authority mints.
+All proofs and authority products are sealed, affine, and private. They have no
+public constructors, fields, parts projections, clone, serde, selector getter,
+or borrowed authority mint.
 
-- `OfferReadyProof<Brand>` proves that a refused offer transferred no selected
-  work or reservation and that the same worker and session epoch remain Ready.
-  It is the only proof from which retry may be offered.
-- `InvocationReadyProof<Brand>` proves that one exact reserved invocation is
-  settled and drained, its reservation is closed, no promise/module/cancel
-  authority remains, its output barrier and ledger are complete, no late output
-  entered idle capture, and the same worker is alive and Ready at the same
-  epoch. It is the only proof that permits reuse of that worker.
-- `RetirementProof` proves that the worker is dead, exact containment is empty,
-  the leader is reaped, worker protocol and diagnostics reached EOF, channels
-  are closed, persistent pumps are at EOF and joined, and no process, pipe,
-  receiver, containment, or join custody remains. It can return only a
-  `Restartable` backend continuation with no live session.
-- `RetirementQuarantine` owns unresolved retirement custody intact. It proves
-  neither Ready nor retired and permits no reuse or retry.
+- `OfferReadyProof<Brand>` proves no reservation was created, no selected work
+  moved, and the same worker and epoch remain Ready. It alone permits unchanged
+  refusal retry.
+- `ReservationReleaseProof<Brand>` proves that one exact reservation existed
+  and is now closed and unreplayable before dispatch; no selected package or
+  invocation was enqueued or transmitted; no invocation request, terminal,
+  output generation, cancellation, or per-invocation task exists; and the same
+  worker and epoch remain Ready. It alone permits reuse after pre-dispatch
+  release.
+- `InvocationReadyProof<Brand>` proves that one dispatched invocation settled
+  and drained, its reservation and output ledger are closed, no pending
+  invocation authority or late output remains, and the same worker and epoch
+  remain Ready.
+- `RetirementProof` proves exact worker death, containment emptiness, leader
+  reap, protocol and diagnostic EOF, channel closure, final pump barriers and
+  joins, and absence of all child, containment, pipe, receiver, channel, pump,
+  and join custody.
+- `RetirementQuarantine<Purpose>` privately owns all unresolved retirement
+  custody until `DurableReaper::adopt` consumes it by value exactly once.
+  Adoption publishes its preallocated node before any public fault terminal
+  exists.
+- `QuarantineObservation` is bounded public data only. It has private fields,
+  no clone, serde, or parts projection, and carries no id, epoch, process id,
+  path, number, UUID, key, receipt, handle, or completion authority.
+- `QuarantineCompletionClaim<Purpose>` is private, generative, affine,
+  purpose-typed, non-cloneable, and usable only through finite consuming
+  operations of its concrete terminal.
 
-An `InvocationReadyProof` and a `RetirementProof` are mutually exclusive for
-one session transition: the former proves the worker remains alive; the latter
-proves it is dead. Neither can be reconstructed from protocol frames, exit
-status, ids, booleans, or observation data.
-
-The transition evidence is frozen as follows:
-
-| Transition | Required sealed evidence | Backend continuation |
+| Transition | Required sealed evidence or movement | Continuation |
 | --- | --- | --- |
-| Retry a refused offer | `OfferReadyProof` | Same live Ready worker, same epoch, unchanged package/invocation |
-| Fulfilled cargo | `InvocationReadyProof` | Same live Ready worker and epoch |
-| Rejected cargo | `InvocationReadyProof` | Same live Ready worker and epoch |
-| Cancel reserved work before dispatch | `InvocationReadyProof` | Same live Ready worker and epoch |
-| Cooperative in-drive cancellation | `InvocationReadyProof` | Same live Ready worker and epoch |
-| Forced cancellation | `RetirementProof` | `Restartable`, with no live worker |
-| Deadline | `RetirementProof` | `Restartable`, with no live worker |
-| Supervisor unwind | `RetirementProof` or `RetirementQuarantine` | `Restartable` after proof; otherwise quarantined |
-| Active-worker shutdown | `RetirementProof` or `RetirementQuarantine` | No post-shutdown backend after proof; otherwise quarantined |
-| Shutdown of `Restartable` | Prior `RetirementProof` already sealed in the continuation | No post-shutdown backend |
-| Drop of live custody | No proof may be fabricated by Drop; durable reaper must later produce `RetirementProof` before deletion | No public continuation; intact custody remains queued until proof |
+| Retry refused offer | `OfferReadyProof` | Same Ready worker and epoch; unchanged branded inputs |
+| Release reservation before dispatch | `ReservationReleaseProof` | Same Ready worker and epoch |
+| Fulfilled or rejected cargo | `InvocationReadyProof` | Same Ready worker and epoch |
+| Cooperative in-drive cancellation | `InvocationReadyProof` | Same Ready worker and epoch |
+| Forced cancellation or clean deadline | `RetirementProof` | One Restartable continuation; no live worker |
+| Supervisor unwind or retired mechanical fault | `RetirementProof` | One Restartable continuation; no live worker |
+| Recoverable retirement unresolved | `RetirementQuarantine<RecoverBackend>` consumed by `DurableReaper::adopt` | Concrete quarantine fault with observation and one private recovery claim |
+| Active-worker shutdown complete | `RetirementProof` | No backend |
+| Active-worker shutdown unresolved | `RetirementQuarantine<CompleteShutdown>` consumed by `DurableReaper::adopt` | Shutdown quarantine fault with one private shutdown-only claim |
+| Shutdown of Restartable | Prior `RetirementProof` sealed in continuation | No backend and no spawn |
+| Drop of live custody | Silent adoption of `RetirementQuarantine<DisposeOnly>` | No public terminal, observation, claim, or continuation |
 
-Failure to prove Ready forces the typed-fault retirement path. Failure to prove
-retirement transfers intact custody to `RetirementQuarantine` and returns only
-the typed quarantine fault. Neither failure may substitute cargo, cancellation,
-deadline, retry, or shutdown success from another row of this table.
+Failure to prove Ready forces retirement. Failure to prove retirement forces
+adoption. An adopted quarantine fault dominates every provisional cargo,
+cancellation, deadline, unwind continuation, or shutdown success.
 
 ## Closed Terminal Algebra
 
-```rust
-pub enum MechanicalTerminal<Brand> {
-    Cargo(CargoTerminal<Brand>),
-    CancelObserved(CancelTerminal<Brand>),
-    DeadlineExpired(DeadlineTerminal<Brand>),
-    Fault(FaultTerminal<Brand>),
-}
-```
+Each non-quarantine terminal privately owns the exact continuation proved for
+its transition. A quarantine terminal owns no unresolved OS custody and is not
+a backend husk. It owns bounded observation and, where completion recovery is
+meaningful, exactly one private completion claim.
 
-Each terminal privately owns exactly one backend continuation. It offers finite
-consuming operations appropriate to its state:
+A concrete recoverable quarantine terminal exposes only:
 
-- fulfilled or rejected cargo: privately consume `InvocationReadyProof`,
-  observe final authored cargo, then reuse the same live Ready worker for the
-  next branded admission or consume it into shutdown;
-- cooperative cancellation, including reservation cancellation before
-  dispatch: privately consume `InvocationReadyProof`, then reuse the same live
-  Ready worker or consume it into shutdown;
-- forced cancellation or deadline: privately consume `RetirementProof`, then
-  continue only with a `Restartable` backend that owns no live worker, or
-  consume that continuation into shutdown;
-- refusal: retry the same package/invocation/backend or shut it down;
-- poisoned/quarantined fault: query bounded final diagnostics and invoke the
-  finite recovery/shutdown operation allowed by that state.
+- `observation(&self) -> &QuarantineObservation`;
+- nonblocking `poll(self)`, returning either the same terminal with the same
+  moved claim or a completed terminal sealing exactly one
+  `RestartableCustody`; and
+- consuming `shutdown(self, control)`.
 
-There is no public `into_parts`, backend getter, session getter, raw handle,
-generic callback, or caller-supplied proof. Observation methods cannot feed
-authority minting.
+A shutdown-origin quarantine terminal exposes only observation and consuming
+poll. It has no restart or backend-recovery operation.
+
+A completed recoverable terminal exposes only observation, consuming restart,
+and consuming shutdown. It has no `into_parts`, raw Restartable getter, backend
+getter, session getter, generic callback, or selector operation.
+
+No operation takes `QuarantineObservation`, an id, path, number, UUID, process
+id, epoch, lookup key, raw receipt, or caller-supplied proof as authority.
 
 ## Provisional Selection And Final Proof
 
-Candidate cargo, cancellation, deadline, worker fault, protocol fault, and
-supervisor unwind are private provisional facts. None is public evidence.
+Cargo, rejection, cancellation, deadline, worker fault, protocol fault,
+shutdown acknowledgement, and supervisor unwind are private provisional facts.
 
 Finalization rules:
 
-1. Fulfilled or rejected cargo requires a complete nonempty authored frame and
-   `InvocationReadyProof`. Worker exit or retirement can never prove cargo.
-2. Cooperative cancellation requires an exact cancellation/reservation-release
-   acknowledgement followed by `InvocationReadyProof`.
-3. Forced cancellation or deadline requires `RetirementProof`; it returns a
-   `Restartable` continuation and never claims that the retired session is
-   Ready.
-4. A mechanical fault may preserve the same worker only when the invocation
-   state still reaches `InvocationReadyProof`. Otherwise it forces retirement;
-   its fault terminal is minted only after `RetirementProof`, or it returns a
-   quarantine fault holding `RetirementQuarantine`.
-5. Supervisor unwind always forces retirement. It produces a typed unwind fault
-   after `RetirementProof`, or a typed quarantine fault; it never produces
+1. Fulfilled or rejected cargo requires one complete authored terminal and
    `InvocationReadyProof`.
-6. Foreground retirement timeout transfers intact custody to quarantine. It
-   never mints cargo, cancellation, deadline, Ready, or retired evidence.
-7. A retirement failure that later recovers remains observable as a typed
-   retirement fault; success is not retroactively fabricated.
+2. Pre-dispatch release requires an exact release acknowledgement and
+   `ReservationReleaseProof`. It never produces `InvocationReadyProof`.
+3. Cooperative in-drive cancellation requires an exact acknowledgement of the
+   dispatched invocation and `InvocationReadyProof`.
+4. Forced cancellation and a clean deadline require `RetirementProof`.
+5. A mechanical fault may preserve the same worker only through
+   `InvocationReadyProof`; otherwise it forces retirement.
+6. Supervisor unwind always forces retirement and can never produce a
+   Ready-family proof.
+7. A retirement fault followed by eventual foreground `RetirementProof`
+   remains a typed retired fault; it does not retroactively become cargo,
+   cancellation, deadline, or clean shutdown.
+8. Foreground failure to obtain `RetirementProof` transfers all unresolved
+   custody into `RetirementQuarantine<Purpose>`, which `DurableReaper::adopt`
+   consumes before the concrete public quarantine fault is constructed.
+9. Reaper completion cannot retroactively fabricate the displaced provisional
+   terminal. Recoverable completion yields only one Restartable continuation;
+   shutdown completion yields only fault-complete shutdown.
 
 ## Authored Settlement And Mechanical Faults
 
@@ -293,44 +286,56 @@ empty cargo, or a placeholder rejection string.
 ## Cancellation And Deadline
 
 Deadline construction is fallible. `Instant::checked_add` failure is a typed
-construction fault and never converts to unbounded execution.
+construction fault and never becomes unbounded execution.
 
-Cancellation records its monotonic observation. Cancellation and deadline
-races have a documented deterministic tie rule. A cooperative cancellation is
-settled only by `InvocationReadyProof`; forced cancellation and deadline are
-settled only by `RetirementProof`. A wait, containment, EOF, channel, join, or
-quarantine failure returns `Fault`, with the original trigger recorded.
+Pre-dispatch release is settled only by `ReservationReleaseProof`.
+Cooperative in-drive cancellation is settled only by `InvocationReadyProof`.
+Failed or ambiguous cooperative cancellation, forced cancellation, and every
+deadline force retirement. When cancellation and deadline are observed at the
+same private poll point, deadline wins. Any finalization or retirement fault
+still dominates the selected trigger.
 
 ## Retained Reuse And Shutdown
 
-A retained worker returns to Ready only through `InvocationReadyProof`, which
-proves:
+Same-worker reuse after a reservation that never dispatched requires
+`ReservationReleaseProof`. Same-worker reuse after a dispatched invocation
+requires `InvocationReadyProof`. Late output, correspondence ambiguity,
+incomplete cancellation, or incomplete release forces retirement or adoption.
 
-- the admitted invocation is settled;
-- no pending promise/module execution authority remains;
-- the invocation output barrier is complete;
-- no late output entered idle capture;
-- the protocol sequence and session epoch match; and
-- no cancellation or teardown work remains.
+Shutdown consumes its owner:
 
-Late output, correspondence ambiguity, or incomplete cancellation poisons the
-session and forces retirement or quarantine. It is not reused.
+- from a live-worker state, clean completion requires `RetirementProof`;
+- from Restartable, shutdown consumes the prior no-worker continuation without
+  spawning;
+- from a pending recoverable quarantine fault, shutdown atomically converts the
+  sole recovery claim into a shutdown-only claim;
+- from a completed recoverable quarantine fault, shutdown atomically consumes
+  the queue-held `RestartableCustody` without spawning;
+- from shutdown-origin quarantine, polling can yield only pending or
+  `CompleteWithFault`.
 
-Shutdown consumes `BunProviderBackend`. From `Ready`, `Poisoned`, or an active
-invocation continuation, success requires `RetirementProof`. From
-`Restartable`, the prior `RetirementProof` already seals the absence of a live
-worker, so shutdown consumes that continuation without starting another one.
-Failure returns a typed terminal whose `RetirementQuarantine` owns the exact
-remaining custody. There is no post-shutdown backend value and shutdown never
-returns `InvocationReadyProof`.
+No shutdown path returns `ReservationReleaseProof`, `InvocationReadyProof`, a
+backend husk, or a recovered backend. A shutdown-origin quarantine can never
+recover a backend.
 
 ## Drop
 
-Drop never waits, joins, blocks, calls user code, fabricates a proof or terminal,
-ignores a shutdown error, or aborts the host. Drop takes any still-owned custody
-once and submits it to the durable quarantine queue. Queue/reaper failure
-retains the item for retry. The reaper may delete active-worker custody only
-after obtaining `RetirementProof`; Drop itself produces no public continuation.
+Drop never allocates, waits, joins, blocks, calls user code, constructs a public
+terminal or observation, fabricates a proof, aborts, or panics.
+
+Drop of an owner that still contains live or unresolved custody moves all of
+that custody into its preallocated node and silently calls
+`DurableReaper::adopt` with disposal purpose. Publication precedes best-effort
+wake or spawn and creates no completion claim.
+
+Drop of a quarantine terminal does not resubmit custody because the queue
+already owns it. It abandons only the terminal's private claim. If recovery is
+abandoned before completion, the reaper disposes the continuation after
+`RetirementProof`. If recovery is abandoned after completion, the queue
+consumes the stored `RestartableCustody` without spawning.
+
+The reaper may delete or transform active-worker custody only after exact
+`RetirementProof`.
 
 ## Negative Construction Proof
 
@@ -339,8 +344,14 @@ External compile-fail tests must prove that sibling crates cannot:
 - construct or clone package, invocation, backend, prepared export, proof, or
   terminal values;
 - obtain raw package bytes, export names, worker paths, ids, session epochs,
-  pipe/process handles, or wire frames;
+  pipe/process handles, wire frames, or a quarantine identity;
+- name, construct, clone, serialize, or project
+  `QuarantineCompletionClaim<Purpose>`, `RetirementQuarantine<Purpose>`, a
+  queue entry, or a purpose marker;
+- use `QuarantineObservation` to select, poll, claim, restart, shut down, or
+  otherwise feed authority;
 - call an in-process Bun drive operation;
 - deserialize/replay selected work;
-- call a borrowed authority mint; or
-- select a callback or return a caller-chosen receipt.
+- call a borrowed authority mint;
+- select a callback or return a caller-chosen receipt; or
+- poll, shut down, or restart a terminal after its consuming operation.

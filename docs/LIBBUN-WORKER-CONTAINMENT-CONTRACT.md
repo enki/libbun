@@ -6,8 +6,8 @@ Date: 2026-07-23
 
 ## Owner And Custody
 
-Persistent worker custody and one admitted invocation are distinct private
-ownership layers:
+Persistent worker, undispatched reservation, dispatched invocation, retirement,
+and quarantine are distinct private ownership layers.
 
 ```rust
 struct RetainedWorkerCustody {
@@ -17,45 +17,55 @@ struct RetainedWorkerCustody {
     diagnostics: PersistentDiagnostics,
     output: PersistentOutputPumps,
     supervisor: WorkerSupervisor,
+    drop_node: PreallocatedQueueNode,
 }
 
-struct DriveCustody {
+struct ReservedCustody<Brand> {
     backend: BackendContinuation,
     worker: RetainedWorkerCustody,
-    reservation: InvocationReservation,
+    reservation: InvocationReservation<Brand>,
+    selected: SelectedPair<Brand>,
+    dispatch_permit: DispatchPermit<Brand>,
+}
+
+struct DriveCustody<Brand> {
+    backend: BackendContinuation,
+    worker: RetainedWorkerCustody,
+    reservation: InvocationReservation<Brand>,
     request: IoTask<RequestCompletion>,
     terminal: IoTask<TerminalCompletion>,
     invocation_output: InvocationOutputLedger,
-    provisional: Option<ProvisionalTerminal>,
+    provisional: Option<ProvisionalTerminal<Brand>>,
     cancel: Option<CancelObservation>,
+    per_invocation_joins: InvocationJoins,
+}
+
+struct RetirementCustody {
+    backend: BackendContinuation,
+    worker: RetainedWorkerCustody,
+    outstanding_invocation: Option<ErasedInvocationCustody>,
+    trigger: RetirementTrigger,
+    faults: RetirementFaultJournal,
 }
 ```
 
-Every OS handle, pipe, receiver, and `JoinHandle` remains in these ownership
-layers until the individual obligation is successfully discharged. A fault
-never triggers an unconditional `take` or drop of another unfinished handle.
+Request, terminal, output-generation, cancellation, and per-invocation join
+authority are created only when dispatch consumes the dispatch permit. They do
+not exist in `ReservedCustody`.
 
-The only consuming finalization results are:
+Every OS handle, pipe, receiver, channel, pump, task, and `JoinHandle` remains
+owned until its exact obligation is successfully discharged. A fault never
+causes an unconditional `take`, detach, or drop of another unfinished
+obligation.
 
-```rust
-enum DriveDisposition<Brand> {
-    Ready(InvocationReadyProof<Brand>),
-    Retired(RetirementProof),
-    Quarantined(RetirementQuarantine),
-}
-```
+Reservation release may produce only `ReservationReleaseProof`,
+`RetirementProof`, or `RetirementQuarantine<Purpose>`. Dispatched finalization
+may produce only `InvocationReadyProof`, `RetirementProof`, or
+`RetirementQuarantine<Purpose>`.
 
-`InvocationReadyProof` consumes the exact invocation custody and returns its
-same still-live `RetainedWorkerCustody` sealed inside a Ready backend
-continuation. `RetirementProof` consumes the worker custody only after death
-and complete teardown and returns a `Restartable` continuation with no worker.
-`RetirementQuarantine` contains the entire remaining active custody—whether
-`DriveCustody`, `RetainedCustody`, abandoned prepared custody, or shutdown
-custody—plus its typed faults, trigger, generation, and quarantine identity.
-
-No public terminal chooses among these outcomes. Private finalization selects
-the only outcome proved by current custody. The proof values have no public
-fields, parts, clone, serde, or raw observation path.
+`RetirementQuarantine<Purpose>` privately owns all unresolved custody until
+`DurableReaper::adopt` consumes it exactly once. A public quarantine fault never
+owns unresolved custody.
 
 ## Exact Admission
 
@@ -69,16 +79,17 @@ true:
 - completion channels and join handles are installed; and
 - the worker/bootstrap has acknowledged the containment generation.
 
-Admission failure before this point returns the same backend/package/invocation
-through a sealed refusal or fault terminal. A retryable refusal additionally
-consumes `OfferReadyProof`, which proves that no reservation was created and
-the same worker/session epoch remains Ready. It cannot lose selected work.
+Admission failure before reservation returns a sealed refusal or fault
+terminal. A retryable refusal consumes `OfferReadyProof`, proving that no
+reservation was created and the same worker and epoch remain Ready.
 
 The bounded offer carries only a private admission envelope. Reservation
-allocates the exact worker/session slot but does not transmit the selected
-package or invocation. Only consuming `PreparedExport::drive` dispatches those
-sealed inputs. `cancel_before_dispatch` closes the unused reservation and must
-obtain `InvocationReadyProof` before returning the same worker to Ready.
+allocates the exact worker/session slot but transmits no selected package or
+invocation. `cancel_before_dispatch` closes the exact unused reservation and
+must obtain `ReservationReleaseProof` before returning the same worker to
+Ready. It never obtains or substitutes `InvocationReadyProof`. Consuming
+`PreparedExport::drive` dispatches the selected inputs and permanently disables
+`ReservationReleaseProof`.
 
 ## Platform Containment
 
@@ -119,31 +130,40 @@ forbidden.
 Other platforms are unsupported until they provide an equally exact primitive
 and hostile proof.
 
-## Bounded Invocation Finalization And Retirement
+## Bounded Release, Invocation Finalization, And Retirement
 
-Invocation finalization and worker retirement have separate fixed budgets,
-both independent of the drive deadline. All operations inside them are
-nonblocking or deadline-bounded.
+Reservation release, dispatched-invocation finalization, and worker retirement
+have separate fixed budgets. All operations are nonblocking or
+deadline-bounded.
 
-Invocation finalization may produce `InvocationReadyProof` only after all of:
+Reservation release may produce `ReservationReleaseProof` only after all of:
 
-- the exact reservation is closed and cannot be replayed;
+- the exact reservation is closed and unreplayable;
+- the dispatch permit remained unconsumed;
+- no selected-package or invocation byte was enqueued or transmitted;
+- no invocation request, terminal, promise, module, cancellation, output
+  generation, or per-invocation join authority exists;
+- capture never left IdleCapture and idle capture is empty;
+- no release or reservation-teardown work remains; and
+- the same worker is alive, reachable, contained, and Ready at the same epoch.
+
+Dispatched invocation finalization may produce `InvocationReadyProof` only
+after all of:
+
+- the exact reservation is closed and unreplayable;
 - request delivery and the invocation terminal sequence are complete;
-- fulfilled/rejected cargo is one complete nonempty authored frame, or the
-  exact cooperative cancellation is acknowledged;
-- the worker reports no pending promise, module, or invocation authority;
-- the invocation output flush and sequence barrier are complete;
-- the sealed output ledger is complete and no output entered IdleCapture after
-  the barrier;
+- fulfilled/rejected cargo is one complete nonempty authored frame, or exact
+  cooperative cancellation is acknowledged;
+- no pending promise, module, or invocation authority remains;
+- output flush and the sequence barrier are complete;
+- the output ledger is sealed and no output entered IdleCapture after the
+  barrier;
 - no cancellation, interrupt, or invocation teardown work remains;
-- all per-invocation tasks are complete and joined; and
-- the same worker is alive, reachable, contained, and reports the same session
-  epoch in Ready state.
+- every per-invocation task is complete and joined; and
+- the same worker is alive, reachable, contained, and Ready at the same epoch.
 
-Persistent worker protocol, diagnostic, output-pump, child, and containment
-custody remain live inside the returned Ready backend. They are not closed or
-joined to prove invocation readiness. Failure or ambiguity in any readiness
-condition forces worker retirement; it cannot be converted into Ready.
+Failure or ambiguity in either proof's predicates forces retirement. Neither
+proof can substitute for the other.
 
 Retirement uses:
 
@@ -170,40 +190,76 @@ Retirement quiescence requires all of:
 - all persistent result channels closed;
 - all invocation, supervisor, protocol, diagnostic, and pump threads joined;
   and
-- no remaining child, containment, pipe, receiver, or join custody.
+- no remaining child, containment, pipe, receiver, channel, pump, task, or join
+  custody.
 
-If the foreground budget expires, the loop transfers intact custody to
-quarantine. It does not block longer, detach a thread, abort, or mint the
-provisional terminal, `InvocationReadyProof`, or `RetirementProof`.
+If the foreground retirement budget expires or an obligation remains
+unresolved, the foreground moves all remaining custody into private
+`RetirementQuarantine<Purpose>`. It does not mint a provisional terminal,
+Ready-family proof, or `RetirementProof`.
 
-## Durable Reaper
+## Durable Reaper And Completion Claims
 
-The process-wide reaper queue is initialized before any Drop submission can
-lose work. Queue custody is independent of whether a reaper thread is currently
-running.
+The process-wide durable queue is initialized before any live custody can reach
+a Drop or quarantine path. Every custody owner carries a preallocated queue
+node. Queue custody is independent of reaper-thread liveness.
+
+`DurableReaper::adopt`:
+
+1. consumes `RetirementQuarantine<Purpose>` by value exactly once;
+2. installs the intact item in its preallocated node;
+3. publishes the node into durable queue ownership;
+4. only after publication produces bounded observation and at most one private
+   claim for an observed recovery or shutdown path;
+5. produces no observation or claim for silent Drop adoption; and
+6. performs best-effort wake or spawn only after publication.
+
+There is no public or public-view quarantine id, UUID, number, path, process id,
+epoch, index, node address, lookup key, registry, raw receipt, or selector.
+Internal queue identity remains private and unobservable.
+
+A private `QuarantineCompletionClaim<Purpose>` contains one generative entry
+capability. It is affine, purpose-typed, non-cloneable, non-serializable, and
+has no getter or parts projection. A concrete public terminal may privately
+contain one such claim but publicly exposes only `QuarantineObservation`.
+That observation has private fields, no clone, serde, or parts projection, and
+cannot be supplied to any queue, poll, claim, restart, or shutdown operation.
+
+The queue entry states are:
 
 ```rust
-enum QuarantineItem {
-    Drive(DriveCustody),
-    Retained(RetainedCustody),
-    AbandonedPrepared(AbandonedPreparedCustody),
-    Shutdown(ShutdownCustody),
+enum QueueEntryState {
+    Pending(QueueOwnedItem, ClaimMode),
+    Reaping(ReaperOwnedLease, ClaimMode),
+    CompletedRecoverable(RestartableCustody, CompletionJournal),
+    CompletedShutdown(CompletionJournal),
+    Closed(CompletionJournal),
 }
 ```
 
-Submission consumes the item and returns a sealed `QuarantineId`. Failure to
-spawn or wake the reaper leaves the item in the queue. Every later public owner
-operation retries reaper activation.
+Pending `poll(self)` moves the same claim into the returned pending terminal.
+After exact `RetirementProof`, a live recovery claim permits one atomic claim of
+one `RestartableCustody`. A shutdown claim can produce only fault-complete
+shutdown.
+
+Dropping a recovery claim before completion marks recovery abandoned; after
+`RetirementProof` the queue disposes without spawning. Dropping after completion
+causes the queue to consume the stored `RestartableCustody`. Converting a
+recovery claim to shutdown before completion changes its purpose atomically;
+converting after completion atomically consumes the stored
+`RestartableCustody`. No race can produce both a recovered terminal and a
+queue-owned continuation.
 
 The reaper:
 
-- takes one item without holding the queue lock while polling it;
-- keeps ownership outside `catch_unwind` and requeues after a panic;
-- uses bounded attempts and backoff;
-- repeats containment termination, reap, EOF, channel, and join polling;
-- records bounded terminal diagnostics by quarantine identity; and
-- deletes active-worker custody only after producing `RetirementProof`, and
-  deletes already-retired custody only after verifying its sealed proof.
+- owns each in-flight item outside `catch_unwind`;
+- requeues the exact item and unprocessed remainder after panic;
+- retains items after wake, spawn, retry, or bounded-attempt failure;
+- repeats containment termination, reap, EOF, channel, pipe, pump, and join
+  polling;
+- records only bounded private diagnostics; and
+- deletes or transforms active-worker custody only after exact
+  `RetirementProof`.
 
 A quarantine terminal is a typed mechanical fault. It is not cancellation,
 deadline, cargo, successful shutdown, or backend Ready proof.
@@ -241,24 +297,31 @@ IdleCapture
 Output appearing in IdleCapture poisons the retained session before reuse.
 Overflow is a typed fault and never stops the drain.
 
-## Panic, Cancellation, And Drop
+## Panic, Cancellation, Fault Dominance, And Drop
 
-Supervisor unwind is caught only around operations whose custody remains owned
-outside the unwind closure. It forces retirement. The result is a typed unwind
-fault after `RetirementProof`, or quarantine plus a typed fault; unwind never
-produces `InvocationReadyProof`.
+Supervisor unwind is caught only while custody remains owned outside the unwind
+closure. It forces retirement and dominates every provisional cargo,
+rejection, release, cancellation, deadline, Ready, or shutdown-success
+candidate.
 
-Cancellation and deadline are private triggers. They request cooperative
-interrupt first. Exact cooperative acknowledgement may produce cancellation
-only after `InvocationReadyProof`. Failed, ambiguous, or forced cancellation
-and every deadline force exact containment termination and become public only
-after `RetirementProof`. The former returns the same live Ready worker; the
-latter return only a `Restartable` continuation with no live worker.
+Pre-dispatch release becomes public only after `ReservationReleaseProof`.
+Cooperative in-drive cancellation becomes public only after
+`InvocationReadyProof`. Failed or ambiguous cooperative cancellation, forced
+cancellation, and every deadline force retirement. Deadline wins a cancellation
+tie observed at the same private poll point.
 
-Drop performs only an infallible ownership transfer into the already durable
-queue. It does not wait, join, close a live containment prematurely, call user
-code, call `process::abort`, or fabricate either proof. The reaper retires any
-live worker before deleting its custody.
+A finalization or retirement fault dominates the provisional trigger. If
+foreground retirement later obtains `RetirementProof`, the result remains a
+typed retired fault. If foreground retirement cannot obtain proof,
+`DurableReaper::adopt` publishes the item and the concrete quarantine fault
+dominates cargo, rejection, cancellation, deadline, unwind continuation, and
+shutdown success. Reaper completion never retroactively fabricates the
+displaced terminal.
+
+Drop performs only silent adoption using the custody's preallocated node.
+Publication allocates nothing, waits for nothing, joins nothing, calls no user
+code, fabricates no proof or terminal, and precedes best-effort wake or spawn.
+Drop of an already-adopted terminal abandons only its private completion claim.
 
 ## Hostile Proof
 
@@ -277,18 +340,25 @@ Required tests include:
 - cargo candidate followed by hang, deadline, descendant, or retirement fault;
 - cancellation/deadline ties and later retirement fault dominance;
 - refused offer retry with `OfferReadyProof` and no reservation transfer;
-- fulfilled and rejected cargo followed by `InvocationReadyProof`, same-epoch
-  worker reuse, and a second invocation;
-- pre-dispatch reservation cancellation and cooperative in-drive cancellation
-  followed by `InvocationReadyProof` and same-worker reuse;
+- pre-dispatch release followed by `ReservationReleaseProof`, same-worker
+  same-epoch reuse, and proof that no selected or request byte was dispatched;
+- proof that `ReservationReleaseProof` cannot be minted after dispatch;
+- fulfilled/rejected cargo and cooperative in-drive cancellation followed by
+  `InvocationReadyProof`, same-worker same-epoch reuse, and a second invocation;
+- proof that `InvocationReadyProof` cannot be minted without dispatch;
 - forced cancellation and deadline followed by `RetirementProof`, no surviving
-  worker, and replacement-worker restart at a new epoch;
-- proof that worker exit can never mint fulfilled/rejected cargo or a Ready
-  continuation;
-- owner unwind after admission;
-- Drop of prepared, admitted, Ready, Poisoned, and ShuttingDown owners;
-- reaper thread spawn, wake, panic, retry, and process teardown behavior;
-- proof that an invocation-ready terminal retains exactly the same contained
-  worker and no per-invocation authority or late output; and
-- proof that no live descendant, zombie, pipe, or detached thread remains after
-  `RetirementProof` or successful shutdown.
+  worker, and restart at a new epoch;
+- adoption publication before public fault construction;
+- public quarantine faults containing observation and at most one private claim
+  but no OS custody or public identity;
+- pending poll preserving exactly one claim;
+- completion-versus-claim atomic race and single recovery;
+- claim Drop before and after completion;
+- shutdown conversion before and after recoverable completion;
+- shutdown-origin quarantine with no backend recovery;
+- silent Drop adoption with no observation or claim;
+- reaper spawn, wake, retry, and panic failure with exact item retention;
+- abandonment and completed-custody disposal without spawning;
+- proof that worker exit can never mint cargo or a Ready-family proof; and
+- proof that no live descendant, zombie, pipe, receiver, channel, pump, or
+  detached thread remains after `RetirementProof` or successful shutdown.

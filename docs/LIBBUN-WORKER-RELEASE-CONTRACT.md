@@ -83,11 +83,14 @@ Default-parallel CI must run:
 4. locked release Bun link preparation;
 5. actual linked worker build;
 6. nonzero linked runtime/native engine tests;
-7. retained-backend `OfferReadyProof` refusal/retry and
+7. retained-backend `OfferReadyProof` refusal/retry,
+   `ReservationReleaseProof` pre-dispatch release, and
    `InvocationReadyProof` fulfilled/rejected/cooperative-cancel same-worker
-   reuse tests;
+   same-epoch reuse tests;
 8. forced-cancel/deadline/unwind/shutdown `RetirementProof`, replacement-epoch,
-   fault, Drop, and quarantine tests;
+   fault-dominance, adoption-before-terminal, single-claim poll/completion race,
+   claim-abandonment, shutdown-conversion, silent Drop, queue-disposal, and
+   reaper spawn/wake/panic/retry tests;
 9. target-specific containment hostile tests;
 10. output saturation, overflow, barrier, EOF, channel, wait, and join tests;
 11. worker package creation;
@@ -138,6 +141,20 @@ process::abort
 mechanical JavaScriptRejection
 cancel_before_spawn
 fulfilled/rejected cargo minted from RetirementProof
+pre-dispatch cancellation minted from InvocationReadyProof
+ReservationReleaseProof minted after dispatch
+public RetirementQuarantine
+public QuarantineReceipt or raw completion receipt
+QuarantineId
+QuarantineIdView
+quarantine_reference
+quarantine id/path/number/UUID/PID/epoch getter
+quarantine registry/lookup/selector operation
+BackendState::Quarantined
+observation accepted as poll/claim/restart/shutdown authority
+public completion claim or completion-claim parts
+quarantine terminal Clone/serde/into_parts
+shutdown-origin quarantine exposing restart/backend recovery
 ```
 
 Binary symbol scans must show no Rust drive entry point, plugin ABI, shared
@@ -147,15 +164,35 @@ library export surface, or raw protocol API.
 
 Release is permitted only when:
 
-- the retained backend and one-shot worker lifecycle contracts pass current
-  hostile evidence;
+- the retained backend and worker lifecycle contracts pass current hostile
+  evidence;
+- every pre-dispatch release terminal is post-`ReservationReleaseProof`;
 - every fulfilled/rejected cargo or same-worker cooperative-cancel terminal is
   post-`InvocationReadyProof`;
 - every forced-cancel, deadline, unwind, active-worker shutdown, or retired
-  fault terminal is post-`RetirementProof`, or is a typed quarantine fault that
-  retains `RetirementQuarantine`;
-- no `RetirementProof` path claims a live Ready worker, and no
-  `InvocationReadyProof` path claims worker death or containment emptiness;
+  fault terminal is post-`RetirementProof`, or is a concrete typed quarantine
+  fault constructed only after `DurableReaper::adopt` consumed the private
+  `RetirementQuarantine<Purpose>`;
+- every public quarantine view is limited to bounded
+  `QuarantineObservation`;
+- every recoverable quarantine terminal privately contains at most one opaque
+  affine purpose-typed `QuarantineCompletionClaim<Purpose>`;
+- no public quarantine id, id view, number, UUID, path, PID, epoch, lookup key,
+  registry, raw receipt, selector, parts projection, clone, serde, callback, or
+  caller-supplied proof exists;
+- no `BackendState::Quarantined` husk exists;
+- pending poll moves the same sole claim, completed poll yields at most one
+  `RestartableCustody`, and every abandonment or shutdown conversion disposes
+  any eventual or completed continuation without spawning;
+- shutdown-origin quarantine can never recover a backend;
+- Drop adoption produces no terminal, observation, or completion claim;
+- reaper spawn, wake, panic, retry, and terminal/claim Drop cannot lose or
+  return queue custody;
+- active-worker custody is deleted or transformed only after exact
+  `RetirementProof`;
+- no `RetirementProof` path claims a live Ready worker, no
+  `InvocationReadyProof` path claims worker death, and no
+  `ReservationReleaseProof` path claims dispatched work;
 - the runtime binary is actually linked and executed;
 - the extracted package is executed;
 - locks and package metadata are stable;
@@ -163,6 +200,6 @@ Release is permitted only when:
 - stale and privacy searches are clean; and
 - an independent full-SCC reviewer approves the current tree.
 
-Evidence from `f1c450` is rejected because its CI checked an unlinked worker,
-its native target had no behavioral tests, its lock was stale, and its release
-factory was absent.
+Evidence from `d5d007e` is rejected because its source still exposes the raw
+installer, uses fresh-worker semantics, checks an unlinked worker, lacks the
+retained hostile gates above, and is not release-ready.
