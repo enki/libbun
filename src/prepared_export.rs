@@ -389,15 +389,30 @@ struct DriveGuard {
     writer: Option<JoinHandle<()>>,
     reader: Option<JoinHandle<()>>,
     stderr: Option<JoinHandle<()>>,
-    writer_result: mpsc::Receiver<Result<(), FaultSeed>>,
-    reader_result: mpsc::Receiver<Result<Vec<u8>, FaultSeed>>,
-    stderr_result: mpsc::Receiver<Result<(), FaultSeed>>,
+    writer_result: Option<mpsc::Receiver<Result<(), FaultSeed>>>,
+    reader_result: Option<mpsc::Receiver<Result<Vec<u8>, FaultSeed>>>,
+    stderr_result: Option<mpsc::Receiver<Result<(), FaultSeed>>>,
     retired: bool,
 }
 
 impl DriveGuard {
-    fn admit(mut child: Child, request: Vec<u8>) -> Result<Self, MechanicalFault> {
+    fn admit(child: Child, request: Vec<u8>) -> Result<Self, MechanicalFault> {
         let process_boundary = ProcessBoundary::for_child(&child);
+        let mut guard = Self {
+            child: Some(child),
+            process_boundary,
+            writer: None,
+            reader: None,
+            stderr: None,
+            writer_result: None,
+            reader_result: None,
+            stderr_result: None,
+            retired: false,
+        };
+        let child = guard
+            .child
+            .as_mut()
+            .expect("new admission guard owns child");
         let mut stdin = child.stdin.take().ok_or_else(|| {
             MechanicalFault::new(
                 MechanicalFaultKind::Pipe,
@@ -421,11 +436,19 @@ impl DriveGuard {
         let writer = thread::Builder::new()
             .name("libbun-prepared-export-writer".to_string())
             .spawn(move || {
-                let result = write_request(&mut stdin, &request).map_err(|error| {
-                    FaultSeed::new(
-                        MechanicalFaultKind::RequestWrite,
-                        format!("private worker request write failed: {error}"),
-                    )
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    write_request(&mut stdin, &request).map_err(|error| {
+                        FaultSeed::new(
+                            MechanicalFaultKind::RequestWrite,
+                            format!("private worker request write failed: {error}"),
+                        )
+                    })
+                }))
+                .unwrap_or_else(|_| {
+                    Err(FaultSeed::new(
+                        MechanicalFaultKind::ThreadJoin,
+                        "private worker writer thread unwound",
+                    ))
                 });
                 let _ = writer_tx.send(result);
             })
@@ -435,12 +458,22 @@ impl DriveGuard {
                     format!("private worker writer thread spawn failed: {error}"),
                 )
             })?;
+        guard.writer = Some(writer);
+        guard.writer_result = Some(writer_result);
 
         let (reader_tx, reader_result) = mpsc::sync_channel(1);
         let reader = thread::Builder::new()
             .name("libbun-prepared-export-reader".to_string())
             .spawn(move || {
-                let result = read_single_candidate(&mut stdout);
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    read_single_candidate(&mut stdout)
+                }))
+                .unwrap_or_else(|_| {
+                    Err(FaultSeed::new(
+                        MechanicalFaultKind::ThreadJoin,
+                        "private worker reader thread unwound",
+                    ))
+                });
                 let _ = reader_tx.send(result);
             })
             .map_err(|error| {
@@ -449,12 +482,22 @@ impl DriveGuard {
                     format!("private worker reader thread spawn failed: {error}"),
                 )
             })?;
+        guard.reader = Some(reader);
+        guard.reader_result = Some(reader_result);
 
         let (stderr_tx, stderr_result) = mpsc::sync_channel(1);
         let stderr_thread = thread::Builder::new()
             .name("libbun-prepared-export-stderr".to_string())
             .spawn(move || {
-                let result = drain_bounded_stderr(&mut stderr);
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    drain_bounded_stderr(&mut stderr)
+                }))
+                .unwrap_or_else(|_| {
+                    Err(FaultSeed::new(
+                        MechanicalFaultKind::ThreadJoin,
+                        "private worker diagnostic thread unwound",
+                    ))
+                });
                 let _ = stderr_tx.send(result);
             })
             .map_err(|error| {
@@ -463,18 +506,10 @@ impl DriveGuard {
                     format!("private worker diagnostic thread spawn failed: {error}"),
                 )
             })?;
+        guard.stderr = Some(stderr_thread);
+        guard.stderr_result = Some(stderr_result);
 
-        Ok(Self {
-            child: Some(child),
-            process_boundary,
-            writer: Some(writer),
-            reader: Some(reader),
-            stderr: Some(stderr_thread),
-            writer_result,
-            reader_result,
-            stderr_result,
-            retired: false,
-        })
+        Ok(guard)
     }
 
     fn select_terminal(&mut self, control: &DriveControl) -> SelectedTerminal {
@@ -486,9 +521,24 @@ impl DriveGuard {
         let mut pipe_fault_observed_at = None;
 
         loop {
-            receive_once(&self.writer_result, &mut writer);
-            receive_once(&self.reader_result, &mut reader);
-            receive_once(&self.stderr_result, &mut stderr);
+            receive_once(
+                self.writer_result
+                    .as_ref()
+                    .expect("admitted drive owns writer result"),
+                &mut writer,
+            );
+            receive_once(
+                self.reader_result
+                    .as_ref()
+                    .expect("admitted drive owns reader result"),
+                &mut reader,
+            );
+            receive_once(
+                self.stderr_result
+                    .as_ref()
+                    .expect("admitted drive owns diagnostic result"),
+                &mut stderr,
+            );
 
             if exit.is_none() {
                 match self

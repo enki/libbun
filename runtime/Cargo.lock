@@ -2870,18 +2870,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
-name = "libbun"
-version = "0.2.3"
-dependencies = [
- "libbun-prepared-export-wire",
- "libc",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
-]
-
-[[package]]
 name = "libbun-native"
 version = "0.2.3"
 dependencies = [
@@ -2890,10 +2878,12 @@ dependencies = [
  "bun_jsc",
  "bun_platform",
  "bun_runtime",
- "libbun",
+ "libbun-prepared-export-wire",
  "libc",
+ "serde",
  "serde_json",
  "tempfile",
+ "thiserror",
  "url",
 ]
 
@@ -2906,10 +2896,8 @@ name = "libbun-runtime-native"
 version = "0.2.3"
 dependencies = [
  "bun_platform",
- "libbun",
  "libbun-native",
  "libbun-prepared-export-wire",
- "serde_json",
 ]
 
 [[package]]
@@ -3304,17 +3292,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "170fb83ab34de17dc69aa7c67482b22218ddb85da56546f9bd6b929e32a05930"
 dependencies = [
  "stable_deref_trait",
-]
-
-[[package]]
-name = "sha2"
-version = "0.10.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
-dependencies = [
- "cfg-if",
- "cpufeatures",
- "digest",
 ]
 
 [[package]]

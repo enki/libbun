@@ -12,6 +12,7 @@ compile_error!(
 
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
@@ -29,35 +30,296 @@ use bun_jsc::{
 };
 use bun_platform as _;
 use bun_runtime as _;
-use libbun::OutputStream;
-use libbun::{
-    BunAsyncHandle, BunEmbeddingRuntime, BunModuleHandle, BunModuleSpec, BunRuntimeConfig,
-    ExportCallResult, LibbunError, LibbunResult, OutputRecord, PreparedBundleV1,
-    ProviderCallResult, ProviderError, PumpBudget, PumpOutcome, SinkPolicy, StructuralValue,
-};
+use libbun_prepared_export_wire::DriveRequest;
+use libbun_prepared_export_wire::WorkerFaultKind;
+use serde::Deserialize;
+
+type LibbunResult<T> = Result<T, LibbunError>;
+
+#[derive(Debug, thiserror::Error)]
+enum LibbunError {
+    #[error("runtime initialization failed: {message}")]
+    Initialize { message: String },
+    #[error("module load failed: {message}")]
+    ModuleLoad { message: String },
+    #[error("export call failed: {message}")]
+    ExportCall { message: String },
+    #[error("async handle `{handle}` is unknown")]
+    UnknownAsyncHandle { handle: String },
+}
+
+impl LibbunError {
+    fn initialize(message: impl Into<String>) -> Self {
+        Self::Initialize {
+            message: message.into(),
+        }
+    }
+
+    fn module_load(message: impl Into<String>) -> Self {
+        Self::ModuleLoad {
+            message: message.into(),
+        }
+    }
+
+    fn export_call(message: impl Into<String>) -> Self {
+        Self::ExportCall {
+            message: message.into(),
+        }
+    }
+}
+
+struct BunRuntimeConfig {
+    environment: BTreeMap<String, String>,
+}
+
+impl BunRuntimeConfig {
+    fn one_shot() -> Self {
+        Self {
+            environment: BTreeMap::new(),
+        }
+    }
+}
+
+enum BunModuleSpec {
+    PreparedBundle { bundle_id: String, bytes: Vec<u8> },
+}
+
+struct BunModuleHandle {
+    id: String,
+}
+
+struct BunAsyncHandle {
+    id: String,
+}
+
+struct StructuralValue(serde_json::Value);
+
+impl StructuralValue {
+    fn null() -> Self {
+        Self(serde_json::Value::Null)
+    }
+}
+
+enum ProviderCallResult {
+    Ok(StructuralValue),
+    Err(ProviderError),
+}
+
+struct ProviderError {
+    code: String,
+    message: String,
+}
+
+enum ExportCallResult {
+    Ready(ProviderCallResult),
+    Pending(BunAsyncHandle),
+}
+
+struct PumpBudget {
+    max_ticks: u32,
+}
+
+const PREPARED_BUNDLE_FORMAT: &str = "libbun.preparedBundle";
+const PREPARED_BUNDLE_FORMAT_VERSION: u32 = 1;
+const LIBBUN_ABI_VERSION: u32 = 1;
+const BUN_SOURCE_COMMIT: &str = include_str!("../../BUN_SOURCE_COMMIT");
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PreparedBundleV1 {
+    format: String,
+    format_version: u32,
+    bundle_id: String,
+    bun_revision: String,
+    libbun_abi_version: u32,
+    entry_module: String,
+    modules: BTreeMap<String, PreparedBundleModuleV1>,
+}
+
+#[derive(Deserialize)]
+struct PreparedBundleModuleV1 {
+    source: String,
+}
+
+impl PreparedBundleV1 {
+    fn from_bytes(bytes: &[u8]) -> LibbunResult<Self> {
+        let bundle: Self = serde_json::from_slice(bytes).map_err(|error| {
+            LibbunError::module_load(format!("prepared bundle decode failed: {error}"))
+        })?;
+        bundle.validate()?;
+        Ok(bundle)
+    }
+
+    fn validate_for_current_runtime(&self, expected_bundle_id: &str) -> LibbunResult<()> {
+        self.validate()?;
+        if self.bundle_id != expected_bundle_id {
+            return Err(LibbunError::module_load("prepared bundle id mismatch"));
+        }
+        if self.bun_revision != BUN_SOURCE_COMMIT.trim() {
+            return Err(LibbunError::module_load(
+                "prepared bundle Bun revision mismatch",
+            ));
+        }
+        if self.libbun_abi_version != LIBBUN_ABI_VERSION {
+            return Err(LibbunError::module_load(
+                "prepared bundle libbun ABI mismatch",
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate(&self) -> LibbunResult<()> {
+        if self.format != PREPARED_BUNDLE_FORMAT
+            || self.format_version != PREPARED_BUNDLE_FORMAT_VERSION
+            || self.bundle_id.trim().is_empty()
+            || self.modules.is_empty()
+        {
+            return Err(LibbunError::module_load(
+                "prepared bundle header is invalid",
+            ));
+        }
+        validate_bundle_module_path(&self.entry_module)?;
+        if !self.modules.contains_key(&self.entry_module) {
+            return Err(LibbunError::module_load(
+                "prepared bundle entry module is missing",
+            ));
+        }
+        for (path, module) in &self.modules {
+            validate_bundle_module_path(path)?;
+            if module.source.is_empty() {
+                return Err(LibbunError::module_load(
+                    "prepared bundle contains an empty module",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+fn validate_bundle_module_path(path: &str) -> LibbunResult<()> {
+    if path.trim().is_empty()
+        || path.contains('\\')
+        || path
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+        || Path::new(path).is_absolute()
+        || Path::new(path)
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_)))
+    {
+        return Err(LibbunError::module_load(
+            "prepared bundle contains an unsafe module path",
+        ));
+    }
+    Ok(())
+}
+
+pub struct NativeDriveFailure {
+    kind: WorkerFaultKind,
+    diagnostic: String,
+}
+
+impl NativeDriveFailure {
+    pub fn kind(&self) -> WorkerFaultKind {
+        self.kind
+    }
+
+    pub fn diagnostic(&self) -> &str {
+        &self.diagnostic
+    }
+
+    fn new(kind: WorkerFaultKind, diagnostic: impl Into<String>) -> Self {
+        let mut diagnostic = diagnostic.into();
+        if diagnostic.len() > 4096 {
+            let mut boundary = 4096;
+            while !diagnostic.is_char_boundary(boundary) {
+                boundary -= 1;
+            }
+            diagnostic.truncate(boundary);
+        }
+        Self { kind, diagnostic }
+    }
+}
+
+pub fn drive_prepared_export(request: DriveRequest) -> Result<Vec<u8>, NativeDriveFailure> {
+    let input: serde_json::Value =
+        serde_json::from_slice(&request.opaque_invocation).map_err(|error| {
+            NativeDriveFailure::new(
+                WorkerFaultKind::InputLowering,
+                format!("opaque invocation lowering failed: {error}"),
+            )
+        })?;
+    let bundle = PreparedBundleV1::from_bytes(&request.prepared_artifact).map_err(|error| {
+        NativeDriveFailure::new(WorkerFaultKind::Preparation, error.to_string())
+    })?;
+    let bundle_id = bundle.bundle_id.clone();
+    let mut runtime =
+        NativeBunRuntime::initialize(BunRuntimeConfig::one_shot()).map_err(|error| {
+            NativeDriveFailure::new(WorkerFaultKind::Preparation, error.to_string())
+        })?;
+    let module = runtime
+        .load_module(BunModuleSpec::PreparedBundle {
+            bundle_id,
+            bytes: request.prepared_artifact,
+        })
+        .map_err(|error| {
+            NativeDriveFailure::new(WorkerFaultKind::Preparation, error.to_string())
+        })?;
+    let mut result = runtime
+        .call_export(&module, &request.selected_export, StructuralValue(input))
+        .map_err(|error| {
+            NativeDriveFailure::new(WorkerFaultKind::Preparation, error.to_string())
+        })?;
+    loop {
+        match result {
+            ExportCallResult::Ready(ProviderCallResult::Ok(value)) => {
+                return serde_json::to_vec(&value.0).map_err(|error| {
+                    NativeDriveFailure::new(
+                        WorkerFaultKind::CargoExtraction,
+                        format!("opaque cargo extraction failed: {error}"),
+                    )
+                });
+            }
+            ExportCallResult::Ready(ProviderCallResult::Err(error)) => {
+                return Err(NativeDriveFailure::new(
+                    WorkerFaultKind::JavaScriptRejection,
+                    error.message,
+                ));
+            }
+            ExportCallResult::Pending(handle) => {
+                runtime
+                    .pump_event_loop(PumpBudget { max_ticks: 256 })
+                    .map_err(|error| {
+                        NativeDriveFailure::new(WorkerFaultKind::CargoExtraction, error.to_string())
+                    })?;
+                if let Some(settled) = runtime.resolve_async(&handle).map_err(|error| {
+                    NativeDriveFailure::new(WorkerFaultKind::CargoExtraction, error.to_string())
+                })? {
+                    result = ExportCallResult::Ready(settled);
+                } else {
+                    result = ExportCallResult::Pending(handle);
+                }
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
-pub struct NativeBunRuntime {
+struct NativeBunRuntime {
     vm: NonNull<VirtualMachine>,
     modules: BTreeMap<String, JSValue>,
     pending: BTreeMap<String, JSValue>,
-    output: Vec<OutputRecord>,
     stdout: OutputCapture,
     stderr: OutputCapture,
     log: OutputCapture,
-    source_module_paths: Vec<Box<[u8]>>,
-    source_module_sources: Vec<Box<[u8]>>,
     prepared_bundle_tempdirs: Vec<tempfile::TempDir>,
     _runtime_guard: MutexGuard<'static, ()>,
     next_module: u64,
     next_async: u64,
-    shutdown: bool,
 }
 
 #[derive(Debug)]
 struct OutputCapture {
-    stream: OutputStream,
-    policy: SinkPolicy,
     write_file: std::fs::File,
     read_file: std::fs::File,
 }
@@ -174,36 +436,6 @@ impl NativeBunRuntime {
             .unwrap_or_else(|| fallback.to_string())
     }
 
-    fn evaluate_source_module(&mut self, id: &str, source: &str) -> LibbunResult<JSValue> {
-        let source_path = std::env::current_dir()
-            .map_err(|err| LibbunError::module_load(format!("current_dir failed: {err}")))?
-            .join(format!("libbun-{id}/[eval]"))
-            .to_string_lossy()
-            .into_owned();
-        let specifier = source_path.clone();
-        self.source_module_paths
-            .push(source_path.into_bytes().into_boxed_slice());
-        self.source_module_sources
-            .push(source.as_bytes().to_vec().into_boxed_slice());
-        let (eval_source, source_path_ptr, source_path_len) = {
-            let source_path = self
-                .source_module_paths
-                .last()
-                .expect("source module path was just pushed");
-            let source = self
-                .source_module_sources
-                .last()
-                .expect("source module source was just pushed");
-            let eval_source = bun_ast::Source::init_path_string(&source_path[..], &source[..]);
-            (eval_source, source_path.as_ptr(), source_path.len())
-        };
-        let vm = self.vm_mut();
-        vm.module_loader.eval_source = Some(Box::new(eval_source));
-        // SAFETY: source_module_paths owns this allocation for the runtime lifetime.
-        vm.set_main(unsafe { std::slice::from_raw_parts(source_path_ptr, source_path_len) });
-        self.import_module_specifier(&specifier)
-    }
-
     fn import_module_specifier(&mut self, specifier: &str) -> LibbunResult<JSValue> {
         let import_specifier = specifier.to_owned();
         let specifier = BunString::from_bytes(specifier.as_bytes());
@@ -267,9 +499,9 @@ impl NativeBunRuntime {
 
     fn drain_output(&mut self) -> LibbunResult<()> {
         bun_core::Output::flush();
-        self.stdout.drain_into(&mut self.output)?;
-        self.stderr.drain_into(&mut self.output)?;
-        self.log.drain_into(&mut self.output)?;
+        self.stdout.drain()?;
+        self.stderr.drain()?;
+        self.log.drain()?;
         Ok(())
     }
 
@@ -318,11 +550,9 @@ impl NativeBunRuntime {
 bun_core::declare_scope!(LibbunNative, visible);
 
 impl OutputCapture {
-    fn create(stream: OutputStream, policy: SinkPolicy) -> LibbunResult<Self> {
+    fn create() -> LibbunResult<Self> {
         let (read_file, write_file) = create_nonblocking_pipe_pair()?;
         Ok(Self {
-            stream,
-            policy,
             write_file,
             read_file,
         })
@@ -332,13 +562,12 @@ impl OutputCapture {
         bun_core::Output::File(fd_from_file(&self.write_file))
     }
 
-    fn drain_into(&mut self, output: &mut Vec<OutputRecord>) -> LibbunResult<()> {
-        let mut bytes = Vec::new();
+    fn drain(&mut self) -> LibbunResult<()> {
         let mut buffer = [0_u8; 8192];
         loop {
             match self.read_file.read(&mut buffer) {
                 Ok(0) => break,
-                Ok(read) => bytes.extend_from_slice(&buffer[..read]),
+                Ok(_) => {}
                 Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => break,
                 Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(err) => {
@@ -349,12 +578,6 @@ impl OutputCapture {
             }
         }
 
-        if self.policy == SinkPolicy::Capture && !bytes.is_empty() {
-            output.push(OutputRecord {
-                stream: self.stream,
-                text: String::from_utf8_lossy(&bytes).into_owned(),
-            });
-        }
         Ok(())
     }
 }
@@ -492,7 +715,7 @@ fn validate_environment_key(key: &str) -> LibbunResult<()> {
     Ok(())
 }
 
-impl BunEmbeddingRuntime for NativeBunRuntime {
+impl NativeBunRuntime {
     fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
         let runtime_guard = native_runtime_guard().try_lock().map_err(|err| match err {
             TryLockError::WouldBlock => LibbunError::initialize(
@@ -505,9 +728,9 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         ensure_macos_compat_symbols();
         bun_core::StackCheck::configure_thread();
 
-        let stdout = OutputCapture::create(OutputStream::Stdout, config.stdout)?;
-        let stderr = OutputCapture::create(OutputStream::Stderr, config.stderr)?;
-        let log = OutputCapture::create(OutputStream::Log, config.log)?;
+        let stdout = OutputCapture::create()?;
+        let stderr = OutputCapture::create()?;
+        let log = OutputCapture::create()?;
         bun_core::Output::Source::set_init(stdout.bun_file(), stderr.bun_file());
         bun_core::Output::init_scoped_debug_writer_at_startup();
         unsafe {
@@ -539,42 +762,25 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             vm,
             modules: BTreeMap::new(),
             pending: BTreeMap::new(),
-            output: Vec::new(),
             stdout,
             stderr,
             log,
-            source_module_paths: Vec::new(),
-            source_module_sources: Vec::new(),
             prepared_bundle_tempdirs: Vec::new(),
             _runtime_guard: runtime_guard,
             next_module: 1,
             next_async: 1,
-            shutdown: false,
         })
     }
 
     fn load_module(&mut self, spec: BunModuleSpec) -> LibbunResult<BunModuleHandle> {
-        if self.shutdown {
-            return Err(LibbunError::RuntimeShutdown);
-        }
-
         let id = format!("module-{}", self.next_module);
         self.next_module += 1;
         bun_core::scoped_log!(LibbunNative, "loading module {}", id);
 
-        let namespace = match spec {
-            BunModuleSpec::Source { source, .. } => self.evaluate_source_module(&id, &source)?,
-            BunModuleSpec::Path { path } => {
-                let specifier = path_to_file_specifier(&path)?;
-                self.import_module_specifier(&specifier)?
-            }
-            BunModuleSpec::PreparedBundle { bundle_id, bytes } => {
-                let specifier = path_to_file_specifier(
-                    &self.materialize_prepared_bundle(&id, &bundle_id, &bytes)?,
-                )?;
-                self.import_module_specifier(&specifier)?
-            }
-        };
+        let BunModuleSpec::PreparedBundle { bundle_id, bytes } = spec;
+        let specifier =
+            path_to_file_specifier(&self.materialize_prepared_bundle(&id, &bundle_id, &bytes)?)?;
+        let namespace = self.import_module_specifier(&specifier)?;
 
         self.vm().run_with_api_lock(|| namespace.protect());
         self.modules.insert(id.clone(), namespace);
@@ -588,10 +794,6 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         export: &str,
         input: StructuralValue,
     ) -> LibbunResult<ExportCallResult> {
-        if self.shutdown {
-            return Err(LibbunError::RuntimeShutdown);
-        }
-
         let namespace = *self
             .modules
             .get(&module.id)
@@ -637,30 +839,19 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         Ok(ExportCallResult::Ready(result))
     }
 
-    fn pump_event_loop(&mut self, budget: PumpBudget) -> LibbunResult<PumpOutcome> {
-        if self.shutdown {
-            return Err(LibbunError::RuntimeShutdown);
-        }
-        let mut ticks = 0;
+    fn pump_event_loop(&mut self, budget: PumpBudget) -> LibbunResult<()> {
         for _ in 0..budget.max_ticks {
             self.vm_mut().tick();
             self.vm_mut().auto_tick();
-            ticks += 1;
         }
         self.drain_output()?;
-        Ok(PumpOutcome {
-            ticks,
-            pending_async_work: self.pending.len(),
-        })
+        Ok(())
     }
 
     fn resolve_async(
         &mut self,
         handle: &BunAsyncHandle,
     ) -> LibbunResult<Option<ProviderCallResult>> {
-        if self.shutdown {
-            return Err(LibbunError::RuntimeShutdown);
-        }
         let value =
             *self
                 .pending
@@ -686,33 +877,6 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         }
         self.drain_output()?;
         Ok(result)
-    }
-
-    fn captured_output(&self) -> &[OutputRecord] {
-        &self.output
-    }
-
-    fn drain_captured_output(&mut self) -> Vec<OutputRecord> {
-        std::mem::take(&mut self.output)
-    }
-
-    fn shutdown(&mut self) -> LibbunResult<()> {
-        if self.shutdown {
-            return Ok(());
-        }
-        for (_, value) in std::mem::take(&mut self.pending) {
-            self.vm().run_with_api_lock(|| value.unprotect());
-        }
-        for (_, value) in std::mem::take(&mut self.modules) {
-            self.vm().run_with_api_lock(|| value.unprotect());
-        }
-        self.drain_output()?;
-        // `VirtualMachine::destroy` is Bun's worker-thread teardown path. The
-        // embedded libbun runtime initializes a main-thread VM, matching Bun's
-        // process-lifetime CLI shape, so leave VM-owned native state live until
-        // process exit.
-        self.shutdown = true;
-        Ok(())
     }
 }
 

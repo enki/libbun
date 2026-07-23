@@ -2,23 +2,20 @@
 name = "libbun"
 version = "0.2.3"
 edition = "2024"
-description = "Rust facade for hosting JavaScript and TypeScript providers through a replaceable Bun native plugin"
+description = "One-shot process-isolated Bun prepared-export drive"
 license = "Apache-2.0"
 repository = "https://github.com/enki/libbun"
 homepage = "https://github.com/enki/libbun"
 readme = "README.md"
-keywords = ["bun", "javascript", "typescript", "embedding", "plugin"]
+keywords = ["bun", "javascript", "typescript", "isolation"]
 categories = ["api-bindings", "development-tools::ffi"]
 include = [
-    "/BUN_SOURCE_COMMIT",
     "/Cargo.lock",
     "/Cargo.toml",
     "/LICENSE",
     "/README.md",
-    "/build.rs",
     "/src/**",
-    "/src/plugin_checksums_table.in",
-    "/tests/**",
+    "/wire/**",
 ]
 
 [lib]
@@ -27,24 +24,10 @@ doctest = false
 
 [dependencies]
 libbun-prepared-export-wire = { path = "wire" }
-libloading = { version = "0.8", optional = true }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
-tar = { version = "0.4", optional = true }
-thiserror = "2"
-ureq = { version = "2", optional = true }
-zstd = { version = "0.13", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [dev-dependencies]
+serde = { version = "1", features = ["derive"] }
 static_assertions = "1"
-tempfile = "3"
-
-[features]
-default = []
-download-plugin = []
-dynamic-loading = ["dep:libloading"]
-plugin-installer = ["dep:tar", "dep:ureq", "dep:zstd"]

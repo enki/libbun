@@ -19,8 +19,10 @@ bun_core = { path = "../vendor/bun/src/bun_core" }
 bun_jsc = { path = "../vendor/bun/src/jsc" }
 bun_platform = { path = "../vendor/bun/src/platform" }
 bun_runtime = { path = "../vendor/bun/src/runtime" }
-libbun = { path = ".." }
+libbun-prepared-export-wire = { path = "../wire" }
 libc = "0.2"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
+thiserror = "2"
 url = "2"
