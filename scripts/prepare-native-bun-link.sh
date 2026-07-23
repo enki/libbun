@@ -7,7 +7,7 @@ profile="${LIBBUN_NATIVE_BUN_PROFILE:-release}"
 build_dir="${LIBBUN_NATIVE_BUN_BUILD_DIR:-"$bun_dir/build/$profile"}"
 exe_target="${LIBBUN_NATIVE_BUN_EXE_TARGET:-}"
 if [[ "$profile" != "release" ]]; then
-  echo "libbun native plugin links must be prepared from Bun's release profile; got LIBBUN_NATIVE_BUN_PROFILE=$profile" >&2
+  echo "libbun native worker links must be prepared from Bun's release profile; got LIBBUN_NATIVE_BUN_PROFILE=$profile" >&2
   exit 1
 fi
 case "$build_dir" in
@@ -29,7 +29,7 @@ if [[ -z "$exe_target" ]]; then
 fi
 
 if [[ "$exe_target" != "bun-profile" ]]; then
-  echo "libbun native plugin links must use Bun's release bun-profile target; got LIBBUN_NATIVE_BUN_EXE_TARGET=$exe_target" >&2
+  echo "libbun native worker links must use Bun's release bun-profile target; got LIBBUN_NATIVE_BUN_EXE_TARGET=$exe_target" >&2
   exit 1
 fi
 
@@ -74,7 +74,7 @@ case "$(uname -s)" in
     (cd "$build_dir" && rm -f "$archive" && ar crs "$archive" $(cat "$objects_file")) >&2
     ;;
   *)
-    echo "unsupported native plugin build OS: $(uname -s)" >&2
+    echo "unsupported native worker build OS: $(uname -s)" >&2
     exit 1
     ;;
 esac

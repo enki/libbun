@@ -33,6 +33,8 @@ const MAX_DIAGNOSTIC_BYTES: usize = 4096;
 pub struct PreparedExport {
     worker: WorkerLaunch,
     request: Vec<u8>,
+    #[cfg(test)]
+    panic_after_admission: bool,
 }
 
 enum WorkerLaunch {
@@ -59,6 +61,8 @@ pub fn install_prepared_export(
             selected_export,
             opaque_invocation,
         }),
+        #[cfg(test)]
+        panic_after_admission: false,
     }
 }
 
@@ -77,6 +81,8 @@ impl PreparedExport {
     }
 
     fn drive_guarded(self, control: DriveControl) -> MechanicalTerminal {
+        #[cfg(test)]
+        let panic_after_admission = self.panic_after_admission;
         if control.cancellation.is_selected() {
             return MechanicalTerminal::Cancelled(Cancelled::mint());
         }
@@ -121,6 +127,10 @@ impl PreparedExport {
             Ok(guard) => guard,
             Err(fault) => return MechanicalTerminal::MechanicalFault(fault),
         };
+        #[cfg(test)]
+        if panic_after_admission {
+            panic!("injected prepared-export supervisor unwind after worker admission");
+        }
         let selected = guard.select_terminal(&control);
         match guard.retire() {
             Ok(()) => selected.into_terminal(),
@@ -140,6 +150,7 @@ impl PreparedExport {
                 arguments: worker_arguments,
             },
             request: opaque_request,
+            panic_after_admission: false,
         }
     }
 }
@@ -397,7 +408,18 @@ struct DriveGuard {
 
 impl DriveGuard {
     fn admit(child: Child, request: Vec<u8>) -> Result<Self, MechanicalFault> {
-        let process_boundary = ProcessBoundary::for_child(&child);
+        let mut child = child;
+        let process_boundary = match ProcessBoundary::for_child(&child) {
+            Ok(boundary) => boundary,
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(MechanicalFault::new(
+                    MechanicalFaultKind::WorkerAdmission,
+                    format!("fresh worker retirement-boundary admission failed: {error}"),
+                ));
+            }
+        };
         let mut guard = Self {
             child: Some(child),
             process_boundary,
@@ -815,21 +837,63 @@ fn bounded_diagnostic(mut diagnostic: String) -> String {
 struct ProcessBoundary {
     #[cfg(unix)]
     process_group: libc::pid_t,
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    job: windows_sys::Win32::Foundation::HANDLE,
+    #[cfg(not(any(unix, windows)))]
     process_id: u32,
 }
 
 impl ProcessBoundary {
-    fn for_child(child: &Child) -> Self {
-        Self {
-            #[cfg(unix)]
-            process_group: child.id() as libc::pid_t,
-            #[cfg(not(unix))]
-            process_id: child.id(),
+    fn for_child(child: &Child) -> io::Result<Self> {
+        #[cfg(unix)]
+        {
+            Ok(Self {
+                process_group: child.id() as libc::pid_t,
+            })
+        }
+        #[cfg(windows)]
+        {
+            use std::mem::size_of;
+            use std::os::windows::io::AsRawHandle;
+            use windows_sys::Win32::System::JobObjects::AssignProcessToJobObject;
+            use windows_sys::Win32::System::JobObjects::CreateJobObjectW;
+            use windows_sys::Win32::System::JobObjects::JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            use windows_sys::Win32::System::JobObjects::JOBOBJECT_EXTENDED_LIMIT_INFORMATION;
+            use windows_sys::Win32::System::JobObjects::JobObjectExtendedLimitInformation;
+            use windows_sys::Win32::System::JobObjects::SetInformationJobObject;
+
+            let job = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+            if job.is_null() {
+                return Err(io::Error::last_os_error());
+            }
+            let mut information: JOBOBJECT_EXTENDED_LIMIT_INFORMATION =
+                unsafe { std::mem::zeroed() };
+            information.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            let configured = unsafe {
+                SetInformationJobObject(
+                    job,
+                    JobObjectExtendedLimitInformation,
+                    (&mut information as *mut JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+                    size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                )
+            };
+            let assigned = configured != 0
+                && unsafe { AssignProcessToJobObject(job, child.as_raw_handle() as _) } != 0;
+            if !assigned {
+                unsafe { windows_sys::Win32::Foundation::CloseHandle(job) };
+                return Err(io::Error::last_os_error());
+            }
+            Ok(Self { job })
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            Ok(Self {
+                process_id: child.id(),
+            })
         }
     }
 
-    fn terminate_descendants(&self) -> io::Result<()> {
+    fn terminate_descendants(&mut self) -> io::Result<()> {
         #[cfg(unix)]
         {
             let result = unsafe { libc::kill(-self.process_group, libc::SIGKILL) };
@@ -843,10 +907,35 @@ impl ProcessBoundary {
                 Err(error)
             }
         }
-        #[cfg(not(unix))]
+        #[cfg(windows)]
+        {
+            if self.job.is_null() {
+                return Ok(());
+            }
+            let terminated =
+                unsafe { windows_sys::Win32::System::JobObjects::TerminateJobObject(self.job, 1) };
+            let close = unsafe { windows_sys::Win32::Foundation::CloseHandle(self.job) };
+            self.job = std::ptr::null_mut();
+            if terminated == 0 || close == 0 {
+                Err(io::Error::last_os_error())
+            } else {
+                Ok(())
+            }
+        }
+        #[cfg(not(any(unix, windows)))]
         {
             let _ = self.process_id;
             Ok(())
+        }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for ProcessBoundary {
+    fn drop(&mut self) {
+        if !self.job.is_null() {
+            unsafe { windows_sys::Win32::Foundation::CloseHandle(self.job) };
+            self.job = std::ptr::null_mut();
         }
     }
 }
@@ -891,6 +980,10 @@ mod tests {
         ExitNonzero,
         CargoWithInheritedDescriptor(Vec<u8>),
         ProcessId,
+        WrongVersion,
+        TypedRejection,
+        LargeStderr(Vec<u8>),
+        Abort,
     }
 
     impl PreparedExport {
@@ -931,6 +1024,16 @@ elif mode == 'inherited-fd':
     sys.stdout.buffer.write(frame(payload))
 elif mode == 'pid':
     sys.stdout.buffer.write(frame(str(os.getpid()).encode()))
+elif mode == 'wrong-version':
+    sys.stdout.buffer.write(b'LBPT' + (99).to_bytes(2, 'big') + b'\x00' + (0).to_bytes(4, 'big'))
+elif mode == 'typed-rejection':
+    sys.stdout.buffer.write(b'LBPT' + (1).to_bytes(2, 'big') + b'\x03' + len(payload).to_bytes(4, 'big') + payload)
+elif mode == 'large-stderr':
+    sys.stderr.buffer.write(b'x' * (2 * 1024 * 1024))
+    sys.stderr.buffer.flush()
+    sys.stdout.buffer.write(frame(payload))
+elif mode == 'abort':
+    os.abort()
 else:
     sys.exit(24)
 sys.stdout.buffer.flush()
@@ -946,6 +1049,10 @@ sys.stdout.buffer.flush()
                 WorkerBehavior::ExitNonzero => ("nonzero", Vec::new()),
                 WorkerBehavior::CargoWithInheritedDescriptor(payload) => ("inherited-fd", payload),
                 WorkerBehavior::ProcessId => ("pid", Vec::new()),
+                WorkerBehavior::WrongVersion => ("wrong-version", Vec::new()),
+                WorkerBehavior::TypedRejection => ("typed-rejection", b"promise rejected".to_vec()),
+                WorkerBehavior::LargeStderr(payload) => ("large-stderr", payload),
+                WorkerBehavior::Abort => ("abort", Vec::new()),
             };
             Self::from_test_worker(
                 PathBuf::from("python3"),
@@ -1082,5 +1189,90 @@ sys.stdout.buffer.flush()
             pid(PreparedExport::test_worker(WorkerBehavior::ProcessId)),
             pid(PreparedExport::test_worker(WorkerBehavior::ProcessId))
         );
+    }
+
+    #[test]
+    fn wrong_version_and_worker_rejection_remain_distinct_typed_faults() {
+        let MechanicalTerminal::MechanicalFault(version) =
+            PreparedExport::test_worker(WorkerBehavior::WrongVersion)
+                .drive(DriveControl::with_deadline_after(Duration::from_secs(2)))
+        else {
+            panic!("wrong wire version must fault");
+        };
+        assert_eq!(version.kind(), MechanicalFaultKind::Correspondence);
+
+        let MechanicalTerminal::MechanicalFault(rejection) =
+            PreparedExport::test_worker(WorkerBehavior::TypedRejection)
+                .drive(DriveControl::with_deadline_after(Duration::from_secs(2)))
+        else {
+            panic!("worker rejection must fault");
+        };
+        assert_eq!(rejection.kind(), MechanicalFaultKind::JavaScriptRejection);
+    }
+
+    #[test]
+    fn large_worker_stderr_is_drained_without_blocking_cargo() {
+        let bytes = b"after diagnostic flood".to_vec();
+        let MechanicalTerminal::Cargo(cargo) =
+            PreparedExport::test_worker(WorkerBehavior::LargeStderr(bytes.clone()))
+                .drive(DriveControl::with_deadline_after(Duration::from_secs(3)))
+        else {
+            panic!("bounded diagnostic drain should not block cargo");
+        };
+        assert_eq!(cargo.into_bytes(), bytes);
+    }
+
+    #[test]
+    fn worker_abort_is_reaped_as_signal_termination() {
+        let terminal = PreparedExport::test_worker(WorkerBehavior::Abort)
+            .drive(DriveControl::with_deadline_after(Duration::from_secs(5)));
+        let MechanicalTerminal::MechanicalFault(fault) = terminal else {
+            panic!("aborted worker must fault, got {terminal:?}");
+        };
+        assert_eq!(fault.kind(), MechanicalFaultKind::WorkerTermination);
+    }
+
+    #[test]
+    fn supervisor_unwind_after_admission_retires_before_fault_return() {
+        let mut prepared = PreparedExport::test_worker(WorkerBehavior::NeverSettles);
+        prepared.panic_after_admission = true;
+        let terminal = prepared.drive(DriveControl::unbounded());
+        let MechanicalTerminal::MechanicalFault(fault) = terminal else {
+            panic!("supervisor unwind must become typed fault");
+        };
+        assert_eq!(fault.kind(), MechanicalFaultKind::SupervisorUnwind);
+    }
+
+    #[test]
+    fn cancellation_deadline_race_selects_exactly_one_post_retirement_terminal() {
+        for _ in 0..8 {
+            let prepared = PreparedExport::test_worker(WorkerBehavior::NeverSettles);
+            let (control, cancellation) =
+                DriveControl::cancellable_with_deadline_after(Duration::from_millis(30));
+            let cancelling = thread::spawn(move || {
+                thread::sleep(Duration::from_millis(30));
+                cancellation.cancel();
+            });
+            let terminal = prepared.drive(control);
+            cancelling.join().expect("cancellation thread joins");
+            assert!(matches!(
+                terminal,
+                MechanicalTerminal::Cancelled(_) | MechanicalTerminal::DeadlineElapsed(_)
+            ));
+        }
+    }
+
+    #[test]
+    fn oversized_request_faults_before_worker_spawn() {
+        let prepared = PreparedExport::from_test_worker(
+            PathBuf::from("/definitely/missing/libbun-worker"),
+            Vec::new(),
+            vec![0; MAX_REQUEST_BYTES + 1],
+        );
+        let MechanicalTerminal::MechanicalFault(fault) = prepared.drive(DriveControl::unbounded())
+        else {
+            panic!("oversized request must fault");
+        };
+        assert_eq!(fault.kind(), MechanicalFaultKind::RequestWrite);
     }
 }

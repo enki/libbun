@@ -1,4 +1,4 @@
-//! Native Bun adapter for the stable `libbun` facade.
+//! Native Bun engine behind the one-shot prepared-export worker.
 //!
 //! This crate is intentionally separate from the stable facade crate because
 //! upstream Bun currently requires its pinned nightly toolchain and generated
@@ -6,8 +6,8 @@
 
 #[cfg(not(feature = "internal-adapter"))]
 compile_error!(
-    "`libbun-native` is an internal implementation crate. Build the dynamic \
-     plugin instead of statically linking this crate into a downstream host."
+    "`libbun-native` is an internal implementation crate. Build \
+     `libbun-runtime-native` instead of linking it into a host."
 );
 
 use std::collections::BTreeMap;

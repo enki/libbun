@@ -4,6 +4,7 @@ version = "0.2.3"
 edition = "2024"
 description = "One-shot process-isolated Bun prepared-export drive"
 license = "Apache-2.0"
+publish = false
 repository = "https://github.com/enki/libbun"
 homepage = "https://github.com/enki/libbun"
 readme = "README.md"
@@ -27,6 +28,14 @@ libbun-prepared-export-wire = { path = "wire" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
 
 [dev-dependencies]
 serde = { version = "1", features = ["derive"] }
