@@ -89,8 +89,9 @@ Default-parallel CI must run:
    same-epoch reuse tests;
 8. forced-cancel/deadline/unwind/shutdown `RetirementProof`, replacement-epoch,
    fault-dominance, adoption-before-terminal, single-claim poll/completion race,
-   claim-abandonment, shutdown-conversion, silent Drop, queue-disposal, and
-   reaper spawn/wake/panic/retry tests;
+   claim-abandonment, recovered-terminal `RetiredDisposal` Drop,
+   shutdown-only-claim Drop, shutdown-conversion, silent Drop, queue-disposal,
+   and reaper spawn/wake/panic/retry tests;
 9. target-specific containment hostile tests;
 10. output saturation, overflow, barrier, EOF, channel, wait, and join tests;
 11. worker package creation;
@@ -186,6 +187,11 @@ Release is permitted only when:
   any eventual or completed continuation without spawning;
 - shutdown-origin quarantine can never recover a backend;
 - Drop adoption produces no terminal, observation, or completion claim;
+- Drop of an already-recovered terminal consumes or silently adopts its sole
+  terminal-owned `RestartableCustody` as `RetiredDisposal`, never spawns, and
+  produces no observation or completion claim;
+- Drop of a shutdown-only claim abandons only completion observation while
+  queue-owned retirement or disposal continues;
 - reaper spawn, wake, panic, retry, and terminal/claim Drop cannot lose or
   return queue custody;
 - active-worker custody is deleted or transformed only after exact

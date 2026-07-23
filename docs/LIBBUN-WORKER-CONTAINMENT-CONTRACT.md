@@ -322,6 +322,11 @@ Drop performs only silent adoption using the custody's preallocated node.
 Publication allocates nothing, waits for nothing, joins nothing, calls no user
 code, fabricates no proof or terminal, and precedes best-effort wake or spawn.
 Drop of an already-adopted terminal abandons only its private completion claim.
+Drop of an already-recovered terminal silently consumes or adopts its sole
+terminal-owned `RestartableCustody` as `RetiredDisposal`, never spawns, and
+creates no observation or completion claim. Drop of a shutdown-only claim
+abandons only completion observation while queue-owned retirement or disposal
+continues to completion.
 
 ## Hostile Proof
 
@@ -354,6 +359,12 @@ Required tests include:
 - pending poll preserving exactly one claim;
 - completion-versus-claim atomic race and single recovery;
 - claim Drop before and after completion;
+- `drop_recovered_terminal_silently_adopts_retired_disposal`: recovered-terminal
+  Drop consumes or adopts exactly one terminal-owned `RestartableCustody` as
+  `RetiredDisposal`, with no spawn, observation, or completion claim;
+- `drop_shutdown_claim_abandons_observation_only`: shutdown-only claim Drop
+  abandons only completion observation while the queue entry continues
+  retirement or disposal;
 - shutdown conversion before and after recoverable completion;
 - shutdown-origin quarantine with no backend recovery;
 - silent Drop adoption with no observation or claim;

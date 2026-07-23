@@ -190,6 +190,8 @@ or borrowed authority mint.
 | Active-worker shutdown unresolved | `RetirementQuarantine<CompleteShutdown>` consumed by `DurableReaper::adopt` | Shutdown quarantine fault with one private shutdown-only claim |
 | Shutdown of Restartable | Prior `RetirementProof` sealed in continuation | No backend and no spawn |
 | Drop of live custody | Silent adoption of `RetirementQuarantine<DisposeOnly>` | No public terminal, observation, claim, or continuation |
+| Drop of an already-recovered terminal | Its sole terminal-owned `RestartableCustody` is silently consumed or adopted as `RetiredDisposal` | No spawn, observation, completion claim, or public continuation |
+| Drop of a shutdown-only claim | Only completion observation is abandoned; queue-owned retirement or disposal continues | No public continuation and no custody transfer back to the caller |
 
 Failure to prove Ready forces retirement. Failure to prove retirement forces
 adoption. An adopted quarantine fault dominates every provisional cargo,
@@ -215,7 +217,10 @@ poll. It has no restart or backend-recovery operation.
 
 A completed recoverable terminal exposes only observation, consuming restart,
 and consuming shutdown. It has no `into_parts`, raw Restartable getter, backend
-getter, session getter, generic callback, or selector operation.
+getter, session getter, generic callback, or selector operation. If it is
+dropped instead, its sole terminal-owned `RestartableCustody` is silently
+consumed or adopted as `RetiredDisposal`; Drop never spawns and creates no
+observation or completion claim.
 
 No operation takes `QuarantineObservation`, an id, path, number, UUID, process
 id, epoch, lookup key, raw receipt, or caller-supplied proof as authority.
@@ -333,6 +338,12 @@ already owns it. It abandons only the terminal's private claim. If recovery is
 abandoned before completion, the reaper disposes the continuation after
 `RetirementProof`. If recovery is abandoned after completion, the queue
 consumes the stored `RestartableCustody` without spawning.
+
+Drop of an already-recovered terminal silently consumes or adopts its sole
+terminal-owned `RestartableCustody` as `RetiredDisposal`. It never spawns and
+creates no observation or completion claim. Drop of a shutdown-only claim
+abandons only completion observation; queue-owned retirement and disposal
+continue unchanged until the entry closes.
 
 The reaper may delete or transform active-worker custody only after exact
 `RetirementProof`.

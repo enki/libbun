@@ -84,7 +84,11 @@ affine, purpose-typed `QuarantineCompletionClaim<Purpose>`. Pending polling
 moves that same claim; completed polling may claim exactly one
 `RestartableCustody` after `RetirementProof`. A shutdown-origin claim can never
 recover a backend. Dropping or converting a recovery claim disposes any
-eventual or completed restartable continuation without spawning.
+eventual or completed restartable continuation without spawning. Dropping an
+already-recovered terminal silently consumes or adopts its sole terminal-owned
+`RestartableCustody` as `RetiredDisposal`, with no spawn, observation, or
+completion claim. Dropping a shutdown-only claim abandons only completion
+observation while queue-owned retirement or disposal continues.
 
 There is no `BackendState::Quarantined` husk, public quarantine id, id view,
 number, UUID, path, process id, epoch, selector, registry, lookup operation,
@@ -173,7 +177,9 @@ earlier owner product.
    preallocated publication before public fault construction, bounded
    `QuarantineObservation`, private purpose-typed
    `QuarantineCompletionClaim<Purpose>`, pending polling, single recovery,
-   abandonment, shutdown conversion, panic requeue, and silent Drop adoption.
+   abandonment, recovered-terminal `RetiredDisposal` Drop,
+   shutdown-only-claim Drop, shutdown conversion, panic requeue, and silent
+   Drop adoption.
 9. Move the wire codec into private modules compiled only by the facade owner
    and binary. Delete public protocol constants, frames, and request parts.
 10. Move the native engine into the binary-only runtime crate. Delete the

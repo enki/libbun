@@ -47,6 +47,10 @@ fault exposes only a bounded non-authoritative `QuarantineObservation`. When
 backend recovery is meaningful, the fault privately seals exactly one opaque
 affine `QuarantineCompletionClaim<Purpose>`. There is no public quarantine
 identifier, selector, registry, receipt, backend husk, or custody handle.
+Dropping an already-recovered terminal silently consumes or adopts its sole
+terminal-owned `RestartableCustody` as `RetiredDisposal` without spawning;
+dropping a shutdown-only claim abandons only completion observation while the
+durable queue continues retirement or disposal.
 
 JavaScript fulfillment and rejection are closed authored cargo. Undefined,
 unserializable, missing-export, worker, protocol, containment, output, and
