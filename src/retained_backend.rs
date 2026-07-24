@@ -1,816 +1,1442 @@
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use std::collections::BTreeMap;
-use std::time::Instant;
+use std::fmt;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+#[cfg(test)]
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
+use std::sync::{Arc, OnceLock};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
+
+use serde::Serialize;
 
 use crate::{
     BunEmbeddingRuntime, BunHost, BunRuntimeConfig, LibbunError, LibbunResult, OutputRecord,
-    ProviderDiagnosticEvent, ProviderDiagnosticEventKind, ProviderDiagnosticPhase,
-    ProviderExecutionOperation, ProviderRequest, ProviderRuntimeSnapshot, ProviderSettleOptions,
-    SettledProviderReceipt,
+    ProviderCallResult, ProviderContractIdentity, ProviderDomainClass, ProviderRequest,
+    ProviderSettleOptions, SettledProviderReceipt, StructuralValue,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BackendState {
-    Ready,
-    Active,
-    Poisoned,
+#[cfg(test)]
+static NEXT_SELECTION_BRAND: AtomicU64 = AtomicU64::new(1);
+static DURABLE_REAPER: OnceLock<Result<Sender<WorkerCustody>, String>> = OnceLock::new();
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthoredSettlementKind {
+    Fulfilled,
+    Rejected,
+}
+
+pub struct AuthoredSettlementCargo {
+    kind: AuthoredSettlementKind,
+    bytes: Vec<u8>,
+    output: Vec<OutputRecord>,
+}
+
+impl AuthoredSettlementCargo {
+    pub fn kind(&self) -> AuthoredSettlementKind {
+        self.kind
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn output(&self) -> &[OutputRecord] {
+        &self.output
+    }
+}
+
+impl fmt::Debug for AuthoredSettlementCargo {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AuthoredSettlementCargo")
+            .field("kind", &self.kind)
+            .field("byte_len", &self.bytes.len())
+            .field("output_record_count", &self.output.len())
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MechanicalFaultKind {
+    Admission,
+    DeadlineConstruction,
+    Dispatch,
+    ProviderPreparation,
+    OutputQuiescence,
+    WorkerTermination,
     Shutdown,
+    SupervisorUnwind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum InvocationOutputPolicy {
-    Capture,
-    Drop,
+pub struct MechanicalFault {
+    kind: MechanicalFaultKind,
+    code: &'static str,
+    message: String,
 }
 
-impl Default for InvocationOutputPolicy {
-    fn default() -> Self {
-        Self::Capture
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum InvocationDiagnosticsPolicy {
-    Snapshot,
-}
-
-impl Default for InvocationDiagnosticsPolicy {
-    fn default() -> Self {
-        Self::Snapshot
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LateOutputPolicy {
-    Poison,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProviderInvocationDescriptor {
-    pub invocation_id: String,
-    pub output_policy: InvocationOutputPolicy,
-    pub diagnostics_policy: InvocationDiagnosticsPolicy,
-}
-
-impl ProviderInvocationDescriptor {
-    pub fn new(invocation_id: impl Into<String>) -> Self {
+impl MechanicalFault {
+    fn new(kind: MechanicalFaultKind, code: &'static str, message: impl Into<String>) -> Self {
         Self {
-            invocation_id: invocation_id.into(),
-            output_policy: InvocationOutputPolicy::Capture,
-            diagnostics_policy: InvocationDiagnosticsPolicy::Snapshot,
+            kind,
+            code,
+            message: message.into(),
         }
     }
 
-    pub fn with_output_policy(mut self, output_policy: InvocationOutputPolicy) -> Self {
-        self.output_policy = output_policy;
-        self
+    pub fn kind(&self) -> MechanicalFaultKind {
+        self.kind
     }
 
-    pub fn with_diagnostics_policy(
-        mut self,
-        diagnostics_policy: InvocationDiagnosticsPolicy,
-    ) -> Self {
-        self.diagnostics_policy = diagnostics_policy;
-        self
+    pub fn code(&self) -> &'static str {
+        self.code
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InvocationOutputLedger {
-    pub invocation_id: String,
-    pub records: Vec<OutputRecord>,
-    pub record_count: usize,
-    pub late_output_policy: LateOutputPolicy,
-    pub late_output_count: usize,
-    pub drain_failures: Vec<String>,
-    pub diagnostics_snapshot: ProviderRuntimeSnapshot,
+impl fmt::Debug for MechanicalFault {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MechanicalFault")
+            .field("kind", &self.kind)
+            .field("code", &self.code)
+            .field("message", &self.message)
+            .finish()
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InvocationProfileLedger {
-    pub schema: String,
-    pub invocation_id: String,
-    pub spans: Vec<InvocationProfileSpan>,
+#[derive(Clone)]
+pub struct DriveInterrupt {
+    requested: Arc<AtomicBool>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InvocationProfileSpan {
-    pub schema: String,
-    pub phase: String,
-    pub elapsed_ms: u64,
-    pub started_after_ms: u64,
-    pub completed_after_ms: u64,
-    pub operation: Option<String>,
-    pub counters: Value,
+impl DriveInterrupt {
+    pub fn request(&self) {
+        self.requested.store(true, Ordering::Release);
+    }
+
+    pub fn is_requested(&self) -> bool {
+        self.requested.load(Ordering::Acquire)
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FinishedInvocation {
-    pub invocation_id: String,
-    pub receipt: SettledProviderReceipt,
-    pub output: InvocationOutputLedger,
-    pub diagnostics: ProviderRuntimeSnapshot,
-    pub profile: InvocationProfileLedger,
+impl fmt::Debug for DriveInterrupt {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("DriveInterrupt")
+            .field("requested", &self.is_requested())
+            .finish()
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BackendPoisonDiagnostic {
-    pub code: String,
-    pub message: String,
-    pub state_before_poison: BackendState,
-    pub invocation_id: Option<String>,
-    pub output: Vec<OutputRecord>,
-    pub diagnostics: ProviderRuntimeSnapshot,
-    pub profile: Option<InvocationProfileLedger>,
+pub struct DriveControl {
+    timeout: Duration,
+    deadline: Instant,
+    interrupt: DriveInterrupt,
 }
 
-pub struct BunProviderBackend<R: BunEmbeddingRuntime> {
-    host: BunHost<R>,
-    state: BackendState,
-    startup_output: Vec<OutputRecord>,
-    poison: Option<BackendPoisonDiagnostic>,
-}
-
-pub struct ProviderInvocationLease<'a, R: BunEmbeddingRuntime> {
-    backend: Option<&'a mut BunProviderBackend<R>>,
-    descriptor: ProviderInvocationDescriptor,
-    profile: Option<InvocationProfileBuilder>,
-    consumed: bool,
-}
-
-pub struct SettledInvocationOutcome<'a, R: BunEmbeddingRuntime> {
-    backend: Option<&'a mut BunProviderBackend<R>>,
-    descriptor: ProviderInvocationDescriptor,
-    receipt: SettledProviderReceipt,
-    output_records: Vec<OutputRecord>,
-    diagnostics: ProviderRuntimeSnapshot,
-    profile: Option<InvocationProfileBuilder>,
-    consumed: bool,
-}
-
-struct InvocationProfileBuilder {
-    invocation_id: String,
-    invocation_started_at: Instant,
-    spans: Vec<InvocationProfileSpan>,
-}
-
-impl<R: BunEmbeddingRuntime> BunProviderBackend<R> {
-    pub fn open(config: BunRuntimeConfig) -> LibbunResult<Self> {
-        let mut host = BunHost::<R>::initialize(config)?;
-        let startup_output = host.drain_captured_output();
+impl DriveControl {
+    pub fn deadline_after(timeout: Duration) -> Result<Self, MechanicalFault> {
+        let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
+            MechanicalFault::new(
+                MechanicalFaultKind::DeadlineConstruction,
+                "retained_prepared_export_deadline_overflow",
+                "the prepared-export deadline cannot be represented by the monotonic clock",
+            )
+        })?;
         Ok(Self {
-            host,
-            state: BackendState::Ready,
-            startup_output,
-            poison: None,
+            timeout,
+            deadline,
+            interrupt: DriveInterrupt {
+                requested: Arc::new(AtomicBool::new(false)),
+            },
         })
     }
 
-    pub fn begin_invocation(
-        &mut self,
-        descriptor: ProviderInvocationDescriptor,
-    ) -> LibbunResult<ProviderInvocationLease<'_, R>> {
-        let mut profile = InvocationProfileBuilder::new(descriptor.invocation_id.clone());
-        let begin_started = Instant::now();
-        validate_descriptor(&descriptor)?;
-        match self.state {
-            BackendState::Ready => {}
-            BackendState::Active => {
-                return Err(LibbunError::backend_state(
-                    "retained_backend_begin_invocation_while_active_forbidden",
-                    format!(
-                        "provider invocation '{}' cannot begin because the retained backend is already Active; finish or poison the existing invocation lease first",
-                        descriptor.invocation_id
-                    ),
-                ));
-            }
-            BackendState::Poisoned => {
-                return Err(self.poisoned_error(
-                    "retained_backend_begin_invocation_after_poison_forbidden",
-                    &descriptor.invocation_id,
-                ));
-            }
-            BackendState::Shutdown => {
-                return Err(LibbunError::backend_state(
-                    "retained_backend_begin_invocation_after_shutdown_forbidden",
-                    format!(
-                        "provider invocation '{}' cannot begin because the retained backend is Shutdown",
-                        descriptor.invocation_id
-                    ),
-                ));
-            }
-        }
+    pub fn interrupt(&self) -> DriveInterrupt {
+        self.interrupt.clone()
+    }
 
-        let late_output = self.host.drain_captured_output();
-        if !late_output.is_empty() {
-            return Err(self.poison(
-                "retained_backend_late_output_before_invocation_forbidden",
-                format!(
-                    "provider invocation '{}' observed {} output record(s) outside an active invocation; backend reuse is forbidden because output ownership is no longer provable",
-                    descriptor.invocation_id,
-                    late_output.len()
-                ),
-                Some(descriptor.invocation_id.clone()),
-                late_output,
+    fn remaining(&self) -> Duration {
+        self.deadline.saturating_duration_since(Instant::now())
+    }
+
+    fn selection(&self) -> ControlSelection {
+        if Instant::now() >= self.deadline {
+            ControlSelection::Deadline
+        } else if self.interrupt.is_requested() {
+            ControlSelection::Cancelled
+        } else {
+            ControlSelection::Continue
+        }
+    }
+
+    fn retirement_timeout(&self) -> Duration {
+        Duration::from_secs(1)
+    }
+}
+
+impl fmt::Debug for DriveControl {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("DriveControl")
+            .field("timeout", &self.timeout)
+            .field("interrupt_requested", &self.interrupt.is_requested())
+            .finish()
+    }
+}
+
+pub struct ShutdownControl {
+    timeout: Duration,
+}
+
+impl ShutdownControl {
+    pub fn deadline_after(timeout: Duration) -> Result<Self, MechanicalFault> {
+        Instant::now().checked_add(timeout).ok_or_else(|| {
+            MechanicalFault::new(
+                MechanicalFaultKind::DeadlineConstruction,
+                "retained_backend_shutdown_deadline_overflow",
+                "the retained-backend shutdown deadline cannot be represented by the monotonic clock",
+            )
+        })?;
+        Ok(Self { timeout })
+    }
+}
+
+impl fmt::Debug for ShutdownControl {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ShutdownControl")
+            .field("timeout", &self.timeout)
+            .finish()
+    }
+}
+
+pub struct SelectedProviderPackage {
+    brand: u64,
+    contract: ProviderContractIdentity,
+    domain: ProviderDomainClass,
+    module: crate::BunModuleSpec,
+    export: String,
+}
+
+pub struct ProviderInvocation {
+    brand: u64,
+    input: StructuralValue,
+    options: ProviderSettleOptions,
+}
+
+pub struct BunProviderBackend {
+    worker: Option<WorkerCustody>,
+}
+
+pub struct PreparedExport {
+    worker: Option<WorkerCustody>,
+    request: Option<ProviderRequest>,
+    options: Option<ProviderSettleOptions>,
+}
+
+pub enum MechanicalTerminal {
+    Cargo(CargoTerminal),
+    Cancelled(CancelledTerminal),
+    DeadlineElapsed(DeadlineElapsedTerminal),
+    MechanicalFault(MechanicalFaultTerminal),
+}
+
+pub struct CargoTerminal {
+    cargo: AuthoredSettlementCargo,
+    continuation: Option<Continuation>,
+}
+
+pub struct CancelledTerminal {
+    continuation: Option<Continuation>,
+}
+
+pub struct DeadlineElapsedTerminal {
+    continuation: Option<Continuation>,
+}
+
+pub struct MechanicalFaultTerminal {
+    fault: MechanicalFault,
+    continuation: Option<Continuation>,
+}
+
+pub enum BackendShutdownTerminal {
+    Complete,
+    MechanicalFault(MechanicalFault),
+}
+
+enum Continuation {
+    Ready(Option<WorkerCustody>),
+    Restartable(WorkerFactory),
+}
+
+#[derive(Clone)]
+struct WorkerFactory {
+    config: BunRuntimeConfig,
+    spawn: fn(BunRuntimeConfig) -> LibbunResult<WorkerCustody>,
+}
+
+struct WorkerCustody {
+    commands: Sender<WorkerCommand>,
+    join: Option<JoinHandle<()>>,
+    factory: WorkerFactory,
+}
+
+enum WorkerCommand {
+    Drive {
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+        interrupt: Arc<AtomicBool>,
+        response: SyncSender<WorkerDriveResponse>,
+    },
+    Shutdown {
+        response: Option<SyncSender<LibbunResult<()>>>,
+    },
+}
+
+struct WorkerDriveResponse {
+    result: LibbunResult<SettledProviderReceipt>,
+    unowned_output: Vec<OutputRecord>,
+}
+
+enum ControlSelection {
+    Continue,
+    Cancelled,
+    Deadline,
+}
+
+enum RetirementOutcome {
+    Complete,
+    Fault(MechanicalFault),
+    Adopted(MechanicalFault),
+}
+
+impl BunProviderBackend {
+    pub fn open<R>(config: BunRuntimeConfig) -> LibbunResult<Self>
+    where
+        R: BunEmbeddingRuntime + 'static,
+    {
+        ensure_durable_reaper().map_err(|message| {
+            LibbunError::initialize(format!(
+                "retained prepared-export durable reaper initialization failed: {message}"
+            ))
+        })?;
+        let worker = spawn_worker::<R>(config)?;
+        Ok(Self {
+            worker: Some(worker),
+        })
+    }
+
+    pub fn prepare(
+        mut self,
+        package: SelectedProviderPackage,
+        invocation: ProviderInvocation,
+    ) -> Result<PreparedExport, MechanicalTerminal> {
+        if package.brand != invocation.brand {
+            let continuation = self
+                .worker
+                .take()
+                .map(|worker| Continuation::Ready(Some(worker)));
+            return Err(MechanicalTerminal::MechanicalFault(
+                MechanicalFaultTerminal {
+                    fault: MechanicalFault::new(
+                        MechanicalFaultKind::Admission,
+                        "retained_prepared_export_selection_brand_mismatch",
+                        "the selected provider package and invocation were not minted by the same selection",
+                    ),
+                    continuation,
+                },
             ));
         }
-
-        self.state = BackendState::Active;
-        profile.record_duration(
-            "backend_begin_invocation",
-            begin_started,
-            None,
-            json!({
-                "backendState": format!("{:?}", self.state),
-                "outputPolicy": descriptor.output_policy,
-                "diagnosticsPolicy": descriptor.diagnostics_policy,
-            }),
-        );
-        Ok(ProviderInvocationLease {
-            backend: Some(self),
-            descriptor,
-            profile: Some(profile),
-            consumed: false,
+        let request = ProviderRequest {
+            contract: package.contract,
+            domain: package.domain,
+            module: package.module,
+            export: package.export,
+            input: invocation.input,
+        };
+        Ok(PreparedExport {
+            worker: self.worker.take(),
+            request: Some(request),
+            options: Some(invocation.options),
         })
     }
 
-    pub fn state(&self) -> BackendState {
-        self.state
+    pub fn shutdown(mut self, control: ShutdownControl) -> BackendShutdownTerminal {
+        let Some(worker) = self.worker.take() else {
+            return BackendShutdownTerminal::Complete;
+        };
+        shutdown_worker(worker, control)
     }
+}
 
-    pub fn startup_output(&self) -> &[OutputRecord] {
-        &self.startup_output
-    }
-
-    pub fn poison_diagnostic(&self) -> Option<&BackendPoisonDiagnostic> {
-        self.poison.as_ref()
-    }
-
-    pub fn diagnostics_snapshot(&self) -> ProviderRuntimeSnapshot {
-        self.host.diagnostics_handle().snapshot()
-    }
-
-    pub fn shutdown(&mut self) -> LibbunResult<()> {
-        if self.state == BackendState::Shutdown {
-            return Ok(());
+impl Drop for BunProviderBackend {
+    fn drop(&mut self) {
+        if let Some(worker) = self.worker.take() {
+            adopt_for_disposal(worker);
         }
-        let result = self.host.shutdown();
-        match result {
-            Ok(()) => {
-                self.state = BackendState::Shutdown;
-                Ok(())
+    }
+}
+
+impl PreparedExport {
+    pub fn drive(mut self, control: DriveControl) -> MechanicalTerminal {
+        let worker = self
+            .worker
+            .take()
+            .expect("prepared export retains worker custody until consumed");
+        let request = self
+            .request
+            .take()
+            .expect("prepared export retains selected request until consumed");
+        let options = self
+            .options
+            .take()
+            .expect("prepared export retains settle options until consumed");
+
+        match control.selection() {
+            ControlSelection::Deadline => {
+                return MechanicalTerminal::DeadlineElapsed(DeadlineElapsedTerminal {
+                    continuation: Some(Continuation::Ready(Some(worker))),
+                });
             }
-            Err(error) => Err(self.poison(
-                "retained_backend_shutdown_failed_poisoned",
-                format!(
-                    "retained backend shutdown failed and left backend state uncertain: {error}"
+            ControlSelection::Cancelled => {
+                return MechanicalTerminal::Cancelled(CancelledTerminal {
+                    continuation: Some(Continuation::Ready(Some(worker))),
+                });
+            }
+            ControlSelection::Continue => {}
+        }
+
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            drive_worker(worker, request, options, control)
+        }));
+        match result {
+            Ok(terminal) => terminal,
+            Err(_) => MechanicalTerminal::MechanicalFault(MechanicalFaultTerminal {
+                fault: MechanicalFault::new(
+                    MechanicalFaultKind::SupervisorUnwind,
+                    "retained_prepared_export_supervisor_unwind",
+                    "the prepared-export supervisor unwound while it owned the drive",
                 ),
-                None,
-                Vec::new(),
+                continuation: None,
+            }),
+        }
+    }
+
+    pub fn shutdown(mut self, control: ShutdownControl) -> BackendShutdownTerminal {
+        self.request.take();
+        self.options.take();
+        let Some(worker) = self.worker.take() else {
+            return BackendShutdownTerminal::Complete;
+        };
+        shutdown_worker(worker, control)
+    }
+}
+
+impl Drop for PreparedExport {
+    fn drop(&mut self) {
+        if let Some(worker) = self.worker.take() {
+            adopt_for_disposal(worker);
+        }
+    }
+}
+
+impl MechanicalTerminal {
+    pub fn cargo(&self) -> Option<&AuthoredSettlementCargo> {
+        match self {
+            Self::Cargo(terminal) => Some(&terminal.cargo),
+            _ => None,
+        }
+    }
+
+    pub fn fault(&self) -> Option<&MechanicalFault> {
+        match self {
+            Self::MechanicalFault(terminal) => Some(&terminal.fault),
+            _ => None,
+        }
+    }
+
+    pub fn prepare_next(
+        mut self,
+        package: SelectedProviderPackage,
+        invocation: ProviderInvocation,
+    ) -> Result<PreparedExport, Self> {
+        let Some(continuation) = self.take_continuation() else {
+            return Err(self);
+        };
+        match continuation.into_backend() {
+            Ok(backend) => backend.prepare(package, invocation),
+            Err(fault) => Err(MechanicalTerminal::MechanicalFault(
+                MechanicalFaultTerminal {
+                    fault,
+                    continuation: None,
+                },
             )),
         }
     }
 
-    fn finish_invocation(
-        &mut self,
-        descriptor: &ProviderInvocationDescriptor,
-        output_records: &[OutputRecord],
-    ) -> LibbunResult<ProviderRuntimeSnapshot> {
-        if self.state != BackendState::Active {
-            return Err(self.poison(
-                "retained_backend_finish_without_active_invocation_forbidden",
-                format!(
-                    "provider invocation '{}' tried to finish while backend state was {:?}",
-                    descriptor.invocation_id, self.state
-                ),
-                Some(descriptor.invocation_id.clone()),
-                Vec::new(),
-            ));
+    pub fn shutdown(mut self, control: ShutdownControl) -> BackendShutdownTerminal {
+        match self.take_continuation() {
+            Some(continuation) => continuation.shutdown(control),
+            None => BackendShutdownTerminal::Complete,
         }
-        let late_output = self.host.drain_captured_output();
-        if !late_output.is_empty() {
-            return Err(self.poison(
-                "retained_backend_late_output_during_finish_forbidden",
-                format!(
-                    "provider invocation '{}' finished with {} unowned output record(s) still retained by the backend; invocation output must be carried by the finished ledger",
-                    descriptor.invocation_id,
-                    late_output.len()
-                ),
-                Some(descriptor.invocation_id.clone()),
-                late_output,
-            ));
-        }
-        let diagnostics = self.diagnostics_snapshot();
-        if descriptor.output_policy == InvocationOutputPolicy::Drop && !output_records.is_empty() {
-            // Dropping is an explicit projection policy, not permission to leave
-            // backend-owned records behind. The records were already drained.
-        }
-        self.state = BackendState::Ready;
-        Ok(diagnostics)
     }
 
-    fn poisoned_error(&self, code: &'static str, invocation_id: &str) -> LibbunError {
-        let message = match self.poison.as_ref() {
-            Some(poison) => format!(
-                "provider invocation '{invocation_id}' cannot use poisoned retained backend; original poison `{}`: {}",
-                poison.code, poison.message
-            ),
-            None => format!(
-                "provider invocation '{invocation_id}' cannot use poisoned retained backend; poison diagnostic is missing"
-            ),
-        };
-        LibbunError::backend_state(code, message)
-    }
-
-    fn poison(
-        &mut self,
-        code: impl Into<String>,
-        message: impl Into<String>,
-        invocation_id: Option<String>,
-        output: Vec<OutputRecord>,
-    ) -> LibbunError {
-        let code = code.into();
-        let message = message.into();
-        let state_before_poison = self.state;
-        self.state = BackendState::Poisoned;
-        self.poison = Some(BackendPoisonDiagnostic {
-            code: code.clone(),
-            message: message.clone(),
-            state_before_poison,
-            invocation_id,
-            output,
-            diagnostics: self.diagnostics_snapshot(),
-            profile: None,
-        });
-        LibbunError::backend_state(code, message)
-    }
-
-    fn poison_with_profile(
-        &mut self,
-        code: impl Into<String>,
-        message: impl Into<String>,
-        invocation_id: Option<String>,
-        output: Vec<OutputRecord>,
-        profile: InvocationProfileLedger,
-    ) -> LibbunError {
-        let error = self.poison(code, message, invocation_id, output);
-        if let Some(poison) = self.poison.as_mut() {
-            poison.profile = Some(profile);
+    fn take_continuation(&mut self) -> Option<Continuation> {
+        match self {
+            Self::Cargo(terminal) => terminal.continuation.take(),
+            Self::Cancelled(terminal) => terminal.continuation.take(),
+            Self::DeadlineElapsed(terminal) => terminal.continuation.take(),
+            Self::MechanicalFault(terminal) => terminal.continuation.take(),
         }
-        error
     }
 }
 
-impl<'a, R: BunEmbeddingRuntime> ProviderInvocationLease<'a, R> {
-    pub fn settle_provider(
-        mut self,
-        request: ProviderRequest,
-        options: ProviderSettleOptions,
-    ) -> LibbunResult<SettledInvocationOutcome<'a, R>> {
-        let backend = self
-            .backend
-            .take()
-            .expect("provider invocation lease backend present until consumed");
-        let mut profile = self
-            .profile
-            .take()
-            .expect("provider invocation profile present until consumed");
-        self.consumed = true;
-        let settle_started = Instant::now();
-        let receipt = match backend
-            .host
-            .call_provider_until_settled_for_invocation_ledger(request, options)
-        {
-            Ok(receipt) => receipt,
-            Err(error) => {
-                let output = backend.host.drain_captured_output();
-                let diagnostics = backend.diagnostics_snapshot();
-                profile.extend_provider_diagnostics(&diagnostics, None);
-                profile.record_duration(
-                    "backend_poison",
-                    Instant::now(),
-                    None,
-                    json!({
-                        "code": "retained_backend_provider_call_without_terminal_receipt_poisoned",
-                        "outputRecordCount": output.len(),
-                    }),
-                );
-                return Err(backend.poison_with_profile(
-                    "retained_backend_provider_call_without_terminal_receipt_poisoned",
-                    format!(
-                        "provider invocation '{}' failed before libbun produced a terminal receipt; backend state is uncertain and cannot be reused: {error}",
-                        self.descriptor.invocation_id
-                    ),
-                    Some(self.descriptor.invocation_id.clone()),
-                    output,
-                    profile.finish(),
-                ));
+impl Continuation {
+    fn into_backend(mut self) -> Result<BunProviderBackend, MechanicalFault> {
+        match &mut self {
+            Self::Ready(worker) => {
+                let worker = worker.take().ok_or_else(|| {
+                    MechanicalFault::new(
+                        MechanicalFaultKind::WorkerTermination,
+                        "retained_backend_ready_continuation_empty",
+                        "the retained backend ready continuation had already been consumed",
+                    )
+                })?;
+                Ok(BunProviderBackend {
+                    worker: Some(worker),
+                })
             }
-        };
-        profile.record_duration(
-            "provider_call_settlement",
-            settle_started,
-            receipt_operation(&receipt),
-            json!({
-                "status": receipt_status(&receipt),
-                "outputRecordCount": receipt.output().len(),
-            }),
-        );
-        let output_records = receipt.output().to_vec();
-        let diagnostics = backend.diagnostics_snapshot();
-        profile.extend_provider_diagnostics(&diagnostics, receipt_call_id(&receipt));
-        let retained_output = backend.host.drain_captured_output();
-        if !retained_output.is_empty() {
-            profile.record_duration(
-                "backend_poison",
-                Instant::now(),
-                receipt_operation(&receipt),
-                json!({
-                    "code": "retained_backend_post_settlement_host_output_poisoned",
-                    "outputRecordCount": retained_output.len(),
-                }),
-            );
-            return Err(backend.poison_with_profile(
-                "retained_backend_post_settlement_host_output_poisoned",
+            Self::Restartable(factory) => {
+                let factory = factory.clone();
+                (factory.spawn)(factory.config.clone())
+                    .map(|worker| BunProviderBackend {
+                        worker: Some(worker),
+                    })
+                    .map_err(|error| {
+                        MechanicalFault::new(
+                            MechanicalFaultKind::Admission,
+                            "retained_backend_restart_failed",
+                            error.to_string(),
+                        )
+                    })
+            }
+        }
+    }
+
+    fn shutdown(mut self, control: ShutdownControl) -> BackendShutdownTerminal {
+        match &mut self {
+            Self::Ready(worker) => match worker.take() {
+                Some(worker) => shutdown_worker(worker, control),
+                None => BackendShutdownTerminal::MechanicalFault(MechanicalFault::new(
+                    MechanicalFaultKind::WorkerTermination,
+                    "retained_backend_ready_continuation_empty",
+                    "the retained backend ready continuation had already been consumed",
+                )),
+            },
+            Self::Restartable(_) => BackendShutdownTerminal::Complete,
+        }
+    }
+}
+
+impl Drop for Continuation {
+    fn drop(&mut self) {
+        if let Self::Ready(worker) = self
+            && let Some(worker) = worker.take()
+        {
+            adopt_for_disposal(worker);
+        }
+    }
+}
+
+impl fmt::Debug for MechanicalTerminal {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Cargo(terminal) => formatter
+                .debug_tuple("Cargo")
+                .field(&terminal.cargo)
+                .finish(),
+            Self::Cancelled(_) => formatter.write_str("Cancelled"),
+            Self::DeadlineElapsed(_) => formatter.write_str("DeadlineElapsed"),
+            Self::MechanicalFault(terminal) => formatter
+                .debug_tuple("MechanicalFault")
+                .field(&terminal.fault)
+                .finish(),
+        }
+    }
+}
+
+impl fmt::Debug for BackendShutdownTerminal {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Complete => formatter.write_str("Complete"),
+            Self::MechanicalFault(fault) => formatter
+                .debug_tuple("MechanicalFault")
+                .field(fault)
+                .finish(),
+        }
+    }
+}
+
+fn drive_worker(
+    worker: WorkerCustody,
+    request: ProviderRequest,
+    mut options: ProviderSettleOptions,
+    control: DriveControl,
+) -> MechanicalTerminal {
+    options.deadline.deadline_ms = control
+        .remaining()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
+    let (response, receive) = mpsc::sync_channel(1);
+    let command = WorkerCommand::Drive {
+        request,
+        options,
+        interrupt: Arc::clone(&control.interrupt.requested),
+        response,
+    };
+    if worker.commands.send(command).is_err() {
+        return terminal_after_worker_disconnect(worker);
+    }
+
+    let response = match receive.recv_timeout(control.remaining()) {
+        Ok(response) => response,
+        Err(RecvTimeoutError::Timeout) => {
+            control.interrupt.request();
+            adopt_for_disposal(worker);
+            return MechanicalTerminal::MechanicalFault(MechanicalFaultTerminal {
+                fault: MechanicalFault::new(
+                    MechanicalFaultKind::WorkerTermination,
+                    "retained_prepared_export_deadline_retirement_adopted",
+                    "the drive exceeded its foreground deadline; unresolved runtime custody was adopted before this terminal was published",
+                ),
+                continuation: None,
+            });
+        }
+        Err(RecvTimeoutError::Disconnected) => {
+            return terminal_after_worker_disconnect(worker);
+        }
+    };
+
+    let selected = control.selection();
+    if !response.unowned_output.is_empty() {
+        let factory = worker.factory.clone();
+        let retirement = retire_worker(worker, control.retirement_timeout());
+        return fault_after_retirement(
+            MechanicalFault::new(
+                MechanicalFaultKind::OutputQuiescence,
+                "retained_prepared_export_unowned_output_after_terminal",
                 format!(
-                    "provider invocation '{}' produced {} output record(s) after the invocation ledger had settled; backend state is uncertain and cannot be reused",
-                    self.descriptor.invocation_id,
-                    retained_output.len()
+                    "{} output record(s) remained outside the terminal cargo ledger",
+                    response.unowned_output.len()
                 ),
-                Some(self.descriptor.invocation_id.clone()),
-                retained_output,
-                profile.finish(),
-            ));
-        }
-        Ok(SettledInvocationOutcome {
-            backend: Some(backend),
-            descriptor: self.descriptor.clone(),
-            receipt,
-            output_records,
-            diagnostics,
-            profile: Some(profile),
-            consumed: false,
-        })
+            ),
+            factory,
+            retirement,
+        );
     }
-}
 
-impl<R: BunEmbeddingRuntime> Drop for ProviderInvocationLease<'_, R> {
-    fn drop(&mut self) {
-        if self.consumed {
-            return;
-        }
-        if let Some(backend) = self.backend.as_deref_mut() {
-            let output = backend.host.drain_captured_output();
-            let profile = self.profile.take().map(|mut profile| {
-                profile.record_duration(
-                    "backend_poison",
-                    Instant::now(),
-                    None,
-                    json!({
-                        "code": "retained_backend_invocation_lease_dropped_without_settlement_poisoned",
-                        "outputRecordCount": output.len(),
-                    }),
-                );
-                profile.finish()
-            });
-            let code = "retained_backend_invocation_lease_dropped_without_settlement_poisoned";
-            let message = format!(
-                "provider invocation '{}' lease was dropped without settlement; retained backend cannot prove provider state or output ownership",
-                self.descriptor.invocation_id
-            );
-            let _ = match profile {
-                Some(profile) => backend.poison_with_profile(
-                    code,
-                    message,
-                    Some(self.descriptor.invocation_id.clone()),
-                    output,
-                    profile,
-                ),
-                None => backend.poison(
-                    code,
-                    message,
-                    Some(self.descriptor.invocation_id.clone()),
-                    output,
-                ),
-            };
-        }
-    }
-}
-
-impl<'a, R: BunEmbeddingRuntime> SettledInvocationOutcome<'a, R> {
-    pub fn finish(mut self) -> LibbunResult<FinishedInvocation> {
-        let backend = self
-            .backend
-            .take()
-            .expect("settled invocation outcome backend present until finished");
-        let mut profile = self
-            .profile
-            .take()
-            .expect("settled invocation profile present until finished");
-        let backend_finish_started = Instant::now();
-        let finish_diagnostics =
-            match backend.finish_invocation(&self.descriptor, self.output_records.as_slice()) {
-                Ok(diagnostics) => diagnostics,
-                Err(error) => {
-                    profile.record_duration(
-                        "backend_poison",
-                        Instant::now(),
-                        None,
-                        json!({
-                            "code": "retained_backend_finish_invocation_failed_poisoned",
-                            "outputRecordCount": self.output_records.len(),
-                        }),
-                    );
-                    if let Some(poison) = backend.poison.as_mut() {
-                        poison.profile = Some(profile.finish());
-                    }
-                    self.consumed = true;
-                    return Err(error);
+    match selected {
+        ControlSelection::Deadline => {
+            let factory = worker.factory.clone();
+            match retire_worker(worker, control.retirement_timeout()) {
+                RetirementOutcome::Complete => {
+                    MechanicalTerminal::DeadlineElapsed(DeadlineElapsedTerminal {
+                        continuation: Some(Continuation::Restartable(factory)),
+                    })
                 }
-            };
-        profile.record_duration(
-            "backend_finish_invocation",
-            backend_finish_started,
-            None,
-            json!({
-                "backendState": format!("{:?}", backend.state()),
-            }),
-        );
-        let ledger_finish_started = Instant::now();
-        let records = if self.descriptor.output_policy == InvocationOutputPolicy::Capture {
-            self.output_records.clone()
-        } else {
-            Vec::new()
-        };
-        let ledger = InvocationOutputLedger {
-            invocation_id: self.descriptor.invocation_id.clone(),
-            record_count: self.output_records.len(),
-            records,
-            late_output_policy: LateOutputPolicy::Poison,
-            late_output_count: 0,
-            drain_failures: Vec::new(),
-            diagnostics_snapshot: finish_diagnostics.clone(),
-        };
-        profile.record_duration(
-            "output_ledger_finish",
-            ledger_finish_started,
-            None,
-            json!({
-                "recordCount": ledger.record_count,
-                "projectedRecordCount": ledger.records.len(),
-                "lateOutputCount": ledger.late_output_count,
-                "drainFailureCount": ledger.drain_failures.len(),
-            }),
-        );
-        let profile = profile.finish();
-        self.consumed = true;
-        Ok(FinishedInvocation {
-            invocation_id: self.descriptor.invocation_id.clone(),
-            receipt: self.receipt.clone(),
-            output: ledger,
-            diagnostics: self.diagnostics.clone(),
-            profile,
-        })
-    }
-}
-
-impl<R: BunEmbeddingRuntime> Drop for SettledInvocationOutcome<'_, R> {
-    fn drop(&mut self) {
-        if self.consumed {
-            return;
+                retirement => fault_after_retirement(
+                    MechanicalFault::new(
+                        MechanicalFaultKind::WorkerTermination,
+                        "retained_prepared_export_deadline_retirement_failed",
+                        "deadline was selected but terminal worker retirement did not complete cleanly",
+                    ),
+                    factory,
+                    retirement,
+                ),
+            }
         }
-        if let Some(backend) = self.backend.as_deref_mut() {
-            let output = backend.host.drain_captured_output();
-            let profile = self.profile.take().map(|mut profile| {
-                profile.record_duration(
-                    "backend_poison",
-                    Instant::now(),
-                    None,
-                    json!({
-                        "code": "retained_backend_settled_outcome_dropped_without_finish_poisoned",
-                        "outputRecordCount": output.len(),
+        ControlSelection::Cancelled => {
+            let factory = worker.factory.clone();
+            match retire_worker(worker, control.retirement_timeout()) {
+                RetirementOutcome::Complete => MechanicalTerminal::Cancelled(CancelledTerminal {
+                    continuation: Some(Continuation::Restartable(factory)),
+                }),
+                retirement => fault_after_retirement(
+                    MechanicalFault::new(
+                        MechanicalFaultKind::WorkerTermination,
+                        "retained_prepared_export_cancel_retirement_failed",
+                        "cancellation was selected but terminal worker retirement did not complete cleanly",
+                    ),
+                    factory,
+                    retirement,
+                ),
+            }
+        }
+        ControlSelection::Continue => match response.result {
+            Ok(SettledProviderReceipt::Ready { result, output, .. }) => {
+                match authored_cargo(result, output) {
+                    Ok(cargo) => MechanicalTerminal::Cargo(CargoTerminal {
+                        cargo,
+                        continuation: Some(Continuation::Ready(Some(worker))),
+                    }),
+                    Err(fault) => {
+                        let factory = worker.factory.clone();
+                        let retirement = retire_worker(worker, control.retirement_timeout());
+                        fault_after_retirement(fault, factory, retirement)
+                    }
+                }
+            }
+            Ok(SettledProviderReceipt::Failed(failure))
+                if failure.operation
+                    == crate::ProviderExecutionOperation::ProviderDeadlineElapsed =>
+            {
+                let factory = worker.factory.clone();
+                match retire_worker(worker, control.retirement_timeout()) {
+                    RetirementOutcome::Complete => {
+                        MechanicalTerminal::DeadlineElapsed(DeadlineElapsedTerminal {
+                            continuation: Some(Continuation::Restartable(factory)),
+                        })
+                    }
+                    retirement => fault_after_retirement(
+                        MechanicalFault::new(
+                            MechanicalFaultKind::WorkerTermination,
+                            "retained_prepared_export_runtime_deadline_retirement_failed",
+                            "the runtime reported deadline but retirement did not complete cleanly",
+                        ),
+                        factory,
+                        retirement,
+                    ),
+                }
+            }
+            Ok(SettledProviderReceipt::Failed(failure)) => {
+                let factory = worker.factory.clone();
+                let fault = MechanicalFault::new(
+                    MechanicalFaultKind::ProviderPreparation,
+                    "retained_prepared_export_provider_preparation_failed",
+                    failure.js_error_message.unwrap_or_else(|| {
+                        "provider preparation failed without a JavaScript diagnostic".to_owned()
                     }),
                 );
-                profile.finish()
-            });
-            let code = "retained_backend_settled_outcome_dropped_without_finish_poisoned";
-            let message = format!(
-                "provider invocation '{}' settled but its outcome was dropped without finish(); retained backend cannot prove final output ledger ownership",
-                self.descriptor.invocation_id
-            );
-            let _ = match profile {
-                Some(profile) => backend.poison_with_profile(
-                    code,
-                    message,
-                    Some(self.descriptor.invocation_id.clone()),
-                    output,
-                    profile,
-                ),
-                None => backend.poison(
-                    code,
-                    message,
-                    Some(self.descriptor.invocation_id.clone()),
-                    output,
-                ),
-            };
-        }
+                let retirement = retire_worker(worker, control.retirement_timeout());
+                fault_after_retirement(fault, factory, retirement)
+            }
+            Err(error) if is_typed_interrupt(&error) => {
+                let factory = worker.factory.clone();
+                match retire_worker(worker, control.retirement_timeout()) {
+                    RetirementOutcome::Complete => {
+                        MechanicalTerminal::Cancelled(CancelledTerminal {
+                            continuation: Some(Continuation::Restartable(factory)),
+                        })
+                    }
+                    retirement => fault_after_retirement(
+                        MechanicalFault::new(
+                            MechanicalFaultKind::WorkerTermination,
+                            "retained_prepared_export_interrupt_retirement_failed",
+                            "the runtime observed cancellation but retirement did not complete cleanly",
+                        ),
+                        factory,
+                        retirement,
+                    ),
+                }
+            }
+            Err(error) => {
+                let factory = worker.factory.clone();
+                let fault = MechanicalFault::new(
+                    MechanicalFaultKind::Dispatch,
+                    "retained_prepared_export_dispatch_failed",
+                    error.to_string(),
+                );
+                let retirement = retire_worker(worker, control.retirement_timeout());
+                fault_after_retirement(fault, factory, retirement)
+            }
+        },
     }
 }
 
-fn validate_descriptor(descriptor: &ProviderInvocationDescriptor) -> LibbunResult<()> {
-    if descriptor.invocation_id.trim().is_empty() {
-        return Err(LibbunError::backend_state(
-            "retained_backend_invocation_id_empty_forbidden",
-            "provider invocation descriptor must carry a non-empty invocation id",
+fn authored_cargo(
+    result: ProviderCallResult,
+    output: Vec<OutputRecord>,
+) -> Result<AuthoredSettlementCargo, MechanicalFault> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "snake_case", tag = "kind", content = "cargo")]
+    enum Envelope {
+        Fulfilled(StructuralValue),
+        Rejected(crate::ProviderError),
+    }
+
+    let (kind, envelope) = match result {
+        ProviderCallResult::Ok(value) => (
+            AuthoredSettlementKind::Fulfilled,
+            Envelope::Fulfilled(value),
+        ),
+        ProviderCallResult::Err(error) => {
+            (AuthoredSettlementKind::Rejected, Envelope::Rejected(error))
+        }
+    };
+    let bytes = serde_json::to_vec(&envelope).map_err(|error| {
+        MechanicalFault::new(
+            MechanicalFaultKind::ProviderPreparation,
+            "retained_prepared_export_authored_cargo_encode_failed",
+            error.to_string(),
+        )
+    })?;
+    if bytes.is_empty() {
+        return Err(MechanicalFault::new(
+            MechanicalFaultKind::ProviderPreparation,
+            "retained_prepared_export_authored_cargo_empty",
+            "authored settlement cargo encoded to an empty byte sequence",
         ));
     }
-    Ok(())
+    Ok(AuthoredSettlementCargo {
+        kind,
+        bytes,
+        output,
+    })
 }
 
-impl InvocationProfileBuilder {
-    fn new(invocation_id: String) -> Self {
-        Self {
-            invocation_id,
-            invocation_started_at: Instant::now(),
-            spans: Vec::new(),
+fn fault_after_retirement(
+    mut fault: MechanicalFault,
+    factory: WorkerFactory,
+    retirement: RetirementOutcome,
+) -> MechanicalTerminal {
+    let continuation = match retirement {
+        RetirementOutcome::Complete => Some(Continuation::Restartable(factory)),
+        RetirementOutcome::Fault(retirement_fault)
+        | RetirementOutcome::Adopted(retirement_fault) => {
+            fault = retirement_fault;
+            None
+        }
+    };
+    MechanicalTerminal::MechanicalFault(MechanicalFaultTerminal {
+        fault,
+        continuation,
+    })
+}
+
+fn terminal_after_worker_disconnect(mut worker: WorkerCustody) -> MechanicalTerminal {
+    let factory = worker.factory.clone();
+    let join = worker.join.take();
+    drop(worker.commands);
+    let fault = match join.and_then(|join| join.join().err()) {
+        Some(_) => MechanicalFault::new(
+            MechanicalFaultKind::SupervisorUnwind,
+            "retained_prepared_export_worker_unwound",
+            "the retained runtime worker unwound while it owned the invocation",
+        ),
+        None => MechanicalFault::new(
+            MechanicalFaultKind::WorkerTermination,
+            "retained_prepared_export_worker_disconnected",
+            "the retained runtime worker disconnected before publishing a terminal",
+        ),
+    };
+    MechanicalTerminal::MechanicalFault(MechanicalFaultTerminal {
+        fault,
+        continuation: Some(Continuation::Restartable(factory)),
+    })
+}
+
+fn retire_worker(worker: WorkerCustody, timeout: Duration) -> RetirementOutcome {
+    let (response, receive) = mpsc::sync_channel(1);
+    if worker
+        .commands
+        .send(WorkerCommand::Shutdown {
+            response: Some(response),
+        })
+        .is_err()
+    {
+        return join_disconnected_worker(worker);
+    }
+    match receive.recv_timeout(timeout) {
+        Ok(Ok(())) => join_shutdown_worker(worker),
+        Ok(Err(error)) => {
+            let join_outcome = join_shutdown_worker(worker);
+            match join_outcome {
+                RetirementOutcome::Complete => RetirementOutcome::Fault(MechanicalFault::new(
+                    MechanicalFaultKind::Shutdown,
+                    "retained_backend_runtime_shutdown_failed",
+                    error.to_string(),
+                )),
+                other => other,
+            }
+        }
+        Err(RecvTimeoutError::Disconnected) => join_disconnected_worker(worker),
+        Err(RecvTimeoutError::Timeout) => {
+            adopt_for_disposal(worker);
+            RetirementOutcome::Adopted(MechanicalFault::new(
+                MechanicalFaultKind::WorkerTermination,
+                "retained_backend_retirement_adopted_after_timeout",
+                "retained runtime retirement exceeded its foreground deadline and was adopted by the durable reaper",
+            ))
         }
     }
+}
 
-    fn record_duration(
-        &mut self,
-        phase: impl Into<String>,
-        started_at: Instant,
-        operation: Option<String>,
-        counters: Value,
-    ) {
-        let started_after_ms = started_at
-            .saturating_duration_since(self.invocation_started_at)
-            .as_millis() as u64;
-        let completed_after_ms = self.invocation_started_at.elapsed().as_millis() as u64;
-        self.spans.push(InvocationProfileSpan {
-            schema: "libbun.invocation_profile.span.v1".to_owned(),
-            phase: phase.into(),
-            elapsed_ms: started_at.elapsed().as_millis() as u64,
-            started_after_ms,
-            completed_after_ms,
-            operation,
-            counters,
-        });
+fn join_shutdown_worker(mut worker: WorkerCustody) -> RetirementOutcome {
+    let Some(join) = worker.join.take() else {
+        return RetirementOutcome::Fault(MechanicalFault::new(
+            MechanicalFaultKind::WorkerTermination,
+            "retained_backend_worker_join_missing",
+            "retained runtime shutdown completed without its affine join custody",
+        ));
+    };
+    drop(worker.commands);
+    match join.join() {
+        Ok(()) => RetirementOutcome::Complete,
+        Err(_) => RetirementOutcome::Fault(MechanicalFault::new(
+            MechanicalFaultKind::SupervisorUnwind,
+            "retained_backend_worker_unwound_during_shutdown",
+            "retained runtime worker unwound while finalizing shutdown",
+        )),
+    }
+}
+
+fn join_disconnected_worker(mut worker: WorkerCustody) -> RetirementOutcome {
+    let Some(join) = worker.join.take() else {
+        return RetirementOutcome::Fault(MechanicalFault::new(
+            MechanicalFaultKind::WorkerTermination,
+            "retained_backend_disconnected_worker_join_missing",
+            "disconnected retained runtime worker had no join custody",
+        ));
+    };
+    drop(worker.commands);
+    match join.join() {
+        Ok(()) => RetirementOutcome::Complete,
+        Err(_) => RetirementOutcome::Fault(MechanicalFault::new(
+            MechanicalFaultKind::SupervisorUnwind,
+            "retained_backend_disconnected_worker_unwound",
+            "disconnected retained runtime worker ended by unwind",
+        )),
+    }
+}
+
+fn shutdown_worker(worker: WorkerCustody, control: ShutdownControl) -> BackendShutdownTerminal {
+    match retire_worker(worker, control.timeout) {
+        RetirementOutcome::Complete => BackendShutdownTerminal::Complete,
+        RetirementOutcome::Fault(fault) | RetirementOutcome::Adopted(fault) => {
+            BackendShutdownTerminal::MechanicalFault(fault)
+        }
+    }
+}
+
+fn is_typed_interrupt(error: &LibbunError) -> bool {
+    matches!(
+        error,
+        LibbunError::BackendState { code, .. }
+            if code == "retained_prepared_export_interrupt_observed"
+    )
+}
+
+fn ensure_durable_reaper() -> Result<Sender<WorkerCustody>, String> {
+    DURABLE_REAPER
+        .get_or_init(|| {
+            let (sender, receiver) = mpsc::channel();
+            thread::Builder::new()
+                .name("libbun-retained-durable-reaper".to_owned())
+                .spawn(move || durable_reaper_loop(receiver))
+                .map(|_| sender)
+                .map_err(|error| error.to_string())
+        })
+        .as_ref()
+        .map(Sender::clone)
+        .map_err(Clone::clone)
+}
+
+fn durable_reaper_loop(receiver: Receiver<WorkerCustody>) {
+    for mut worker in receiver {
+        let _ = worker
+            .commands
+            .send(WorkerCommand::Shutdown { response: None });
+        drop(worker.commands);
+        if let Some(join) = worker.join.take() {
+            let _ = join.join();
+        }
+    }
+}
+
+fn adopt_for_disposal(worker: WorkerCustody) {
+    match ensure_durable_reaper().and_then(|sender| {
+        sender
+            .send(worker)
+            .map_err(|error| format!("durable reaper queue disconnected: {error}"))
+    }) {
+        Ok(()) => {}
+        Err(_) => {
+            // A disconnected durable reaper drops the command sender. The
+            // runtime worker then observes channel closure, shuts down inside
+            // its owning thread, and its detached JoinHandle has no authority
+            // surface back to the caller.
+        }
+    }
+}
+
+fn spawn_worker<R>(config: BunRuntimeConfig) -> LibbunResult<WorkerCustody>
+where
+    R: BunEmbeddingRuntime + 'static,
+{
+    let factory = WorkerFactory {
+        config: config.clone(),
+        spawn: spawn_worker::<R>,
+    };
+    let (commands, receiver) = mpsc::channel();
+    let (initialized, initialization) = mpsc::sync_channel(1);
+    let join = thread::Builder::new()
+        .name("libbun-retained-runtime-owner".to_owned())
+        .spawn(move || retained_worker_loop::<R>(config, receiver, initialized))
+        .map_err(|error| {
+            LibbunError::initialize(format!(
+                "retained runtime owner thread spawn failed: {error}"
+            ))
+        })?;
+    match initialization.recv() {
+        Ok(Ok(())) => Ok(WorkerCustody {
+            commands,
+            join: Some(join),
+            factory,
+        }),
+        Ok(Err(error)) => {
+            let _ = join.join();
+            Err(error)
+        }
+        Err(error) => {
+            let _ = join.join();
+            Err(LibbunError::initialize(format!(
+                "retained runtime owner disconnected during initialization: {error}"
+            )))
+        }
+    }
+}
+
+fn retained_worker_loop<R>(
+    config: BunRuntimeConfig,
+    receiver: Receiver<WorkerCommand>,
+    initialized: SyncSender<LibbunResult<()>>,
+) where
+    R: BunEmbeddingRuntime + 'static,
+{
+    let mut host = match BunHost::<R>::initialize(config) {
+        Ok(host) => host,
+        Err(error) => {
+            let _ = initialized.send(Err(error));
+            return;
+        }
+    };
+    host.drain_captured_output();
+    if initialized.send(Ok(())).is_err() {
+        return;
+    }
+    while let Ok(command) = receiver.recv() {
+        match command {
+            WorkerCommand::Drive {
+                request,
+                options,
+                interrupt,
+                response,
+            } => {
+                let result = host.call_provider_until_settled_for_prepared_export(
+                    request,
+                    options,
+                    interrupt.as_ref(),
+                );
+                let unowned_output = host.drain_captured_output();
+                let _ = response.send(WorkerDriveResponse {
+                    result,
+                    unowned_output,
+                });
+            }
+            WorkerCommand::Shutdown { response } => {
+                let result = host.shutdown();
+                if let Some(response) = response {
+                    let _ = response.send(result);
+                }
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+fn select_request_for_owner_test(
+    request: ProviderRequest,
+    options: ProviderSettleOptions,
+) -> (SelectedProviderPackage, ProviderInvocation) {
+    let brand = NEXT_SELECTION_BRAND.fetch_add(1, Ordering::Relaxed);
+    (
+        SelectedProviderPackage {
+            brand,
+            contract: request.contract,
+            domain: request.domain,
+            module: request.module,
+            export: request.export,
+        },
+        ProviderInvocation {
+            brand,
+            input: request.input,
+            options,
+        },
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use serde_json::json;
+
+    use super::*;
+    use crate::{
+        BunAsyncHandle, BunModuleHandle, BunModuleSpec, ExportCallResult, OutputStream,
+        ProviderDeadline, ProviderError, PumpBudget, PumpOutcome,
+    };
+
+    static SHUTDOWNS: AtomicUsize = AtomicUsize::new(0);
+
+    struct OwnerTestRuntime {
+        output: Vec<OutputRecord>,
+        late_output: Option<OutputRecord>,
+        late_output_delay: usize,
+        pending: BTreeMap<String, Option<ProviderCallResult>>,
+        fail_shutdown: bool,
     }
 
-    fn record_diagnostic_span(
-        &mut self,
-        phase: impl Into<String>,
-        enter: &ProviderDiagnosticEvent,
-        exit: &ProviderDiagnosticEvent,
-    ) {
-        let started_after_ms = enter.elapsed_ms;
-        let completed_after_ms = exit.elapsed_ms;
-        self.spans.push(InvocationProfileSpan {
-            schema: "libbun.invocation_profile.span.v1".to_owned(),
-            phase: phase.into(),
-            elapsed_ms: completed_after_ms.saturating_sub(started_after_ms),
-            started_after_ms,
-            completed_after_ms,
-            operation: Some(provider_operation_name(exit.operation).to_owned()),
-            counters: json!({
-                "diagnosticPhase": provider_diagnostic_phase_name(exit.phase),
-                "diagnosticOperation": provider_operation_name(exit.operation),
-                "pendingAsyncTaskCount": exit.pending_async_task_count,
-                "capturedOutputRecordCount": exit.captured_output_record_count,
-                "runtimeInstanceId": exit.runtime_instance_id,
-                "libbunVersion": exit.libbun_version,
-                "libbunAbiVersion": exit.libbun_abi_version,
-                "bunRevision": exit.bun_revision,
-            }),
-        });
-    }
+    impl BunEmbeddingRuntime for OwnerTestRuntime {
+        fn initialize(config: BunRuntimeConfig) -> LibbunResult<Self> {
+            Ok(Self {
+                output: Vec::new(),
+                late_output: None,
+                late_output_delay: 0,
+                pending: BTreeMap::new(),
+                fail_shutdown: config.host_id == "shutdown-fail",
+            })
+        }
 
-    fn extend_provider_diagnostics(
-        &mut self,
-        diagnostics: &ProviderRuntimeSnapshot,
-        call_id: Option<&str>,
-    ) {
-        let mut enters: BTreeMap<u64, &ProviderDiagnosticEvent> = BTreeMap::new();
-        for event in diagnostics.recent_events.iter() {
-            if let Some(call_id) = call_id
-                && event.call_id.0 != call_id
+        fn load_module(&mut self, spec: BunModuleSpec) -> LibbunResult<BunModuleHandle> {
+            match spec {
+                BunModuleSpec::Source { module_id, source } => Ok(BunModuleHandle {
+                    id: format!("{module_id}:{source}"),
+                }),
+                _ => Err(LibbunError::module_load(
+                    "owner tests require an in-memory source module",
+                )),
+            }
+        }
+
+        fn call_export(
+            &mut self,
+            module: &BunModuleHandle,
+            export: &str,
+            input: StructuralValue,
+        ) -> LibbunResult<crate::ExportCallResult> {
+            if export != "default" {
+                return Err(LibbunError::export_call("selected export is not callable"));
+            }
+            let behavior = module
+                .id
+                .split_once(':')
+                .map(|(_, behavior)| behavior)
+                .unwrap_or_default();
+            match behavior {
+                "ok" => {
+                    self.output.push(OutputRecord {
+                        stream: OutputStream::Stdout,
+                        text: "owner output".to_owned(),
+                    });
+                    Ok(ExportCallResult::Ready(ProviderCallResult::Ok(input)))
+                }
+                "reject" => Ok(ExportCallResult::Ready(ProviderCallResult::Err(
+                    ProviderError {
+                        code: "authored_rejection".to_owned(),
+                        message: "authored rejection cargo".to_owned(),
+                    },
+                ))),
+                "never" => {
+                    self.pending.insert("pending".to_owned(), None);
+                    Ok(ExportCallResult::Pending(BunAsyncHandle {
+                        id: "pending".to_owned(),
+                    }))
+                }
+                "blocking" => {
+                    thread::sleep(Duration::from_millis(100));
+                    Ok(ExportCallResult::Ready(ProviderCallResult::Ok(input)))
+                }
+                "late" => {
+                    self.late_output = Some(OutputRecord {
+                        stream: OutputStream::Log,
+                        text: "late owner output".to_owned(),
+                    });
+                    self.late_output_delay = 1;
+                    Ok(ExportCallResult::Ready(ProviderCallResult::Ok(input)))
+                }
+                "panic" => panic!("owner test runtime panic"),
+                _ => Err(LibbunError::module_load("unknown owner test behavior")),
+            }
+        }
+
+        fn pump_event_loop(&mut self, budget: PumpBudget) -> LibbunResult<PumpOutcome> {
+            Ok(PumpOutcome {
+                ticks: budget.max_ticks,
+                pending_async_work: self.pending.len(),
+            })
+        }
+
+        fn resolve_async(
+            &mut self,
+            handle: &BunAsyncHandle,
+        ) -> LibbunResult<Option<ProviderCallResult>> {
+            self.pending
+                .get_mut(&handle.id)
+                .ok_or_else(|| LibbunError::export_call("unknown owner test async handle"))
+                .map(Option::take)
+        }
+
+        fn captured_output(&self) -> &[OutputRecord] {
+            &self.output
+        }
+
+        fn drain_captured_output(&mut self) -> Vec<OutputRecord> {
+            if self.output.is_empty() && self.late_output_delay > 0 {
+                self.late_output_delay -= 1;
+                return Vec::new();
+            }
+            if self.output.is_empty()
+                && let Some(late) = self.late_output.take()
             {
-                continue;
+                return vec![late];
             }
-            match event.kind {
-                ProviderDiagnosticEventKind::PhaseEnter if event.span_id != 0 => {
-                    enters.insert(event.span_id, event);
-                }
-                ProviderDiagnosticEventKind::PhaseExit if event.span_id != 0 => {
-                    if let Some(enter) = enters.get(&event.span_id) {
-                        self.record_diagnostic_span(
-                            invocation_profile_phase_name(event.phase, event.operation),
-                            enter,
-                            event,
-                        );
-                    }
-                }
-                _ => {}
+            std::mem::take(&mut self.output)
+        }
+
+        fn shutdown(&mut self) -> LibbunResult<()> {
+            SHUTDOWNS.fetch_add(1, Ordering::Relaxed);
+            if self.fail_shutdown {
+                Err(LibbunError::shutdown("owner test shutdown failure"))
+            } else {
+                Ok(())
             }
         }
     }
 
-    fn finish(self) -> InvocationProfileLedger {
-        InvocationProfileLedger {
-            schema: "libbun.invocation_profile.ledger.v1".to_owned(),
-            invocation_id: self.invocation_id,
-            spans: self.spans,
+    fn backend(host_id: &str) -> BunProviderBackend {
+        BunProviderBackend::open::<OwnerTestRuntime>(BunRuntimeConfig::new(host_id, "/tmp"))
+            .expect("owner test backend opens")
+    }
+
+    fn selected(
+        behavior: &str,
+        input: serde_json::Value,
+    ) -> (SelectedProviderPackage, ProviderInvocation) {
+        select_request_for_owner_test(
+            ProviderRequest {
+                contract: ProviderContractIdentity {
+                    package: "owner-test".to_owned(),
+                    capability: "drive".to_owned(),
+                    contract_fingerprint: "owner-test-v1".to_owned(),
+                },
+                domain: ProviderDomainClass::JavaScriptExternalTransport,
+                module: BunModuleSpec::Source {
+                    module_id: "owner-test".to_owned(),
+                    source: behavior.to_owned(),
+                },
+                export: "default".to_owned(),
+                input: StructuralValue(input),
+            },
+            ProviderSettleOptions::new(ProviderDeadline::from_millis(5_000)),
+        )
+    }
+
+    fn drive(backend: BunProviderBackend, behavior: &str, timeout: Duration) -> MechanicalTerminal {
+        let (package, invocation) = selected(behavior, json!({ "value": 41 }));
+        backend
+            .prepare(package, invocation)
+            .expect("matching selected input prepares")
+            .drive(DriveControl::deadline_after(timeout).expect("deadline is representable"))
+    }
+
+    #[test]
+    fn affine_cargo_drive_retains_one_ready_continuation_for_second_invocation() {
+        let first = drive(backend("cargo"), "ok", Duration::from_secs(1));
+        let first_cargo = first.cargo().expect("fulfilled terminal owns cargo");
+        assert_eq!(first_cargo.kind(), AuthoredSettlementKind::Fulfilled);
+        assert!(!first_cargo.bytes().is_empty());
+        assert_eq!(first_cargo.output().len(), 1);
+
+        let (package, invocation) = selected("reject", json!(null));
+        let second = first
+            .prepare_next(package, invocation)
+            .expect("ready terminal prepares one next invocation")
+            .drive(
+                DriveControl::deadline_after(Duration::from_secs(1))
+                    .expect("deadline is representable"),
+            );
+        assert_eq!(
+            second.cargo().expect("rejection is authored cargo").kind(),
+            AuthoredSettlementKind::Rejected
+        );
+        assert!(matches!(
+            second.shutdown(
+                ShutdownControl::deadline_after(Duration::from_secs(1))
+                    .expect("shutdown deadline is representable")
+            ),
+            BackendShutdownTerminal::Complete
+        ));
+    }
+
+    #[test]
+    fn typed_interrupt_retires_pending_drive_before_cancelled_terminal() {
+        let (package, invocation) = selected("never", json!(null));
+        let prepared = backend("cancel")
+            .prepare(package, invocation)
+            .expect("matching selected input prepares");
+        let control = DriveControl::deadline_after(Duration::from_secs(2))
+            .expect("deadline is representable");
+        let interrupt = control.interrupt();
+        let requester = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(10));
+            interrupt.request();
+        });
+        let terminal = prepared.drive(control);
+        requester.join().expect("interrupt requester joins");
+        assert!(matches!(terminal, MechanicalTerminal::Cancelled(_)));
+    }
+
+    #[test]
+    fn deadline_retires_pending_drive_and_yields_only_deadline_terminal() {
+        let terminal = drive(backend("deadline"), "never", Duration::from_millis(10));
+        assert!(matches!(terminal, MechanicalTerminal::DeadlineElapsed(_)));
+    }
+
+    #[test]
+    fn deadline_dominates_a_simultaneous_predispatch_interrupt() {
+        let (package, invocation) = selected("ok", json!(null));
+        let prepared = backend("deadline-dominance")
+            .prepare(package, invocation)
+            .expect("matching selected input prepares");
+        let control =
+            DriveControl::deadline_after(Duration::ZERO).expect("zero deadline is representable");
+        control.interrupt().request();
+        assert!(matches!(
+            prepared.drive(control),
+            MechanicalTerminal::DeadlineElapsed(_)
+        ));
+    }
+
+    #[test]
+    fn blocking_deadline_adopts_unresolved_custody_and_fault_dominates() {
+        let terminal = drive(
+            backend("blocking-deadline"),
+            "blocking",
+            Duration::from_millis(10),
+        );
+        let fault = terminal
+            .fault()
+            .expect("unresolved deadline retirement is a typed fault");
+        assert_eq!(fault.kind(), MechanicalFaultKind::WorkerTermination);
+        assert_eq!(
+            fault.code(),
+            "retained_prepared_export_deadline_retirement_adopted"
+        );
+        let (package, invocation) = selected("ok", json!(null));
+        assert!(terminal.prepare_next(package, invocation).is_err());
+    }
+
+    #[test]
+    fn predispatch_interrupt_preserves_one_ready_continuation() {
+        let (package, invocation) = selected("ok", json!(null));
+        let prepared = backend("predispatch-cancel")
+            .prepare(package, invocation)
+            .expect("matching selected input prepares");
+        let control = DriveControl::deadline_after(Duration::from_secs(1))
+            .expect("deadline is representable");
+        control.interrupt().request();
+        let cancelled = prepared.drive(control);
+        assert!(matches!(cancelled, MechanicalTerminal::Cancelled(_)));
+        let (package, invocation) = selected("ok", json!(null));
+        let resumed = cancelled
+            .prepare_next(package, invocation)
+            .expect("predispatch cancellation retains the ready worker")
+            .drive(
+                DriveControl::deadline_after(Duration::from_secs(1))
+                    .expect("deadline is representable"),
+            );
+        assert!(matches!(resumed, MechanicalTerminal::Cargo(_)));
+    }
+
+    #[test]
+    fn late_output_fault_dominates_provisional_authored_cargo() {
+        let terminal = drive(backend("late"), "late", Duration::from_secs(1));
+        let fault = terminal
+            .fault()
+            .expect("late output is a typed mechanical fault");
+        assert_eq!(fault.kind(), MechanicalFaultKind::OutputQuiescence);
+        assert_eq!(
+            fault.code(),
+            "retained_prepared_export_unowned_output_after_terminal"
+        );
+    }
+
+    #[test]
+    fn runtime_unwind_yields_typed_terminal_and_restartable_continuation() {
+        let terminal = drive(backend("panic"), "panic", Duration::from_secs(1));
+        assert_eq!(
+            terminal.fault().expect("unwind is typed").kind(),
+            MechanicalFaultKind::SupervisorUnwind
+        );
+        let (package, invocation) = selected("ok", json!(null));
+        let restarted = terminal
+            .prepare_next(package, invocation)
+            .expect("unwound worker has one restartable continuation")
+            .drive(
+                DriveControl::deadline_after(Duration::from_secs(1))
+                    .expect("deadline is representable"),
+            );
+        assert!(matches!(restarted, MechanicalTerminal::Cargo(_)));
+    }
+
+    #[test]
+    fn consuming_shutdown_reports_typed_failure_without_backend_retry() {
+        let terminal = backend("shutdown-fail").shutdown(
+            ShutdownControl::deadline_after(Duration::from_secs(1))
+                .expect("shutdown deadline is representable"),
+        );
+        assert!(matches!(
+            terminal,
+            BackendShutdownTerminal::MechanicalFault(_)
+        ));
+    }
+
+    #[test]
+    fn dropped_undispatched_prepared_export_transfers_shutdown_to_reaper() {
+        let before = SHUTDOWNS.load(Ordering::Relaxed);
+        let (package, invocation) = selected("ok", json!(null));
+        let prepared = backend("drop")
+            .prepare(package, invocation)
+            .expect("matching selected input prepares");
+        drop(prepared);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while SHUTDOWNS.load(Ordering::Relaxed) <= before && Instant::now() < deadline {
+            thread::yield_now();
         }
+        assert!(SHUTDOWNS.load(Ordering::Relaxed) > before);
     }
-}
 
-fn receipt_status(receipt: &SettledProviderReceipt) -> &'static str {
-    match receipt {
-        SettledProviderReceipt::Ready { .. } => "ready",
-        SettledProviderReceipt::Failed(_) => "failed",
-    }
-}
-
-fn receipt_operation(receipt: &SettledProviderReceipt) -> Option<String> {
-    match receipt {
-        SettledProviderReceipt::Ready { settlement, .. } => {
-            Some(provider_operation_name(settlement.operation).to_owned())
+    #[test]
+    fn dropped_ready_terminal_transfers_its_continuation_to_reaper() {
+        let before = SHUTDOWNS.load(Ordering::Relaxed);
+        drop(drive(
+            backend("drop-terminal"),
+            "ok",
+            Duration::from_secs(1),
+        ));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while SHUTDOWNS.load(Ordering::Relaxed) <= before && Instant::now() < deadline {
+            thread::yield_now();
         }
-        SettledProviderReceipt::Failed(failure) => {
-            Some(provider_operation_name(failure.operation).to_owned())
-        }
-    }
-}
-
-fn receipt_call_id(receipt: &SettledProviderReceipt) -> Option<&str> {
-    match receipt {
-        SettledProviderReceipt::Ready { settlement, .. } => settlement
-            .call_id
-            .as_ref()
-            .map(|call_id| call_id.0.as_str()),
-        SettledProviderReceipt::Failed(failure) => {
-            failure.call_id.as_ref().map(|call_id| call_id.0.as_str())
-        }
-    }
-}
-
-fn invocation_profile_phase_name(
-    phase: ProviderDiagnosticPhase,
-    operation: ProviderExecutionOperation,
-) -> &'static str {
-    match (phase, operation) {
-        (ProviderDiagnosticPhase::ModuleLoad, _) => "provider_module_load",
-        (ProviderDiagnosticPhase::CallExport, ProviderExecutionOperation::ProviderExportLookup) => {
-            "provider_export_lookup"
-        }
-        (ProviderDiagnosticPhase::CallExport, _) => "provider_call_dispatch",
-        (ProviderDiagnosticPhase::ResolveAsync, _) => "provider_settlement",
-        (ProviderDiagnosticPhase::PumpEventLoop, _) => "provider_event_loop_pump",
-        (ProviderDiagnosticPhase::DrainOutput, _) => "output_drain",
-        (ProviderDiagnosticPhase::Shutdown, _) => "backend_shutdown",
-        (ProviderDiagnosticPhase::DeadlineElapsed, _) => "provider_deadline_elapsed",
-        (ProviderDiagnosticPhase::Complete, _) => "provider_complete",
-        (ProviderDiagnosticPhase::RuntimeInitialize, _) => "runtime_initialize",
-    }
-}
-
-fn provider_diagnostic_phase_name(phase: ProviderDiagnosticPhase) -> &'static str {
-    match phase {
-        ProviderDiagnosticPhase::RuntimeInitialize => "runtime_initialize",
-        ProviderDiagnosticPhase::ModuleLoad => "module_load",
-        ProviderDiagnosticPhase::CallExport => "call_export",
-        ProviderDiagnosticPhase::ResolveAsync => "resolve_async",
-        ProviderDiagnosticPhase::PumpEventLoop => "pump_event_loop",
-        ProviderDiagnosticPhase::DrainOutput => "drain_output",
-        ProviderDiagnosticPhase::Shutdown => "shutdown",
-        ProviderDiagnosticPhase::DeadlineElapsed => "deadline_elapsed",
-        ProviderDiagnosticPhase::Complete => "complete",
-    }
-}
-
-fn provider_operation_name(operation: ProviderExecutionOperation) -> &'static str {
-    match operation {
-        ProviderExecutionOperation::RuntimeInitialize => "runtime_initialize",
-        ProviderExecutionOperation::AdapterModuleLoad => "adapter_module_load",
-        ProviderExecutionOperation::ProviderModuleImport => "provider_module_import",
-        ProviderExecutionOperation::ProviderExportLookup => "provider_export_lookup",
-        ProviderExecutionOperation::ProviderFactoryValidate => "provider_factory_validate",
-        ProviderExecutionOperation::ProviderFactoryInvoke => "provider_factory_invoke",
-        ProviderExecutionOperation::ProviderCallableValidate => "provider_callable_validate",
-        ProviderExecutionOperation::ProviderCallableInvoke => "provider_callable_invoke",
-        ProviderExecutionOperation::ProviderPromiseSettle => "provider_promise_settle",
-        ProviderExecutionOperation::ProviderDeadlineElapsed => "provider_deadline_elapsed",
+        assert!(SHUTDOWNS.load(Ordering::Relaxed) > before);
     }
 }
