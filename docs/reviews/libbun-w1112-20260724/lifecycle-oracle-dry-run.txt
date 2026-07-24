@@ -1,0 +1,22 @@
+[oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
+🧿 oracle 0.16.0 — Ship-ready answers, minus the AI improv.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~61,512 tokens and 17 files.
+File Token Usage
+    16,363     6.02%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+    12,852     4.72%  src/prepared_export.rs
+     9,481     3.49%  native/src/lib.rs
+     4,468     1.64%  docs/reviews/libbun-w1112-20260724/verdict-snapshot.md
+     4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
+     4,283     1.57%  docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md
+     3,407     1.25%  docs/README.md
+     1,961     0.72%  wire/src/lib.rs
+       890     0.33%  README.md
+       695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
+       542     0.20%  tests/public_api_boundary.rs
+       394     0.14%  Cargo.toml
+       364     0.13%  runtime/src/main.rs
+       291     0.11%  native/Cargo.toml
+       194     0.07%  runtime/Cargo.toml
+       164     0.06%  src/lib.rs
+        80     0.03%  wire/Cargo.toml
+Total: 60,896 tokens (22.39% of 272,000)

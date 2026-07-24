@@ -1,0 +1,137 @@
+{
+  "schema": "libbun.w1112.external-review-manifest.v1",
+  "part": "owner-generative",
+  "title": "Owner/generative correspondence/admission/reservation/release",
+  "exact_source_sha": "6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb",
+  "exact_source_tree": "cb964de8ab8162449fbe95959bf34d231570aa5c",
+  "verdict_contract_commit": "b046f85a3dd41ac86cabed2de6391876ea77c0f4",
+  "deliverable": "CONCRETE IMPLEMENTATION",
+  "prompt": {
+    "path": "docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md",
+    "sha256": "fd7a13d5c0f3c6fa8a91fcc4523cc9a8437fb0b6ff3177fa6355e8534a1184af"
+  },
+  "ordered_file_plan": {
+    "path": "docs/reviews/libbun-w1112-20260724/owner-generative-files.txt",
+    "sha256": "38e1de382a603a886ca59701e2ee9b77925308f3a5455775a0266e6358f524da",
+    "count": 14
+  },
+  "ordered_attachments": [
+    {
+      "path": "README.md",
+      "sha256": "7b8a88d47e3ccf5fe518f0dfa44bdc09d26440dc7e461cb33160cf1e2e618d70",
+      "bytes": 3369
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "9b615f84198dae1ffac3a99af67afca6bae39fc28622329fc8db51575a797740",
+      "bytes": 12566
+    },
+    {
+      "path": "docs/LIBBUN-LIFECYCLE-CONTRACT.md",
+      "sha256": "c3775f713913713ebc36b37f442cf87927d3e445ba82f80ae1c7fef041526881",
+      "bytes": 17107
+    },
+    {
+      "path": "docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md",
+      "sha256": "72ece5d9eeef7a220ee4d309d5e28f7c852376c7fecd6288cddc4e643dc61fe8",
+      "bytes": 2382
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/verdict-snapshot.md",
+      "sha256": "3138238c945c94f8212855889b0d23600fd97009a006bc57ea862a5aa7d6a6d6",
+      "bytes": 16588
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/exact-source-search-report.md",
+      "sha256": "8460cf4417ad0ef6742cbf2e82bd573dff2a9a8d2b0afff939e5e8657769ef93",
+      "bytes": 36610
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "25e7a172b0c099e65d289e38c05866a5c4808475194038dd59bf2b29af53f96b",
+      "bytes": 551
+    },
+    {
+      "path": "src/prepared_export.rs",
+      "sha256": "88bb176940654c17528329ee50cc0f2894a8abf64a069689b46d4903a477d9e8",
+      "bytes": 42745
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "0fe7a603f1cc43394421f03fca41255166ca665b11c4b75357376cd98c99c496",
+      "bytes": 956
+    },
+    {
+      "path": "tests/public_api_boundary.rs",
+      "sha256": "e53307e8fdcd0e12ed63056a32c8e1836b24e866acd00bdf4bd5da25afc9b370",
+      "bytes": 1784
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/Cargo.toml",
+      "sha256": "c211189cf1e2c05017baec08952dce72fe6d8c372b7b887049dd52a78bbb8c96",
+      "bytes": 409
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/src/bin/adjacent_public_controls.rs",
+      "sha256": "b09059159bc4035e7799e881805ba30216a651b7f2a9c816d28f40f249fd8dcc",
+      "bytes": 413
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs",
+      "sha256": "b290426f65fcc9da855969004223d5383ae64f37bcaf3e6b0035cc3a2e0992bb",
+      "bytes": 128
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs",
+      "sha256": "5f6bc0ec079770540e3e9f49654180da9ef74a03f6a54975e2e9a467c08df281",
+      "bytes": 98
+    }
+  ],
+  "total_attachment_bytes": 135706,
+  "oracle": {
+    "provider": "openai",
+    "engine": "api",
+    "model": "gpt-5.6-sol",
+    "reasoning_mode": "pro",
+    "required_live_banner": [
+      "first-party OpenAI",
+      "gpt-5.6-sol",
+      "Responses API Pro",
+      "xhigh reasoning"
+    ],
+    "dry_run_command": "mapfile -t files < docs/reviews/libbun-w1112-20260724/owner-generative-files.txt; oracle --provider openai --engine api --model gpt-5.6-sol --reasoning-mode pro --dry-run summary --files-report --prompt \"$(cat docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md)\" --file \"${files[@]}\"",
+    "dry_run_report": {
+      "path": "docs/reviews/libbun-w1112-20260724/owner-generative-oracle-dry-run.txt",
+      "sha256": "d281002512fb31cf352640a6c37927fce09c269ede9e5966fe602cf367a66942"
+    },
+    "estimated_total_tokens": 44752,
+    "estimated_call_tokens": 45342,
+    "state": "NOT LAUNCHED",
+    "session_id": null,
+    "request_id": null,
+    "response_id": null,
+    "output_paths": []
+  },
+  "fable": {
+    "model": "claude-fable-5",
+    "effort": "max",
+    "file_plan": {
+      "path": "docs/reviews/libbun-w1112-20260724/owner-generative-fable-plan.md",
+      "sha256": "a3a0f08db8ff76ac91cb930484a3e4d4c2ef1424c38c33d0b01e43087130b2f9"
+    },
+    "state": "NOT LAUNCHED",
+    "session_id": null,
+    "request_id": null,
+    "response_id": null,
+    "output_paths": []
+  },
+  "independent_bundle_review": {
+    "reviewer": "PENDING",
+    "verdict": "PENDING; literal BUNDLE PASS required before launch"
+  },
+  "omissions": [
+    "Oracle and Fable response artifacts intentionally absent because model launch is out of scope.",
+    "Independent source-aware BUNDLE PASS is pending and this manifest does not authorize launch."
+  ],
+  "launch_state": "NOT LAUNCHED"
+}

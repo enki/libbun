@@ -1,0 +1,17 @@
+README.md
+docs/README.md
+docs/LIBBUN-LIFECYCLE-CONTRACT.md
+docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md
+docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
+docs/reviews/libbun-w1112-20260724/verdict-snapshot.md
+docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+src/lib.rs
+src/prepared_export.rs
+native/src/lib.rs
+wire/src/lib.rs
+runtime/src/main.rs
+Cargo.toml
+native/Cargo.toml
+runtime/Cargo.toml
+wire/Cargo.toml
+tests/public_api_boundary.rs

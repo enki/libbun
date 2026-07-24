@@ -1,0 +1,40 @@
+[oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
+🧿 oracle 0.16.0 — Calm CLI, loud answers.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~94,258 tokens and 35 files.
+File Token Usage
+    17,537     6.45%  docs/reviews/libbun-w1112-20260724/vendored-bun-boundary-report.md
+    16,363     6.02%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+    12,852     4.72%  src/prepared_export.rs
+     9,481     3.49%  native/src/lib.rs
+     4,468     1.64%  docs/reviews/libbun-w1112-20260724/verdict-snapshot.md
+     4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
+     4,283     1.57%  docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md
+     3,407     1.25%  docs/README.md
+     2,444     0.90%  docs/LIBBUN-WORKER-RELEASE-CONTRACT.md
+     2,119     0.78%  patches/vendored-bun/0001-add-libbun-native-plugin-pic-build-mode.patch
+     1,961     0.72%  wire/src/lib.rs
+     1,703     0.63%  native/build.rs
+     1,667     0.61%  runtime/build.rs
+     1,345     0.49%  scripts/prepare-native-bun-link.sh
+       890     0.33%  README.md
+       851     0.31%  scripts/package-prepared-export-worker-release.sh
+       780     0.29%  scripts/verify-vendored-bun-reproducible.sh
+       695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
+       630     0.23%  scripts/verify-vendored-bun.sh
+       622     0.23%  scripts/configure-vendored-bun.sh
+       622     0.23%  scripts/update-vendored-bun.sh
+       593     0.22%  scripts/apply-vendored-bun-patches.sh
+       551     0.20%  scripts/vendor-bun-deps.sh
+       537     0.20%  scripts/stage-vendored-bun-source.sh
+       394     0.14%  Cargo.toml
+       364     0.13%  runtime/src/main.rs
+       329     0.12%  patches/vendored-bun/README.md
+       328     0.12%  patches/vendored-bun/0002-export-call-frame-describe-frame-in-release.patch
+       300     0.11%  .github/workflows/ci.yml
+       291     0.11%  native/Cargo.toml
+       224     0.08%  scripts/check-vendored-bun-rust.sh
+       194     0.07%  runtime/Cargo.toml
+       164     0.06%  src/lib.rs
+        80     0.03%  wire/Cargo.toml
+        47     0.02%  BUN_SOURCE_COMMIT
+Total: 93,583 tokens (34.41% of 272,000)

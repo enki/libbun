@@ -1,0 +1,19 @@
+[oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
+🧿 oracle 0.16.0 — LLM babysitter with a shipping agenda.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~45,342 tokens and 14 files.
+File Token Usage
+    16,363     6.02%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+    12,852     4.72%  src/prepared_export.rs
+     4,468     1.64%  docs/reviews/libbun-w1112-20260724/verdict-snapshot.md
+     4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
+     3,407     1.25%  docs/README.md
+       890     0.33%  README.md
+       695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
+       542     0.20%  tests/public_api_boundary.rs
+       394     0.14%  Cargo.toml
+       203     0.07%  tests/fixtures/public_api_boundary/Cargo.toml
+       167     0.06%  tests/fixtures/public_api_boundary/src/bin/adjacent_public_controls.rs
+       164     0.06%  src/lib.rs
+        75     0.03%  tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs
+        65     0.02%  tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs
+Total: 44,752 tokens (16.45% of 272,000)
