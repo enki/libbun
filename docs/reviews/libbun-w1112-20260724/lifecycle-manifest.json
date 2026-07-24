@@ -1,19 +1,45 @@
 {
-  "schema": "libbun.w1112.external-review-manifest.v1",
+  "schema": "libbun.w1112.external-review-manifest.v2",
+  "correction": 2,
   "part": "lifecycle",
-  "title": "Lifecycle/quarantine/durable reaper/completion/restart/shutdown",
+  "title": "Lifecycle/JSC/quarantine/durable reaper/completion/restart/shutdown",
   "exact_source_sha": "6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb",
   "exact_source_tree": "cb964de8ab8162449fbe95959bf34d231570aa5c",
+  "review_base_commit": "ec6a7f249120a833aeaa4e0211fe0f41d17e0565",
+  "adjacent_source": {
+    "repository": "/home/ubuntu/swarm",
+    "sha": "95323ff17cb29928e31467f651ef03bae2099c14",
+    "tree": "43b47bbd49a6053d270b3e15cc141cb1b1bb86da"
+  },
   "verdict_contract_commit": "b046f85a3dd41ac86cabed2de6391876ea77c0f4",
+  "prior_independent_verdict": {
+    "commit": "7a5bfc1cf71299681a9edfb8d4f5a8a7501494e1",
+    "verdict": "BUNDLE REVISE",
+    "records": [
+      {
+        "path": "docs/reviews/libbun-w1112-20260724/lifecycle-independent-verdict.commit",
+        "sha256": "377706f6e59259f1e5f4b21c2d7fc99854e0ef57d1ac206c2a8c632148838310"
+      },
+      {
+        "path": "docs/reviews/libbun-w1112-20260724/lifecycle-correction-ruling.md",
+        "sha256": "6a50421f4605fc0273aa4d04dbe611e90dcc63943ace9976e446a98d9b868de6"
+      }
+    ]
+  },
   "deliverable": "CONCRETE IMPLEMENTATION",
+  "evidence_generator": {
+    "path": "scripts/generate-libbun-w1112-review-evidence-20260724.py",
+    "sha256": "0069166626e368d5904b7b7810a21bf0b64f99e996933f07452b36180fadf6af",
+    "check_command": "python3 scripts/generate-libbun-w1112-review-evidence-20260724.py --check"
+  },
   "prompt": {
     "path": "docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md",
-    "sha256": "091a540cea95beffd6cb65df62ae90ad4bd073e498663dbd6130441993c410a1"
+    "sha256": "6f2ffb4a5fce4bd7871aba553aab5ade1389be8b97994cd558afa0958c176855"
   },
   "ordered_file_plan": {
     "path": "docs/reviews/libbun-w1112-20260724/lifecycle-files.txt",
-    "sha256": "f0b4fbd017c987e04b5d29ec8d0ba9eaf7c42995b369c6a483db38ed971b0208",
-    "count": 17
+    "sha256": "35a1d3e4a35abb0f572df02880189808cfa7fa8b8dbef25ff5cc644567d224ea",
+    "count": 38
   },
   "ordered_attachments": [
     {
@@ -42,14 +68,44 @@
       "bytes": 2382
     },
     {
+      "path": "docs/reviews/libbun-w1112-20260724/correction2-index.md",
+      "sha256": "42b63e2b37a2f2139a951f5f411305cfae68fd6710f9f07cb2778cf237c814f3",
+      "bytes": 1536
+    },
+    {
       "path": "docs/reviews/libbun-w1112-20260724/verdict-snapshot.md",
       "sha256": "3138238c945c94f8212855889b0d23600fd97009a006bc57ea862a5aa7d6a6d6",
       "bytes": 16588
     },
     {
+      "path": "docs/reviews/libbun-w1112-20260724/lifecycle-independent-verdict.commit",
+      "sha256": "377706f6e59259f1e5f4b21c2d7fc99854e0ef57d1ac206c2a8c632148838310",
+      "bytes": 256
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/lifecycle-correction-ruling.md",
+      "sha256": "6a50421f4605fc0273aa4d04dbe611e90dcc63943ace9976e446a98d9b868de6",
+      "bytes": 2143
+    },
+    {
       "path": "docs/reviews/libbun-w1112-20260724/exact-source-search-report.md",
-      "sha256": "8460cf4417ad0ef6742cbf2e82bd573dff2a9a8d2b0afff939e5e8657769ef93",
-      "bytes": 36610
+      "sha256": "2f2a8d95b5568fbf01c9ea2f4c5d38903b9cdb362d682b629ac8e2abb99dc9bd",
+      "bytes": 128039
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md",
+      "sha256": "3d1f009d0c2d16346a73ae505b92ce3d8033ecc88758468b4eae027359c2ad4b",
+      "bytes": 5610
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md",
+      "sha256": "4d74d89e4417583edcde93f4e78c598ef4bc6acd02f03dd5944e7e2c7c28dcf4",
+      "bytes": 87805
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/process-drop-caller-and-fixture-report.md",
+      "sha256": "e3f7f4a06c699faac73511dc27129a66dc22f4d994124632b1449fafc18c056c",
+      "bytes": 45104
     },
     {
       "path": "src/lib.rs",
@@ -100,9 +156,84 @@
       "path": "tests/public_api_boundary.rs",
       "sha256": "e53307e8fdcd0e12ed63056a32c8e1836b24e866acd00bdf4bd5da25afc9b370",
       "bytes": 1784
+    },
+    {
+      "path": "vendor/bun/src/jsc/VM.rs",
+      "sha256": "47aa4f3b8642dfefe21dd56c2fa446889cd701cc3e9fdbf7d962bf4f6aee7119",
+      "bytes": 8822
+    },
+    {
+      "path": "vendor/bun/src/jsc/virtual_machine_exports.rs",
+      "sha256": "95946faae0cd89ac0ccf1d037312e307a88742beed7e5ac2770f91910582b23b",
+      "bytes": 13386
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs",
+      "sha256": "847c4f7b13917810adaa373299ae0df20c373cd4671a97eac265c6c093cc3399",
+      "bytes": 78342
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs",
+      "sha256": "c4dcc653964e40c424bfff20278dd62e6e1d04e7134d09320bc21208c08b6e2d",
+      "bytes": 108022
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/src/lib.rs",
+      "sha256": "e3818b7ce41be8a6a5c5f424418881b4f433883b54a81ddeb96650b2ce9a4439",
+      "bytes": 14848
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/external_transport.rs",
+      "sha256": "b855d0cc8662591ee1f53473831a47034e7c59ecde415883c33dadb6908f4623",
+      "bytes": 4907
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/Cargo.toml",
+      "sha256": "6f9a0d10b0aa4f13049b63013f1469726de88a4adbd2ac48bc862c29b5bb9ee0",
+      "bytes": 690
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/Cargo.toml",
+      "sha256": "dd05cd50a38d1ed15cd2f5276c29c6039688eed4f66052b9591946d2a4f74d9b",
+      "bytes": 24507
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/provider_host_set.rs",
+      "sha256": "14a1994c40bb5c0dfb6e0610b523b5deaf67404e4a2785971cd3c56501a77699",
+      "bytes": 45089
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/src/product.rs",
+      "sha256": "916e4474f9d3d0f2785f7613200b477bc0a0df8ae21245ba4d644650f93d5525",
+      "bytes": 37483
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/tests/external_capability_provider.rs",
+      "sha256": "22aa9c60530d9ab1a7d8e1d4ca9b3587d5dd520e2a3f7b442d7046072fc35191",
+      "bytes": 14251
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/Cargo.toml",
+      "sha256": "1a004d65bf705642c090df2249478d83a1ac20740f572b82a296e31375de9a69",
+      "bytes": 1240
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/Cargo.toml",
+      "sha256": "ce3c3333e5e73bd678f11f4b18cd447e82aee0891c1781d89c6f51aaab3083d1",
+      "bytes": 829
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/external_provider_json_text_nfc.test.ss",
+      "sha256": "3ae07a264289b52bc77c4bf8da0e88c659a3ded32db5d8ea0d3799953ca361c0",
+      "bytes": 588
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/imported_helper_external_result_payload.test.ss",
+      "sha256": "9a26ebc4737439e4ae0e8342a3b19a357d2a8008d2d09330cc92fcae924dae43",
+      "bytes": 771
     }
   ],
-  "total_attachment_bytes": 191489,
+  "total_attachment_bytes": 779147,
   "oracle": {
     "provider": "openai",
     "engine": "api",
@@ -117,10 +248,10 @@
     "dry_run_command": "mapfile -t files < docs/reviews/libbun-w1112-20260724/lifecycle-files.txt; oracle --provider openai --engine api --model gpt-5.6-sol --reasoning-mode pro --dry-run summary --files-report --prompt \"$(cat docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md)\" --file \"${files[@]}\"",
     "dry_run_report": {
       "path": "docs/reviews/libbun-w1112-20260724/lifecycle-oracle-dry-run.txt",
-      "sha256": "c51bf5fa25feceb37c43a2020e5af7d3dca8edac57b1716f4c2aec5706464262"
+      "sha256": "d5ed88eb68d70d0058f44f93e70352e239e5f4e519345a4711c8672ecae37386"
     },
-    "estimated_total_tokens": 60896,
-    "estimated_call_tokens": 61512,
+    "estimated_total_tokens": 247207,
+    "estimated_call_tokens": 248109,
     "state": "NOT LAUNCHED",
     "session_id": null,
     "request_id": null,
@@ -132,7 +263,7 @@
     "effort": "max",
     "file_plan": {
       "path": "docs/reviews/libbun-w1112-20260724/lifecycle-fable-plan.md",
-      "sha256": "0d7bcbfc00bee66863cf7914996bef7ea87f7e432b4a4b3778034be58d5a9c44"
+      "sha256": "cd87ae3569e8b55f2507287a1a01e5feaf10e72c41803d2915db81266682cf5d"
     },
     "state": "NOT LAUNCHED",
     "session_id": null,
@@ -140,13 +271,14 @@
     "response_id": null,
     "output_paths": []
   },
+  "correction_evidence_state": "REVISE INCORPORATED; FRESH REVIEW PENDING",
   "independent_bundle_review": {
-    "reviewer": "PENDING",
+    "reviewer": "PENDING correction-2 source-aware reviewer",
     "verdict": "PENDING; literal BUNDLE PASS required before launch"
   },
   "omissions": [
-    "Oracle and Fable response artifacts intentionally absent because model launch is out of scope.",
-    "Independent source-aware BUNDLE PASS is pending and this manifest does not authorize launch."
+    "Oracle and Fable response artifacts are intentionally absent because model launch is out of scope.",
+    "Fresh independent source-aware BUNDLE PASS at the correction-2 commit is pending and this manifest does not authorize launch."
   ],
   "launch_state": "NOT LAUNCHED"
 }

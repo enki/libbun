@@ -1,14 +1,15 @@
-# Fable file plan: full-SCC synthesis
+# Correction-2 Fable file plan: full-SCC synthesis
 
+- Prior part verdicts: three BUNDLE REVISE verdicts incorporated
 - State: NOT LAUNCHED
 - Engine: local Fable wrapper
 - Model: claude-fable-5
 - Effort: max
 - Deliverable: CONCRETE IMPLEMENTATION
 - Prompt: docs/reviews/libbun-w1112-20260724/synthesis-prompt.md
-- Prompt SHA-256: fd7598d9ee53c988420f93bc5fcd94897bfccad3b8d3bbffba4e5a0194b2a18b
+- Prompt SHA-256: 5a6daa932ed0fac060d33b26d23804a54236998f58176fa316ba1ce7a99f2e2e
 - Ordered file plan: docs/reviews/libbun-w1112-20260724/synthesis-files.txt
-- Ordered file count: 55
+- Ordered file count: 48
 - Joins part manifests: owner-generative, lifecycle, containment-release
 - Identical to Oracle ordered attachments: yes
 
@@ -16,60 +17,53 @@
 
 | # | Path | SHA-256 | Bytes |
 | ---: | --- | --- | ---: |
-| 1 | docs/reviews/libbun-w1112-20260724/owner-generative-manifest.json | 97c7e1186047df9af55a2f85888186ee3ccd5ebe41739288cf6a74440e162938 | 5059 |
-| 2 | docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md | fd7a13d5c0f3c6fa8a91fcc4523cc9a8437fb0b6ff3177fa6355e8534a1184af | 2690 |
-| 3 | docs/reviews/libbun-w1112-20260724/owner-generative-oracle-dry-run.txt | d281002512fb31cf352640a6c37927fce09c269ede9e5966fe602cf367a66942 | 1149 |
-| 4 | docs/reviews/libbun-w1112-20260724/owner-generative-fable-plan.md | a3a0f08db8ff76ac91cb930484a3e4d4c2ef1424c38c33d0b01e43087130b2f9 | 2443 |
-| 5 | docs/reviews/libbun-w1112-20260724/owner-generative-files.txt | 38e1de382a603a886ca59701e2ee9b77925308f3a5455775a0266e6358f524da | 558 |
-| 6 | docs/reviews/libbun-w1112-20260724/lifecycle-manifest.json | 9b64bc90a14677cc9039130a03b48cd80db38323317c61058bdf911fc1a889b5 | 5319 |
-| 7 | docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md | 091a540cea95beffd6cb65df62ae90ad4bd073e498663dbd6130441993c410a1 | 2770 |
-| 8 | docs/reviews/libbun-w1112-20260724/lifecycle-oracle-dry-run.txt | c51bf5fa25feceb37c43a2020e5af7d3dca8edac57b1716f4c2aec5706464262 | 1118 |
-| 9 | docs/reviews/libbun-w1112-20260724/lifecycle-fable-plan.md | 0d7bcbfc00bee66863cf7914996bef7ea87f7e432b4a4b3778034be58d5a9c44 | 2585 |
-| 10 | docs/reviews/libbun-w1112-20260724/lifecycle-files.txt | f0b4fbd017c987e04b5d29ec8d0ba9eaf7c42995b369c6a483db38ed971b0208 | 459 |
-| 11 | docs/reviews/libbun-w1112-20260724/containment-release-manifest.json | a6d19bc45336c727a1c6662e425760178291c84481bc91df0b8d05483c03d831 | 8490 |
-| 12 | docs/reviews/libbun-w1112-20260724/containment-release-prompt.md | cb898e74365e4932208772f60450f59b14b68680e4fd919f50ec40a721788f53 | 3043 |
-| 13 | docs/reviews/libbun-w1112-20260724/containment-release-oracle-dry-run.txt | 541d07aff856c19ac3ad099c0fa004edb174483f7e000383abb7010a536d8322 | 2191 |
-| 14 | docs/reviews/libbun-w1112-20260724/containment-release-fable-plan.md | 784922d9f2303e3285ab4806a686f72e897e281a746033bfb006b7817ee6c723 | 4788 |
-| 15 | docs/reviews/libbun-w1112-20260724/containment-release-files.txt | cf723736eb055d33a6543893f9be3c7025bb0b6fbaaa3369a8ccbf6ad8f73ff6 | 1153 |
+| 1 | docs/reviews/libbun-w1112-20260724/owner-generative-manifest.json | c2385ae1ad9d255b98d98021e69f544570ba9b59e7c27973d2527d9cc5a31145 | 8784 |
+| 2 | docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md | 37d5e6ccc1e6349fbd6fa2bfad30892cf88b1e716151a8d889f15fdbd2e6049c | 3964 |
+| 3 | docs/reviews/libbun-w1112-20260724/owner-generative-oracle-dry-run.txt | 21761b20c925bd9421f84ac1f058475a566b66f3830f8401e73201bbc56103e5 | 2588 |
+| 4 | docs/reviews/libbun-w1112-20260724/owner-generative-fable-plan.md | 3bf47cc87d5503df1e05e06c96abca5d43b0eb7c786b1df295f6e5b5fb17275e | 4684 |
+| 5 | docs/reviews/libbun-w1112-20260724/owner-generative-files.txt | 9bb722c3b43cf06bcf333ea939d9c16097199c29d38c6166dbdcf1859f8a2487 | 1759 |
+| 6 | docs/reviews/libbun-w1112-20260724/lifecycle-manifest.json | dc66093ef4968aab585d56bdec50d460cb48dcb712b927ac7da664a6e5c94adc | 11713 |
+| 7 | docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md | 6f2ffb4a5fce4bd7871aba553aab5ade1389be8b97994cd558afa0958c176855 | 3699 |
+| 8 | docs/reviews/libbun-w1112-20260724/lifecycle-oracle-dry-run.txt | d5ed88eb68d70d0058f44f93e70352e239e5f4e519345a4711c8672ecae37386 | 3927 |
+| 9 | docs/reviews/libbun-w1112-20260724/lifecycle-fable-plan.md | cd87ae3569e8b55f2507287a1a01e5feaf10e72c41803d2915db81266682cf5d | 6801 |
+| 10 | docs/reviews/libbun-w1112-20260724/lifecycle-files.txt | 35a1d3e4a35abb0f572df02880189808cfa7fa8b8dbef25ff5cc644567d224ea | 2800 |
+| 11 | docs/reviews/libbun-w1112-20260724/containment-release-manifest.json | 789e3f8c86b8cb37964528d160e07d350e8205b919cd041bda3b35841bc37569 | 12697 |
+| 12 | docs/reviews/libbun-w1112-20260724/containment-release-prompt.md | 69a92d85652d18eb1ac7a9076b177ebfd5cea0dab79a1912a96726ffcb80d581 | 3677 |
+| 13 | docs/reviews/libbun-w1112-20260724/containment-release-oracle-dry-run.txt | 7618d704256daa22f65ecc498d1bfa8e02f7637b82c78373bec358bb4bf7c938 | 3328 |
+| 14 | docs/reviews/libbun-w1112-20260724/containment-release-fable-plan.md | 4e2b0df489acce24c98dbccb96d24e5f9f8755333b9d0669c8bf63affd9c8c91 | 7151 |
+| 15 | docs/reviews/libbun-w1112-20260724/containment-release-files.txt | 4b785d64671eceedc25983c9688b977aa1060787208d311747f73f48d2ff0417 | 1884 |
 | 16 | README.md | 7b8a88d47e3ccf5fe518f0dfa44bdc09d26440dc7e461cb33160cf1e2e618d70 | 3369 |
 | 17 | docs/README.md | 9b615f84198dae1ffac3a99af67afca6bae39fc28622329fc8db51575a797740 | 12566 |
 | 18 | docs/LIBBUN-LIFECYCLE-CONTRACT.md | c3775f713913713ebc36b37f442cf87927d3e445ba82f80ae1c7fef041526881 | 17107 |
-| 19 | docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md | 72ece5d9eeef7a220ee4d309d5e28f7c852376c7fecd6288cddc4e643dc61fe8 | 2382 |
-| 20 | docs/reviews/libbun-w1112-20260724/verdict-snapshot.md | 3138238c945c94f8212855889b0d23600fd97009a006bc57ea862a5aa7d6a6d6 | 16588 |
-| 21 | docs/reviews/libbun-w1112-20260724/exact-source-search-report.md | 8460cf4417ad0ef6742cbf2e82bd573dff2a9a8d2b0afff939e5e8657769ef93 | 36610 |
-| 22 | src/lib.rs | 25e7a172b0c099e65d289e38c05866a5c4808475194038dd59bf2b29af53f96b | 551 |
-| 23 | src/prepared_export.rs | 88bb176940654c17528329ee50cc0f2894a8abf64a069689b46d4903a477d9e8 | 42745 |
-| 24 | Cargo.toml | 0fe7a603f1cc43394421f03fca41255166ca665b11c4b75357376cd98c99c496 | 956 |
-| 25 | tests/public_api_boundary.rs | e53307e8fdcd0e12ed63056a32c8e1836b24e866acd00bdf4bd5da25afc9b370 | 1784 |
-| 26 | tests/fixtures/public_api_boundary/Cargo.toml | c211189cf1e2c05017baec08952dce72fe6d8c372b7b887049dd52a78bbb8c96 | 409 |
-| 27 | tests/fixtures/public_api_boundary/src/bin/adjacent_public_controls.rs | b09059159bc4035e7799e881805ba30216a651b7f2a9c816d28f40f249fd8dcc | 413 |
-| 28 | tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs | b290426f65fcc9da855969004223d5383ae64f37bcaf3e6b0035cc3a2e0992bb | 128 |
-| 29 | tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs | 5f6bc0ec079770540e3e9f49654180da9ef74a03f6a54975e2e9a467c08df281 | 98 |
-| 30 | docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md | 7c8f9d64d9fc4d05f5581097f651af28f92f221a81852d81d0a420770420bc08 | 16493 |
-| 31 | native/src/lib.rs | 7eb9cc6ef601cbbe5d7aa3a40e33dd9870883051a59edc884b150f78468efb8a | 32133 |
-| 32 | wire/src/lib.rs | bf30daf3ebd2702fad606a4abe7ac5d1854aa2bf53e19cf5015352d2bd1f87fa | 5885 |
-| 33 | runtime/src/main.rs | 3cfa3711281938d2752ce45d4f5b4a3395466ce1df5550e2647a4572e6dfccee | 1117 |
-| 34 | native/Cargo.toml | 5d624b8bcee44bab2a2ae8f87bc0238cc15c16b5975b0f071af7e80581b0b6fd | 639 |
-| 35 | runtime/Cargo.toml | c9c8a17548f5350805af9c95835cf7a8c27055a54b26992e0ffffd1fd352a7d2 | 439 |
-| 36 | wire/Cargo.toml | a0517ebfe3c61df2f6e2516aa39f8ca56851eb18d44e21f55a47ae2e8813dc8f | 125 |
-| 37 | docs/LIBBUN-WORKER-RELEASE-CONTRACT.md | 030f64ecfbdcc046dec66d4c767333d50ed21471c084c885e2576c770f1d394c | 8765 |
-| 38 | docs/reviews/libbun-w1112-20260724/vendored-bun-boundary-report.md | 4b3b06f539b945a52e44012e1d065cc7202b98f0bc861f4f0119763edef863f7 | 51273 |
-| 39 | native/build.rs | 4122c83383a012da82336b223bc10f625f7fc49da33375b76a775ac212a0c72d | 5195 |
-| 40 | runtime/build.rs | c3badf2aaf44535f8d5bedbfa45c36e21c69626e69b4aad44a79eb4f29c91be0 | 4902 |
-| 41 | scripts/apply-vendored-bun-patches.sh | c879592a32f12d27f39072c523ba33140bea9bdfefd98ca2e01bba28e33dc784 | 1511 |
-| 42 | scripts/check-vendored-bun-rust.sh | a38d93ac03764751a1bdaf1089c0652bc67ffc8c30453c6e5a208eabcffa9839 | 528 |
-| 43 | scripts/configure-vendored-bun.sh | 9fc73ed4e5d04d71a176bad14a31c292a213c513f861573f1fd5251477d6115e | 1481 |
-| 44 | scripts/package-prepared-export-worker-release.sh | ce1f433f73312f761d0bf4ffd6b30296b6fe88dfb3740f7b5a53450f95986f44 | 2111 |
-| 45 | scripts/prepare-native-bun-link.sh | 498bd2954bb44b7d738c56e05a3615a82ca0baf6092765dfa992de24732d37d6 | 3233 |
-| 46 | scripts/stage-vendored-bun-source.sh | b5d3740d54f61b9a15c9ca9188abbe8758f6119f9e09f0c91ba0e76e319c0f22 | 1227 |
-| 47 | scripts/update-vendored-bun.sh | f07d0fb9553147bae79f51634d07c52659bf0ae8805ed3fcbd89c61b9dcb063d | 1540 |
-| 48 | scripts/vendor-bun-deps.sh | 62b2f6a24dfa68946a643c58af6a3923c90fc07e4ab65dadc2701dc6009cc94a | 1321 |
-| 49 | scripts/verify-vendored-bun-reproducible.sh | 96cc8eb86f506f288a0c46efd89b284ec0a89ddf120e70e8481593a91db81304 | 1913 |
-| 50 | scripts/verify-vendored-bun.sh | d95267b26304c545bb4cffb2234daab6b5735bd818d22ef2a27312bed951c5a7 | 1515 |
-| 51 | .github/workflows/ci.yml | 45b6b0838b4db84c57d37cc30fde61e6ebbeecdaa51477c1ff3ac896893c04f9 | 782 |
-| 52 | patches/vendored-bun/0001-add-libbun-native-plugin-pic-build-mode.patch | c1b2b67eec0451354d0576ac6661ea6522f4ccefdfcecbb410c2a461a63378ee | 5960 |
-| 53 | patches/vendored-bun/0002-export-call-frame-describe-frame-in-release.patch | 4a64634a2eeea14b72986a17c0b8186da10d031febd31b24c53ca00f7ebc0f06 | 804 |
-| 54 | patches/vendored-bun/README.md | 2c3c5fc7aceb4dfe53d3ef1091573b3a230fb729aa2d4b002f1ef1624fd6469f | 1082 |
-| 55 | BUN_SOURCE_COMMIT | e458fa88014449eb548d3e80e65dbe188b296989545dfaa235b274dc2267acca | 41 |
+| 19 | docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md | 7c8f9d64d9fc4d05f5581097f651af28f92f221a81852d81d0a420770420bc08 | 16493 |
+| 20 | docs/LIBBUN-WORKER-RELEASE-CONTRACT.md | 030f64ecfbdcc046dec66d4c767333d50ed21471c084c885e2576c770f1d394c | 8765 |
+| 21 | docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md | 72ece5d9eeef7a220ee4d309d5e28f7c852376c7fecd6288cddc4e643dc61fe8 | 2382 |
+| 22 | docs/reviews/libbun-w1112-20260724/correction2-index.md | 42b63e2b37a2f2139a951f5f411305cfae68fd6710f9f07cb2778cf237c814f3 | 1536 |
+| 23 | docs/reviews/libbun-w1112-20260724/verdict-snapshot.md | 3138238c945c94f8212855889b0d23600fd97009a006bc57ea862a5aa7d6a6d6 | 16588 |
+| 24 | docs/reviews/libbun-w1112-20260724/owner-generative-independent-verdict.md | 5c9e172ad549ce88e16e05bc37d023ec4c4856cab5edc94da9f289a091e0b4ba | 7660 |
+| 25 | docs/reviews/libbun-w1112-20260724/lifecycle-independent-verdict.commit | 377706f6e59259f1e5f4b21c2d7fc99854e0ef57d1ac206c2a8c632148838310 | 256 |
+| 26 | docs/reviews/libbun-w1112-20260724/lifecycle-correction-ruling.md | 6a50421f4605fc0273aa4d04dbe611e90dcc63943ace9976e446a98d9b868de6 | 2143 |
+| 27 | docs/reviews/libbun-w1112-20260724/containment-release-independent-verdict.md | ba792c4113a6e8af5097c636f45a5858b15073409d508f17d2eb384167628837 | 12944 |
+| 28 | docs/reviews/libbun-w1112-20260724/exact-source-search-report.md | 2f2a8d95b5568fbf01c9ea2f4c5d38903b9cdb362d682b629ac8e2abb99dc9bd | 128039 |
+| 29 | docs/reviews/libbun-w1112-20260724/vendored-bun-boundary-report.md | b87a48b90a5081d974ecec8706e023ef8d36eef5e4ac3c40c5f156db43fd78b9 | 30673 |
+| 30 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md | 3d1f009d0c2d16346a73ae505b92ce3d8033ecc88758468b4eae027359c2ad4b | 5610 |
+| 31 | docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md | 4d74d89e4417583edcde93f4e78c598ef4bc6acd02f03dd5944e7e2c7c28dcf4 | 87805 |
+| 32 | docs/reviews/libbun-w1112-20260724/process-drop-caller-and-fixture-report.md | e3f7f4a06c699faac73511dc27129a66dc22f4d994124632b1449fafc18c056c | 45104 |
+| 33 | docs/reviews/libbun-w1112-20260724/lock-privacy-compliance-index.md | 96c9d42afb4444b5da5129a92f1b299762fed254c22629bac9d9b607567a76d8 | 2810 |
+| 34 | scripts/generate-libbun-w1112-review-evidence-20260724.py | 0069166626e368d5904b7b7810a21bf0b64f99e996933f07452b36180fadf6af | 24056 |
+| 35 | src/lib.rs | 25e7a172b0c099e65d289e38c05866a5c4808475194038dd59bf2b29af53f96b | 551 |
+| 36 | src/prepared_export.rs | 88bb176940654c17528329ee50cc0f2894a8abf64a069689b46d4903a477d9e8 | 42745 |
+| 37 | native/src/lib.rs | 7eb9cc6ef601cbbe5d7aa3a40e33dd9870883051a59edc884b150f78468efb8a | 32133 |
+| 38 | native/build.rs | 4122c83383a012da82336b223bc10f625f7fc49da33375b76a775ac212a0c72d | 5195 |
+| 39 | wire/src/lib.rs | bf30daf3ebd2702fad606a4abe7ac5d1854aa2bf53e19cf5015352d2bd1f87fa | 5885 |
+| 40 | runtime/src/main.rs | 3cfa3711281938d2752ce45d4f5b4a3395466ce1df5550e2647a4572e6dfccee | 1117 |
+| 41 | runtime/build.rs | c3badf2aaf44535f8d5bedbfa45c36e21c69626e69b4aad44a79eb4f29c91be0 | 4902 |
+| 42 | Cargo.toml | 0fe7a603f1cc43394421f03fca41255166ca665b11c4b75357376cd98c99c496 | 956 |
+| 43 | native/Cargo.toml | 5d624b8bcee44bab2a2ae8f87bc0238cc15c16b5975b0f071af7e80581b0b6fd | 639 |
+| 44 | runtime/Cargo.toml | c9c8a17548f5350805af9c95835cf7a8c27055a54b26992e0ffffd1fd352a7d2 | 439 |
+| 45 | wire/Cargo.toml | a0517ebfe3c61df2f6e2516aa39f8ca56851eb18d44e21f55a47ae2e8813dc8f | 125 |
+| 46 | tests/public_api_boundary.rs | e53307e8fdcd0e12ed63056a32c8e1836b24e866acd00bdf4bd5da25afc9b370 | 1784 |
+| 47 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/src/lib.rs | e3818b7ce41be8a6a5c5f424418881b4f433883b54a81ddeb96650b2ce9a4439 | 14848 |
+| 48 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/external_transport.rs | b855d0cc8662591ee1f53473831a47034e7c59ecde415883c33dadb6908f4623 | 4907 |
 
-No part review, synthesis session, request, response, or output exists. Launch remains gated on three independent part outputs and literal source-aware BUNDLE PASS at the exact prelaunch commit.
+No part review response, synthesis session, request, response, or output exists. Fresh independent source-aware BUNDLE PASS verdicts for all corrected parts remain required before any launch.

@@ -1,0 +1,30 @@
+[package]
+name = "swarm-provider-host-set"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+durable-direct-run-boundary-model.workspace = true
+prepared-runtime-image-manifest-model.workspace = true
+serde_json.workspace = true
+swarm-capability-contract-tson.workspace = true
+swarm-capability-linker-core.workspace = true
+swarm-capability-model.workspace = true
+swarm-native-provider-authority.workspace = true
+swarm-rust-sdk-static-provider-host.workspace = true
+swarm-rust-sdk-static-provider-listing.workspace = true
+swarm-substrate-invariant.workspace = true
+swarmvm-runtime-types.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+libswarm-package-graph-model.workspace = true
+
+[lints]
+workspace = true

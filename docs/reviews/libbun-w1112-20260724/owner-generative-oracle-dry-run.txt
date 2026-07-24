@@ -1,19 +1,30 @@
 [oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
-🧿 oracle 0.16.0 — LLM babysitter with a shipping agenda.
-[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~45,342 tokens and 14 files.
+🧿 oracle 0.16.0 — AI babysitter with merge rights.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~165,311 tokens and 25 files.
 File Token Usage
-    16,363     6.02%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+    51,506    18.94%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+    29,241    10.75%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs
+    20,118     7.40%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs
+    16,402     6.03%  docs/reviews/libbun-w1112-20260724/process-drop-caller-and-fixture-report.md
     12,852     4.72%  src/prepared_export.rs
+     7,392     2.72%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/Cargo.toml
      4,468     1.64%  docs/reviews/libbun-w1112-20260724/verdict-snapshot.md
      4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
+     3,956     1.45%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/src/lib.rs
      3,407     1.25%  docs/README.md
+     2,470     0.91%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md
+     2,165     0.80%  docs/reviews/libbun-w1112-20260724/owner-generative-independent-verdict.md
+     1,471     0.54%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/external_transport.rs
        890     0.33%  README.md
        695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
+       545     0.20%  docs/reviews/libbun-w1112-20260724/correction2-index.md
        542     0.20%  tests/public_api_boundary.rs
+       484     0.18%  tests/fixtures/public_api_boundary/Cargo.lock
        394     0.14%  Cargo.toml
+       263     0.10%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/Cargo.toml
        203     0.07%  tests/fixtures/public_api_boundary/Cargo.toml
        167     0.06%  tests/fixtures/public_api_boundary/src/bin/adjacent_public_controls.rs
        164     0.06%  src/lib.rs
         75     0.03%  tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs
         65     0.02%  tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs
-Total: 44,752 tokens (16.45% of 272,000)
+Total: 164,402 tokens (60.44% of 272,000)

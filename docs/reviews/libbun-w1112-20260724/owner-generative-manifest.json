@@ -1,19 +1,41 @@
 {
-  "schema": "libbun.w1112.external-review-manifest.v1",
+  "schema": "libbun.w1112.external-review-manifest.v2",
+  "correction": 2,
   "part": "owner-generative",
   "title": "Owner/generative correspondence/admission/reservation/release",
   "exact_source_sha": "6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb",
   "exact_source_tree": "cb964de8ab8162449fbe95959bf34d231570aa5c",
+  "review_base_commit": "ec6a7f249120a833aeaa4e0211fe0f41d17e0565",
+  "adjacent_source": {
+    "repository": "/home/ubuntu/swarm",
+    "sha": "95323ff17cb29928e31467f651ef03bae2099c14",
+    "tree": "43b47bbd49a6053d270b3e15cc141cb1b1bb86da"
+  },
   "verdict_contract_commit": "b046f85a3dd41ac86cabed2de6391876ea77c0f4",
+  "prior_independent_verdict": {
+    "commit": "bd86b8863ed21c19fa46bfdf1a006d8a83ff0330",
+    "verdict": "BUNDLE REVISE",
+    "records": [
+      {
+        "path": "docs/reviews/libbun-w1112-20260724/owner-generative-independent-verdict.md",
+        "sha256": "5c9e172ad549ce88e16e05bc37d023ec4c4856cab5edc94da9f289a091e0b4ba"
+      }
+    ]
+  },
   "deliverable": "CONCRETE IMPLEMENTATION",
+  "evidence_generator": {
+    "path": "scripts/generate-libbun-w1112-review-evidence-20260724.py",
+    "sha256": "0069166626e368d5904b7b7810a21bf0b64f99e996933f07452b36180fadf6af",
+    "check_command": "python3 scripts/generate-libbun-w1112-review-evidence-20260724.py --check"
+  },
   "prompt": {
     "path": "docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md",
-    "sha256": "fd7a13d5c0f3c6fa8a91fcc4523cc9a8437fb0b6ff3177fa6355e8534a1184af"
+    "sha256": "37d5e6ccc1e6349fbd6fa2bfad30892cf88b1e716151a8d889f15fdbd2e6049c"
   },
   "ordered_file_plan": {
     "path": "docs/reviews/libbun-w1112-20260724/owner-generative-files.txt",
-    "sha256": "38e1de382a603a886ca59701e2ee9b77925308f3a5455775a0266e6358f524da",
-    "count": 14
+    "sha256": "9bb722c3b43cf06bcf333ea939d9c16097199c29d38c6166dbdcf1859f8a2487",
+    "count": 25
   },
   "ordered_attachments": [
     {
@@ -37,14 +59,34 @@
       "bytes": 2382
     },
     {
+      "path": "docs/reviews/libbun-w1112-20260724/correction2-index.md",
+      "sha256": "42b63e2b37a2f2139a951f5f411305cfae68fd6710f9f07cb2778cf237c814f3",
+      "bytes": 1536
+    },
+    {
       "path": "docs/reviews/libbun-w1112-20260724/verdict-snapshot.md",
       "sha256": "3138238c945c94f8212855889b0d23600fd97009a006bc57ea862a5aa7d6a6d6",
       "bytes": 16588
     },
     {
       "path": "docs/reviews/libbun-w1112-20260724/exact-source-search-report.md",
-      "sha256": "8460cf4417ad0ef6742cbf2e82bd573dff2a9a8d2b0afff939e5e8657769ef93",
-      "bytes": 36610
+      "sha256": "2f2a8d95b5568fbf01c9ea2f4c5d38903b9cdb362d682b629ac8e2abb99dc9bd",
+      "bytes": 128039
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/owner-generative-independent-verdict.md",
+      "sha256": "5c9e172ad549ce88e16e05bc37d023ec4c4856cab5edc94da9f289a091e0b4ba",
+      "bytes": 7660
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md",
+      "sha256": "3d1f009d0c2d16346a73ae505b92ce3d8033ecc88758468b4eae027359c2ad4b",
+      "bytes": 5610
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/process-drop-caller-and-fixture-report.md",
+      "sha256": "e3f7f4a06c699faac73511dc27129a66dc22f4d994124632b1449fafc18c056c",
+      "bytes": 45104
     },
     {
       "path": "src/lib.rs",
@@ -62,9 +104,9 @@
       "bytes": 956
     },
     {
-      "path": "tests/public_api_boundary.rs",
-      "sha256": "e53307e8fdcd0e12ed63056a32c8e1836b24e866acd00bdf4bd5da25afc9b370",
-      "bytes": 1784
+      "path": "tests/fixtures/public_api_boundary/Cargo.lock",
+      "sha256": "685de9512211743a6430574bba5832a3175bd49ce184ab8553013a64fe38c6f2",
+      "bytes": 1017
     },
     {
       "path": "tests/fixtures/public_api_boundary/Cargo.toml",
@@ -77,17 +119,52 @@
       "bytes": 413
     },
     {
+      "path": "tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs",
+      "sha256": "5f6bc0ec079770540e3e9f49654180da9ef74a03f6a54975e2e9a467c08df281",
+      "bytes": 98
+    },
+    {
       "path": "tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs",
       "sha256": "b290426f65fcc9da855969004223d5383ae64f37bcaf3e6b0035cc3a2e0992bb",
       "bytes": 128
     },
     {
-      "path": "tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs",
-      "sha256": "5f6bc0ec079770540e3e9f49654180da9ef74a03f6a54975e2e9a467c08df281",
-      "bytes": 98
+      "path": "tests/public_api_boundary.rs",
+      "sha256": "e53307e8fdcd0e12ed63056a32c8e1836b24e866acd00bdf4bd5da25afc9b370",
+      "bytes": 1784
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs",
+      "sha256": "847c4f7b13917810adaa373299ae0df20c373cd4671a97eac265c6c093cc3399",
+      "bytes": 78342
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs",
+      "sha256": "c4dcc653964e40c424bfff20278dd62e6e1d04e7134d09320bc21208c08b6e2d",
+      "bytes": 108022
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/src/lib.rs",
+      "sha256": "e3818b7ce41be8a6a5c5f424418881b4f433883b54a81ddeb96650b2ce9a4439",
+      "bytes": 14848
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/external_transport.rs",
+      "sha256": "b855d0cc8662591ee1f53473831a47034e7c59ecde415883c33dadb6908f4623",
+      "bytes": 4907
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/Cargo.toml",
+      "sha256": "6f9a0d10b0aa4f13049b63013f1469726de88a4adbd2ac48bc862c29b5bb9ee0",
+      "bytes": 690
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/Cargo.toml",
+      "sha256": "dd05cd50a38d1ed15cd2f5276c29c6039688eed4f66052b9591946d2a4f74d9b",
+      "bytes": 24507
     }
   ],
-  "total_attachment_bytes": 135706,
+  "total_attachment_bytes": 519378,
   "oracle": {
     "provider": "openai",
     "engine": "api",
@@ -102,10 +179,10 @@
     "dry_run_command": "mapfile -t files < docs/reviews/libbun-w1112-20260724/owner-generative-files.txt; oracle --provider openai --engine api --model gpt-5.6-sol --reasoning-mode pro --dry-run summary --files-report --prompt \"$(cat docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md)\" --file \"${files[@]}\"",
     "dry_run_report": {
       "path": "docs/reviews/libbun-w1112-20260724/owner-generative-oracle-dry-run.txt",
-      "sha256": "d281002512fb31cf352640a6c37927fce09c269ede9e5966fe602cf367a66942"
+      "sha256": "21761b20c925bd9421f84ac1f058475a566b66f3830f8401e73201bbc56103e5"
     },
-    "estimated_total_tokens": 44752,
-    "estimated_call_tokens": 45342,
+    "estimated_total_tokens": 164402,
+    "estimated_call_tokens": 165311,
     "state": "NOT LAUNCHED",
     "session_id": null,
     "request_id": null,
@@ -117,7 +194,7 @@
     "effort": "max",
     "file_plan": {
       "path": "docs/reviews/libbun-w1112-20260724/owner-generative-fable-plan.md",
-      "sha256": "a3a0f08db8ff76ac91cb930484a3e4d4c2ef1424c38c33d0b01e43087130b2f9"
+      "sha256": "3bf47cc87d5503df1e05e06c96abca5d43b0eb7c786b1df295f6e5b5fb17275e"
     },
     "state": "NOT LAUNCHED",
     "session_id": null,
@@ -125,13 +202,14 @@
     "response_id": null,
     "output_paths": []
   },
+  "correction_evidence_state": "REVISE INCORPORATED; FRESH REVIEW PENDING",
   "independent_bundle_review": {
-    "reviewer": "PENDING",
+    "reviewer": "PENDING correction-2 source-aware reviewer",
     "verdict": "PENDING; literal BUNDLE PASS required before launch"
   },
   "omissions": [
-    "Oracle and Fable response artifacts intentionally absent because model launch is out of scope.",
-    "Independent source-aware BUNDLE PASS is pending and this manifest does not authorize launch."
+    "Oracle and Fable response artifacts are intentionally absent because model launch is out of scope.",
+    "Fresh independent source-aware BUNDLE PASS at the correction-2 commit is pending and this manifest does not authorize launch."
   ],
   "launch_state": "NOT LAUNCHED"
 }

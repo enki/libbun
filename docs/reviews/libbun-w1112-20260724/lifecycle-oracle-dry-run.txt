@@ -1,22 +1,43 @@
 [oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
-🧿 oracle 0.16.0 — Ship-ready answers, minus the AI improv.
-[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~61,512 tokens and 17 files.
+🧿 oracle 0.16.0 — Stops the hallucination before it hits prod.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~248,109 tokens and 38 files.
 File Token Usage
-    16,363     6.02%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+    51,506    18.94%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+    31,447    11.56%  docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md
+    29,241    10.75%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs
+    20,118     7.40%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs
+    16,402     6.03%  docs/reviews/libbun-w1112-20260724/process-drop-caller-and-fixture-report.md
     12,852     4.72%  src/prepared_export.rs
+    12,416     4.56%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/provider_host_set.rs
+    11,403     4.19%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/src/product.rs
      9,481     3.49%  native/src/lib.rs
+     7,392     2.72%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/Cargo.toml
+     4,554     1.67%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/tests/external_capability_provider.rs
      4,468     1.64%  docs/reviews/libbun-w1112-20260724/verdict-snapshot.md
      4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
+     4,347     1.60%  vendor/bun/src/jsc/virtual_machine_exports.rs
      4,283     1.57%  docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md
+     3,956     1.45%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/src/lib.rs
      3,407     1.25%  docs/README.md
+     3,155     1.16%  vendor/bun/src/jsc/VM.rs
+     2,470     0.91%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md
      1,961     0.72%  wire/src/lib.rs
+     1,471     0.54%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/external_transport.rs
        890     0.33%  README.md
        695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
+       554     0.20%  docs/reviews/libbun-w1112-20260724/lifecycle-correction-ruling.md
+       545     0.20%  docs/reviews/libbun-w1112-20260724/correction2-index.md
        542     0.20%  tests/public_api_boundary.rs
+       426     0.16%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/Cargo.toml
        394     0.14%  Cargo.toml
        364     0.13%  runtime/src/main.rs
+       319     0.12%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/Cargo.toml
        291     0.11%  native/Cargo.toml
+       282     0.10%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/imported_helper_external_result_payload.test.ss
+       263     0.10%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/Cargo.toml
+       243     0.09%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/external_provider_json_text_nfc.test.ss
        194     0.07%  runtime/Cargo.toml
+       164     0.06%  docs/reviews/libbun-w1112-20260724/lifecycle-independent-verdict.commit
        164     0.06%  src/lib.rs
         80     0.03%  wire/Cargo.toml
-Total: 60,896 tokens (22.39% of 272,000)
+Total: 247,207 tokens (90.88% of 272,000)

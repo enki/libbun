@@ -1,19 +1,41 @@
 {
-  "schema": "libbun.w1112.external-review-manifest.v1",
+  "schema": "libbun.w1112.external-review-manifest.v2",
+  "correction": 2,
   "part": "containment-release",
-  "title": "Private native+wire/containment/output/retained worker/release",
+  "title": "Private native+wire/containment/output/retained worker/locks/compliance/release",
   "exact_source_sha": "6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb",
   "exact_source_tree": "cb964de8ab8162449fbe95959bf34d231570aa5c",
+  "review_base_commit": "ec6a7f249120a833aeaa4e0211fe0f41d17e0565",
+  "adjacent_source": {
+    "repository": "/home/ubuntu/swarm",
+    "sha": "95323ff17cb29928e31467f651ef03bae2099c14",
+    "tree": "43b47bbd49a6053d270b3e15cc141cb1b1bb86da"
+  },
   "verdict_contract_commit": "b046f85a3dd41ac86cabed2de6391876ea77c0f4",
+  "prior_independent_verdict": {
+    "commit": "54241a683e1c68366715456b4517bcf2966bbdf7",
+    "verdict": "BUNDLE REVISE",
+    "records": [
+      {
+        "path": "docs/reviews/libbun-w1112-20260724/containment-release-independent-verdict.md",
+        "sha256": "ba792c4113a6e8af5097c636f45a5858b15073409d508f17d2eb384167628837"
+      }
+    ]
+  },
   "deliverable": "CONCRETE IMPLEMENTATION",
+  "evidence_generator": {
+    "path": "scripts/generate-libbun-w1112-review-evidence-20260724.py",
+    "sha256": "0069166626e368d5904b7b7810a21bf0b64f99e996933f07452b36180fadf6af",
+    "check_command": "python3 scripts/generate-libbun-w1112-review-evidence-20260724.py --check"
+  },
   "prompt": {
     "path": "docs/reviews/libbun-w1112-20260724/containment-release-prompt.md",
-    "sha256": "cb898e74365e4932208772f60450f59b14b68680e4fd919f50ec40a721788f53"
+    "sha256": "69a92d85652d18eb1ac7a9076b177ebfd5cea0dab79a1912a96726ffcb80d581"
   },
   "ordered_file_plan": {
     "path": "docs/reviews/libbun-w1112-20260724/containment-release-files.txt",
-    "sha256": "cf723736eb055d33a6543893f9be3c7025bb0b6fbaaa3369a8ccbf6ad8f73ff6",
-    "count": 35
+    "sha256": "4b785d64671eceedc25983c9688b977aa1060787208d311747f73f48d2ff0417",
+    "count": 53
   },
   "ordered_attachments": [
     {
@@ -47,19 +69,34 @@
       "bytes": 2382
     },
     {
+      "path": "docs/reviews/libbun-w1112-20260724/correction2-index.md",
+      "sha256": "42b63e2b37a2f2139a951f5f411305cfae68fd6710f9f07cb2778cf237c814f3",
+      "bytes": 1536
+    },
+    {
       "path": "docs/reviews/libbun-w1112-20260724/verdict-snapshot.md",
       "sha256": "3138238c945c94f8212855889b0d23600fd97009a006bc57ea862a5aa7d6a6d6",
       "bytes": 16588
     },
     {
+      "path": "docs/reviews/libbun-w1112-20260724/containment-release-independent-verdict.md",
+      "sha256": "ba792c4113a6e8af5097c636f45a5858b15073409d508f17d2eb384167628837",
+      "bytes": 12944
+    },
+    {
       "path": "docs/reviews/libbun-w1112-20260724/exact-source-search-report.md",
-      "sha256": "8460cf4417ad0ef6742cbf2e82bd573dff2a9a8d2b0afff939e5e8657769ef93",
-      "bytes": 36610
+      "sha256": "2f2a8d95b5568fbf01c9ea2f4c5d38903b9cdb362d682b629ac8e2abb99dc9bd",
+      "bytes": 128039
     },
     {
       "path": "docs/reviews/libbun-w1112-20260724/vendored-bun-boundary-report.md",
-      "sha256": "4b3b06f539b945a52e44012e1d065cc7202b98f0bc861f4f0119763edef863f7",
-      "bytes": 51273
+      "sha256": "b87a48b90a5081d974ecec8706e023ef8d36eef5e4ac3c40c5f156db43fd78b9",
+      "bytes": 30673
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/lock-privacy-compliance-index.md",
+      "sha256": "96c9d42afb4444b5da5129a92f1b299762fed254c22629bac9d9b607567a76d8",
+      "bytes": 2810
     },
     {
       "path": "src/lib.rs",
@@ -102,9 +139,19 @@
       "bytes": 956
     },
     {
+      "path": "Cargo.lock",
+      "sha256": "cb9819c613ccd991508d245de06261b03b2284d2800dca1ab26a04191952a392",
+      "bytes": 2779
+    },
+    {
       "path": "native/Cargo.toml",
       "sha256": "5d624b8bcee44bab2a2ae8f87bc0238cc15c16b5975b0f071af7e80581b0b6fd",
       "bytes": 639
+    },
+    {
+      "path": "native/Cargo.lock",
+      "sha256": "6dd537cd346d2ee311708e4a88db8e250530d1c428a5728caab6e3bda2d03496",
+      "bytes": 70206
     },
     {
       "path": "runtime/Cargo.toml",
@@ -112,9 +159,44 @@
       "bytes": 439
     },
     {
+      "path": "runtime/Cargo.lock",
+      "sha256": "7066c2adfbebf44e5b156ff1b3864b2e74976b5edce1634a11b2a99f56294617",
+      "bytes": 70107
+    },
+    {
       "path": "wire/Cargo.toml",
       "sha256": "a0517ebfe3c61df2f6e2516aa39f8ca56851eb18d44e21f55a47ae2e8813dc8f",
       "bytes": 125
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/Cargo.lock",
+      "sha256": "685de9512211743a6430574bba5832a3175bd49ce184ab8553013a64fe38c6f2",
+      "bytes": 1017
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/Cargo.toml",
+      "sha256": "c211189cf1e2c05017baec08952dce72fe6d8c372b7b887049dd52a78bbb8c96",
+      "bytes": 409
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/src/bin/adjacent_public_controls.rs",
+      "sha256": "b09059159bc4035e7799e881805ba30216a651b7f2a9c816d28f40f249fd8dcc",
+      "bytes": 413
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs",
+      "sha256": "5f6bc0ec079770540e3e9f49654180da9ef74a03f6a54975e2e9a467c08df281",
+      "bytes": 98
+    },
+    {
+      "path": "tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs",
+      "sha256": "b290426f65fcc9da855969004223d5383ae64f37bcaf3e6b0035cc3a2e0992bb",
+      "bytes": 128
+    },
+    {
+      "path": "tests/public_api_boundary.rs",
+      "sha256": "e53307e8fdcd0e12ed63056a32c8e1836b24e866acd00bdf4bd5da25afc9b370",
+      "bytes": 1784
     },
     {
       "path": "scripts/apply-vendored-bun-patches.sh",
@@ -167,6 +249,11 @@
       "bytes": 1515
     },
     {
+      "path": "scripts/generate-libbun-w1112-review-evidence-20260724.py",
+      "sha256": "0069166626e368d5904b7b7810a21bf0b64f99e996933f07452b36180fadf6af",
+      "bytes": 24056
+    },
+    {
       "path": ".github/workflows/ci.yml",
       "sha256": "45b6b0838b4db84c57d37cc30fde61e6ebbeecdaa51477c1ff3ac896893c04f9",
       "bytes": 782
@@ -190,9 +277,34 @@
       "path": "BUN_SOURCE_COMMIT",
       "sha256": "e458fa88014449eb548d3e80e65dbe188b296989545dfaa235b274dc2267acca",
       "bytes": 41
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357
+    },
+    {
+      "path": "vendor/README.md",
+      "sha256": "a8339961bd5659a2cdd534cd905cecca5d000fcfbdec93933f676512d2a27f0e",
+      "bytes": 825
+    },
+    {
+      "path": "vendor/bun.LIBBUN_VENDOR.json",
+      "sha256": "b5f3748b5c985b86de748777948d850045572e348d0f8e9649e74259b73a0d02",
+      "bytes": 453
+    },
+    {
+      "path": "vendor/bun/LICENSE.md",
+      "sha256": "2c6160ec8fb853f7e8f97d9b249e756c9b0ac44860a68b6bf4f1b0bcbc5c3741",
+      "bytes": 5376
+    },
+    {
+      "path": "vendor/bun/Cargo.lock",
+      "sha256": "b9137da3f975f37c6f225d81f96b01dda58119f5212349a9a88c746fc27147fb",
+      "bytes": 75040
     }
   ],
-  "total_attachment_bytes": 284889,
+  "total_attachment_bytes": 637056,
   "oracle": {
     "provider": "openai",
     "engine": "api",
@@ -207,10 +319,10 @@
     "dry_run_command": "mapfile -t files < docs/reviews/libbun-w1112-20260724/containment-release-files.txt; oracle --provider openai --engine api --model gpt-5.6-sol --reasoning-mode pro --dry-run summary --files-report --prompt \"$(cat docs/reviews/libbun-w1112-20260724/containment-release-prompt.md)\" --file \"${files[@]}\"",
     "dry_run_report": {
       "path": "docs/reviews/libbun-w1112-20260724/containment-release-oracle-dry-run.txt",
-      "sha256": "541d07aff856c19ac3ad099c0fa004edb174483f7e000383abb7010a536d8322"
+      "sha256": "7618d704256daa22f65ecc498d1bfa8e02f7637b82c78373bec358bb4bf7c938"
     },
-    "estimated_total_tokens": 93583,
-    "estimated_call_tokens": 94258,
+    "estimated_total_tokens": 262438,
+    "estimated_call_tokens": 263325,
     "state": "NOT LAUNCHED",
     "session_id": null,
     "request_id": null,
@@ -222,7 +334,7 @@
     "effort": "max",
     "file_plan": {
       "path": "docs/reviews/libbun-w1112-20260724/containment-release-fable-plan.md",
-      "sha256": "784922d9f2303e3285ab4806a686f72e897e281a746033bfb006b7817ee6c723"
+      "sha256": "4e2b0df489acce24c98dbccb96d24e5f9f8755333b9d0669c8bf63affd9c8c91"
     },
     "state": "NOT LAUNCHED",
     "session_id": null,
@@ -230,13 +342,14 @@
     "response_id": null,
     "output_paths": []
   },
+  "correction_evidence_state": "REVISE INCORPORATED; FRESH REVIEW PENDING",
   "independent_bundle_review": {
-    "reviewer": "PENDING",
+    "reviewer": "PENDING correction-2 source-aware reviewer",
     "verdict": "PENDING; literal BUNDLE PASS required before launch"
   },
   "omissions": [
-    "Oracle and Fable response artifacts intentionally absent because model launch is out of scope.",
-    "Independent source-aware BUNDLE PASS is pending and this manifest does not authorize launch."
+    "Oracle and Fable response artifacts are intentionally absent because model launch is out of scope.",
+    "Fresh independent source-aware BUNDLE PASS at the correction-2 commit is pending and this manifest does not authorize launch."
   ],
   "launch_state": "NOT LAUNCHED"
 }

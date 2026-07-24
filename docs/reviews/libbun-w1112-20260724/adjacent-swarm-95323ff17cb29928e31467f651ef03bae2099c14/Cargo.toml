@@ -1,0 +1,322 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "example-echo-provider"]
+exclude = [
+  "crates/swarmscript-parser",
+  "crates/swarmscript-syntax",
+  "crates/swarmscript-typed-module-summary-model",
+  "crates/swarm-domain-runtime-authority",
+  "crates/libssc",
+  "crates/durable-direct-run-ss-test-body-work-owner",
+  "crates/swarmscript-terminal-value-source-authority-carrier",
+]
+
+[workspace.package]
+edition = "2024"
+version = "0.0.1"
+license = "MIT"
+authors = ["Swarm"]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.dependencies]
+actor-state-product-route-authority = { path = "crates/actor-state-product-route-authority" }
+carrier-witness-core = { path = "crates/carrier-witness-core" }
+compiled-swarm-binary-manifest-model = { path = "crates/compiled-swarm-binary-manifest-model" }
+durable-direct-run-kernel = { path = "crates/durable-direct-run-kernel" }
+durable-direct-run-external-json-ingress-projection = { path = "crates/durable-direct-run-external-json-ingress-projection" }
+durable-direct-run-host-resource-projection = { path = "crates/durable-direct-run-host-resource-projection" }
+durable-direct-run-live-transition-projection = { path = "crates/durable-direct-run-live-transition-projection" }
+durable-direct-run-boundary-model = { path = "crates/durable-direct-run-boundary-model" }
+durable-direct-run-event-product-api-model = { path = "crates/durable-direct-run-event-product-api-model" }
+durable-direct-run-event-store-binding-model = { path = "crates/durable-direct-run-event-store-binding-model" }
+durable-direct-run-event-subscription-model = { path = "crates/durable-direct-run-event-subscription-model" }
+durable-direct-run-actor-state-product-model = { path = "crates/durable-direct-run-actor-state-product-model" }
+durable-direct-run-rust-sdk-event-model = { path = "crates/durable-direct-run-rust-sdk-event-model" }
+durable-direct-run-rust-sdk-event-frame-projection = { path = "crates/durable-direct-run-rust-sdk-event-frame-projection" }
+durable-direct-run-rust-sdk-provider-operation-model = { path = "crates/durable-direct-run-rust-sdk-provider-operation-model" }
+durable-direct-run-native-facade = { path = "crates/durable-direct-run-native-facade" }
+durable-direct-run-native-harness = { path = "crates/durable-direct-run-native-harness" }
+durable-direct-run-native-kernel-harness = { path = "crates/durable-direct-run-native-kernel-harness" }
+durable-direct-run-native-runtime-harness = { path = "crates/durable-direct-run-native-runtime-harness" }
+durable-direct-run-provider = { path = "crates/durable-direct-run-provider" }
+durable-direct-run-provider-result-mode-model = { path = "crates/durable-direct-run-provider-result-mode-model" }
+durable-direct-run-source-program-owner = { path = "crates/durable-direct-run-source-program-owner" }
+durable-direct-run-source-import-model = { path = "crates/durable-direct-run-source-import-model" }
+durable-direct-run-source-model = { path = "crates/durable-direct-run-source-model" }
+durable-direct-run-ss-test-declaration-model = { path = "crates/durable-direct-run-ss-test-declaration-model" }
+durable-direct-run-prepared-runtime-artifact-owner = { path = "crates/durable-direct-run-prepared-runtime-artifact-owner" }
+durable-direct-run-event-product-session-owner = { path = "crates/durable-direct-run-event-product-session-owner" }
+durable-direct-run-kernel-json-boundary-owner = { path = "crates/durable-direct-run-kernel-json-boundary-owner" }
+durable-direct-run-live-plan-projection = { path = "crates/durable-direct-run-live-plan-projection" }
+durable-direct-run-observation-report-projection = { path = "crates/durable-direct-run-observation-report-projection" }
+durable-direct-run-supported-host-sql-projection = { path = "crates/durable-direct-run-supported-host-sql-projection" }
+durable-direct-run-trusted-step-public-aperture-owner = { path = "crates/durable-direct-run-trusted-step-public-aperture-owner" }
+durable-direct-run-ss-test-model = { path = "crates/durable-direct-run-ss-test-model" }
+durable-execution-core = { path = "crates/durable-execution-core" }
+durable-execution-plan-patch-model = { path = "crates/durable-execution-plan-patch-model" }
+durable-native-provider-loader = { path = "crates/durable-native-provider-loader" }
+example-echo-provider = { path = "example-echo-provider" }
+fs2 = "0.4.3"
+direct-run-rust-profile = { path = "crates/direct-run-rust-profile" }
+direct-run-rust-profile-state = { path = "crates/direct-run-rust-profile-state" }
+libssc-source-compiler = { path = "crates/libssc-source-compiler" }
+libswarm = { path = "crates/libswarm" }
+libswarm-external-postgres-event-session-model = { path = "crates/libswarm-external-postgres-event-session-model" }
+libswarm-provider-resume-boundary-model = { path = "crates/libswarm-provider-resume-boundary-model" }
+libswarm-package-graph = { path = "crates/libswarm-package-graph" }
+libswarm-package-graph-checker-context = { path = "crates/libswarm-package-graph-checker-context" }
+libswarm-package-graph-checker-model = { path = "crates/libswarm-package-graph-checker-model" }
+libswarm-package-graph-contract-source-admission = { path = "crates/libswarm-package-graph-contract-source-admission" }
+libswarm-package-graph-native-provider-manifest-owner = { path = "crates/libswarm-package-graph-native-provider-manifest-owner" }
+libswarm-package-graph-executable-program-model = { path = "crates/libswarm-package-graph-executable-program-model" }
+libswarm-package-graph-executable-program-receipt-owner = { path = "crates/libswarm-package-graph-executable-program-receipt-owner" }
+libswarm-package-graph-import-plan = { path = "crates/libswarm-package-graph-import-plan" }
+libswarm-package-graph-model = { path = "crates/libswarm-package-graph-model" }
+libswarm-package-graph-package-json-admission = { path = "crates/libswarm-package-graph-package-json-admission" }
+libswarm-package-graph-package-root-admission = { path = "crates/libswarm-package-graph-package-root-admission" }
+libswarm-package-graph-provider-requirements = { path = "crates/libswarm-package-graph-provider-requirements" }
+libswarm-package-graph-resolution = { path = "crates/libswarm-package-graph-resolution" }
+libswarm-package-graph-resolution-record-admission = { path = "crates/libswarm-package-graph-resolution-record-admission" }
+libswarm-package-graph-root-resolution = { path = "crates/libswarm-package-graph-root-resolution" }
+libswarm-package-graph-source-model = { path = "crates/libswarm-package-graph-source-model" }
+libswarm-package-graph-source-session = { path = "crates/libswarm-package-graph-source-session" }
+libswarm-package-graph-specifier = { path = "crates/libswarm-package-graph-specifier" }
+libswarmvm = { path = "crates/libswarmvm" }
+libswarmvm-ss-test-owner = { path = "crates/libswarmvm-ss-test-owner" }
+prepared-runtime-artifact-model = { path = "crates/prepared-runtime-artifact-model" }
+prepared-runtime-artifact-result-model = { path = "crates/prepared-runtime-artifact-result-model" }
+prepared-runtime-image-manifest-model = { path = "crates/prepared-runtime-image-manifest-model" }
+prepared-runtime-image-model = { path = "crates/prepared-runtime-image-model" }
+mesh-core-wasm = { path = "crates/mesh-core-wasm" }
+mesh-capability-host = { path = "crates/mesh-capability-host" }
+mesh-identity-authority = { path = "crates/mesh-identity-authority" }
+mesh-identity-wasm = { path = "crates/mesh-identity-wasm" }
+mesh-runtime = { path = "crates/mesh-runtime" }
+mesh-transport-capability-core = { path = "crates/mesh-transport-capability-core" }
+mesh-transport-core = { path = "crates/mesh-transport-core" }
+mesh-transport-native = { path = "crates/mesh-transport-native" }
+swarm = { path = "crates/ss" }
+ss-cli-output = { path = "crates/ss-cli-output" }
+ss-runtime-command = { path = "crates/ss-runtime-command" }
+ss-command-model = { path = "crates/ss-command-model" }
+ss-report-model = { path = "crates/ss-report-model" }
+ss-runtime-native-provider-composition-owner = { path = "crates/ss-runtime-native-provider-composition-owner" }
+ss-runtime-operation-registry = { path = "crates/ss-runtime-operation-registry" }
+ss-runtime-product-owner = { path = "crates/ss-runtime-product-owner" }
+ss-runtime-external-capability-provider-owner = { path = "crates/ss-runtime-external-capability-provider-owner" }
+ss-runtime-provider-host-set-owner = { path = "crates/ss-runtime-provider-host-set-owner" }
+ss-runtime-provider-listing-owner = { path = "crates/ss-runtime-provider-listing-owner" }
+ss-runtime-source-compiler-owner = { path = "crates/ss-runtime-source-compiler-owner" }
+ss-runtime-source-command-owner = { path = "crates/ss-runtime-source-command-owner" }
+ss-runtime-source-command-profile-owner = { path = "crates/ss-runtime-source-command-profile-owner" }
+ss-runtime-source-command-profile-projection = { path = "crates/ss-runtime-source-command-profile-projection" }
+ss-runtime-source-command-profile-witness-owner = { path = "crates/ss-runtime-source-command-profile-witness-owner" }
+ss-runtime-source-entrypoint-feed-owner = { path = "crates/ss-runtime-source-entrypoint-feed-owner" }
+ss-runtime-source-entrypoint-execution-owner = { path = "crates/ss-runtime-source-entrypoint-execution-owner" }
+ss-runtime-source-entrypoint-run-config-owner = { path = "crates/ss-runtime-source-entrypoint-run-config-owner" }
+ss-runtime-source-runner-config-owner = { path = "crates/ss-runtime-source-runner-config-owner" }
+ss-runtime-source-test-bridge = { path = "crates/ss-runtime-source-test-bridge" }
+ss-runtime-source-path-owner = { path = "crates/ss-runtime-source-path-owner" }
+ss-runtime-source-run-result-owner = { path = "crates/ss-runtime-source-run-result-owner" }
+ss-runtime-source-runner-config-model = { path = "crates/ss-runtime-source-runner-config-model" }
+ss-runtime-source-test-runner-config-owner = { path = "crates/ss-runtime-source-test-runner-config-owner" }
+ss-runtime-command-model = { path = "crates/ss-runtime-command-model" }
+ss-runtime-source-work-set-checker = { path = "crates/ss-runtime-source-work-set-checker" }
+ss-source-entrypoint-artifacts = { path = "crates/ss-source-entrypoint-artifacts" }
+ss-source-entrypoint-package-graph-projection = { path = "crates/ss-source-entrypoint-package-graph-projection" }
+ss-source-work-set-provider-projection = { path = "crates/ss-source-work-set-provider-projection" }
+ss-runtime-test-model = { path = "crates/ss-runtime-test-model" }
+ss-runtime-test-discovery-owner = { path = "crates/ss-runtime-test-discovery-owner" }
+ss-test-module-interface-body-section-owner = { path = "crates/ss-test-module-interface-body-section-owner" }
+ss-runtime-test-execution-owner = { path = "crates/ss-runtime-test-execution-owner" }
+ss-runtime-test-owner = { path = "crates/ss-runtime-test-owner" }
+ss-runtime-test-plan-model = { path = "crates/ss-runtime-test-plan-model" }
+ss-runtime-test-plan-owner = { path = "crates/ss-runtime-test-plan-owner" }
+ss-runtime-test-result-identity-owner = { path = "crates/ss-runtime-test-result-identity-owner" }
+ss-runtime-test-reusable-artifact-index-model = { path = "crates/ss-runtime-test-reusable-artifact-index-model" }
+ss-runtime-test-reusable-artifact-index-operation-owner = { path = "crates/ss-runtime-test-reusable-artifact-index-operation-owner" }
+ss-runtime-test-reusable-artifact-index-owner = { path = "crates/ss-runtime-test-reusable-artifact-index-owner" }
+ss-runtime-test-reusable-artifact-claim = { path = "crates/ss-runtime-test-reusable-artifact-claim" }
+ss-runtime-test-runtime-plan-owner = { path = "crates/ss-runtime-test-runtime-plan-owner" }
+ss-test-front-pass-model = { path = "crates/ss-test-front-pass-model" }
+ss-test-terminal-reporter = { path = "crates/ss-test-terminal-reporter" }
+swarm-app-backend-manifest = { path = "crates/swarm-app-backend-manifest" }
+swarm-affine-custody-observation = { path = "crates/swarm-affine-custody-observation" }
+swarm-capability-linker-core = { path = "crates/swarm-capability-linker-core" }
+swarm-capability-contract-tson = { path = "crates/swarm-capability-contract-tson" }
+swarm-capability-model = { path = "crates/swarm-capability-model" }
+swarm-canonical-string = { path = "crates/swarm-canonical-string" }
+swarm-hash-link = { path = "crates/swarm-hash-link" }
+swarm-provider-value-model = { path = "crates/swarm-provider-value-model" }
+swarmvm-runtime-activity-input-authority = { path = "crates/swarmvm-runtime-activity-input-authority" }
+swarmvm-provider-effect-image-finalization-authority = { path = "crates/swarmvm-provider-effect-image-finalization-authority" }
+swarmvm-provider-effect-executable-image-transition-authority = { path = "crates/swarmvm-provider-effect-executable-image-transition-authority" }
+swarm-correctness-witness = { path = "crates/swarm-correctness-witness" }
+swarm-datastore-provider-core = { path = "crates/swarm-datastore-provider-core" }
+swarm-native-provider-abi = { path = "crates/swarm-native-provider-abi" }
+swarm-native-provider-sdk = { path = "crates/swarm-native-provider-sdk" }
+swarm-native-provider-authority = { path = "crates/swarm-native-provider-authority" }
+swarm-provider-drive-result = { path = "crates/swarm-provider-drive-result" }
+swarm-provider-host-set = { path = "crates/swarm-provider-host-set" }
+swarm-rust-sdk-capability = { path = "crates/swarm-rust-sdk-capability" }
+swarm-rust-sdk-static-provider-package-graph = { path = "crates/swarm-rust-sdk-static-provider-package-graph" }
+swarm-rust-sdk-static-provider-host = { path = "crates/swarm-rust-sdk-static-provider-host" }
+swarm-rust-sdk-static-provider-inventory = { path = "crates/swarm-rust-sdk-static-provider-inventory" }
+swarm-rust-sdk-static-provider-listing = { path = "crates/swarm-rust-sdk-static-provider-listing" }
+swarm-contract-tson = { path = "crates/swarm-contract-tson" }
+swarm-domain-admission = { path = "crates/swarm-domain-admission" }
+swarm-native-async = { path = "crates/swarm-native-async" }
+swarm-runtime-authority = { path = "crates/swarm-runtime-authority" }
+swarm-stage-work-scheduler = { path = "crates/swarm-stage-work-scheduler" }
+swarm-substrate-invariant = { path = "crates/swarm-substrate-invariant" }
+swarmscript-actor-state-write-set-law = { path = "crates/swarmscript-actor-state-write-set-law" }
+swarmscript-bind = { path = "crates/swarmscript-bind" }
+swarmscript-bind-env = { path = "crates/swarmscript-bind-env" }
+swarmscript-boundary-contract-model = { path = "crates/swarmscript-boundary-contract-model" }
+swarmscript-builtin-member-model = { path = "crates/swarmscript-builtin-member-model" }
+swarmscript-builtin-member-type-surface = { path = "crates/swarmscript-builtin-member-type-surface" }
+swarmscript-check-capability-manifest-product-owner = { path = "crates/swarmscript-check-capability-manifest-product-owner" }
+swarmscript-capability-registry = { path = "crates/swarmscript-capability-registry" }
+swarmscript-check-authored-lowering-authority = { path = "crates/swarmscript-check-authored-lowering-authority" }
+swarmscript-check-authored-lowering-model = { path = "crates/swarmscript-check-authored-lowering-model" }
+swarmscript-check-call-target-model = { path = "crates/swarmscript-check-call-target-model" }
+swarmscript-check-authority-carrier-model = { path = "crates/swarmscript-check-authority-carrier-model" }
+swarmscript-check-module-identity-model = { path = "crates/swarmscript-check-module-identity-model" }
+swarmscript-check-diagnostic-json = { path = "crates/swarmscript-check-diagnostic-json" }
+swarmscript-check-front-pass-api = { path = "crates/swarmscript-check-front-pass-api" }
+swarmscript-check-h7-front-pass-owner = { path = "crates/swarmscript-check-h7-front-pass-owner" }
+swarmscript-check-function-identity-model = { path = "crates/swarmscript-check-function-identity-model" }
+swarmscript-check-ingress-model = { path = "crates/swarmscript-check-ingress-model" }
+swarmscript-check-materialized-source-model = { path = "crates/swarmscript-check-materialized-source-model" }
+swarmscript-check-model = { path = "crates/swarmscript-check-model" }
+swarmscript-check-namespace-import-authority = { path = "crates/swarmscript-check-namespace-import-authority" }
+swarmscript-check-ss-test-typecheck-product-owner = { path = "crates/swarmscript-check-ss-test-typecheck-product-owner" }
+swarmscript-check-typecheck-product-assembly-owner = { path = "crates/swarmscript-check-typecheck-product-assembly-owner" }
+swarmscript-check-typecheck-product-model = { path = "crates/swarmscript-check-typecheck-product-model" }
+swarmscript-check-type-ops = { path = "crates/swarmscript-check-type-ops" }
+swarmscript-compiler-conformance = { path = "crates/swarmscript-compiler-conformance" }
+swarmscript-compiler-input = { path = "crates/swarmscript-compiler-input" }
+swarmscript-compiler-input-admission = { path = "crates/swarmscript-compiler-input-admission" }
+swarmscript-compiler-input-ast-model = { path = "crates/swarmscript-compiler-input-ast-model" }
+swarmscript-compiler-input-core-model = { path = "crates/swarmscript-compiler-input-core-model" }
+swarmscript-compiler-input-executable-obligation-owner = { path = "crates/swarmscript-compiler-input-executable-obligation-owner" }
+swarmscript-compiler-input-function-model = { path = "crates/swarmscript-compiler-input-function-model" }
+swarmscript-compiler-observation = { path = "crates/swarmscript-compiler-observation" }
+swarmscript-process-lifecycle-argument-evidence-owner = { path = "crates/swarmscript-process-lifecycle-argument-evidence-owner" }
+swarmscript-process-lifecycle-sidecar-authority = { path = "crates/swarmscript-process-lifecycle-sidecar-authority" }
+swarmscript-compiler-observation-export = { path = "crates/swarmscript-compiler-observation-export" }
+swarmscript-compiler-host-abi-owner = { path = "crates/swarmscript-compiler-host-abi-owner" }
+swarmscript-compiler-runtime-program-artifact-sidecar-owner = { path = "crates/swarmscript-compiler-runtime-program-artifact-sidecar-owner" }
+swarmscript-compiler-session-lir-projection-owner = { path = "crates/swarmscript-compiler-session-lir-projection-owner" }
+swarmscript-compiler-host-abi = { path = "crates/swarmscript-compiler-wasm" }
+swarmscript-compiler-wasm = { path = "crates/swarmscript-compiler-wasm-adapter" }
+swarmscript-engine-compile = { path = "crates/swarmscript-engine-compile" }
+swarmscript-engine-compile-model = { path = "crates/swarmscript-engine-compile-model" }
+swarmscript-executable-body-substrate = { path = "crates/swarmscript-executable-body-substrate" }
+swarmscript-engine-runtime = { path = "crates/swarmscript-engine-runtime" }
+swarmscript-engine-session-model = { path = "crates/swarmscript-engine-session-model" }
+swarmscript-engine-stage-diagnostics = { path = "crates/swarmscript-engine-stage-diagnostics" }
+swarmscript-engine-types = { path = "crates/swarmscript-engine-types" }
+swarmscript-engine-wasm = { path = "crates/swarmscript-engine-wasm" }
+swarmscript-flow = { path = "crates/swarmscript-flow" }
+swarmscript-h7-contract-model = { path = "crates/swarmscript-h7-contract-model" }
+swarmscript-intrinsic-registry = { path = "crates/swarmscript-intrinsic-registry" }
+swarmscript-lexer = { path = "crates/swarmscript-lexer" }
+swarmscript-liquid = { path = "crates/swarmscript-liquid" }
+swarmscript-lower-capability-import-canonicalization = { path = "crates/swarmscript-lower-capability-import-canonicalization" }
+swarmscript-lowering-authority-model = { path = "crates/swarmscript-lowering-authority-model" }
+swarmscript-lowering-slice-model = { path = "crates/swarmscript-lowering-slice-model" }
+swarmscript-module-interface-artifact = { path = "crates/swarmscript-module-interface-artifact" }
+swarmscript-module-interface-artifact-owner = { path = "crates/swarmscript-module-interface-artifact-owner" }
+swarmscript-module-interface-artifact-store = { path = "crates/swarmscript-module-interface-artifact-store" }
+swarmscript-module-interface-h7-witness = { path = "crates/swarmscript-module-interface-h7-witness" }
+swarmscript-module-graph-model = { path = "crates/swarmscript-module-graph-model" }
+swarmscript-mir-checked-input = { path = "crates/swarmscript-mir-checked-input" }
+swarmscript-number-model = { path = "crates/swarmscript-number-model" }
+swarmscript-parse-diagnostics = { path = "crates/swarmscript-parse-diagnostics" }
+swarmscript-parser-conformance = { path = "crates/swarmscript-parser-conformance" }
+swarmscript-parser-wasm = { path = "crates/swarmscript-parser-wasm" }
+swarmscript-proof-law = { path = "crates/swarmscript-proof-law" }
+swarmscript-source = { path = "crates/swarmscript-source" }
+swarmscript-types = { path = "crates/swarmscript-types" }
+swarmscript-typed-meta-model = { path = "crates/swarmscript-typed-meta-model" }
+swarmscript-typed-semantic-hir-model = { path = "crates/swarmscript-typed-semantic-hir-model" }
+swarmscript-wasm = { path = "crates/swarmscript-wasm" }
+swarmvm-actor-ref-authority = { path = "crates/swarmvm-actor-ref-authority" }
+swarmvm-actor-request-authority = { path = "crates/swarmvm-actor-request-authority" }
+swarmvm-conformance = { path = "crates/swarmvm-conformance" }
+swarmvm-host-abi = { path = "crates/swarmvm-host-abi" }
+swarmvm-host-sql-authority = { path = "crates/swarmvm-host-sql-authority" }
+swarmvm-hostcall-runtime = { path = "crates/swarmvm-hostcall-runtime" }
+swarmvm-image = { path = "crates/swarmvm-image" }
+swarmvm-import-execution-allocation-authority = { path = "crates/swarmvm-import-execution-allocation-authority" }
+swarmvm-import-execution-authority-owner = { path = "crates/swarmvm-import-execution-authority-model" }
+swarmvm-isa = { path = "crates/swarmvm-isa" }
+swarmvm-isa-types = { path = "crates/swarmvm-isa-types" }
+swarmvm-machine-core = { path = "crates/swarmvm-machine-core" }
+swarmvm-process-liveness-owner = { path = "crates/swarmvm-process-liveness-owner" }
+swarmvm-process-tree-model = { path = "crates/swarmvm-process-tree-model" }
+swarmvm-runtime-hostcall-core = { path = "crates/swarmvm-runtime-hostcall-core" }
+swarmvm-runtime-types = { path = "crates/swarmvm-runtime-types" }
+swarmvm-session-runtime-effect-model = { path = "crates/swarmvm-session-runtime-effect-model" }
+swarmvm-session-runtime-model = { path = "crates/swarmvm-session-runtime-model" }
+swarmvm-session-runtime-actor-state-product-route-ledger = { path = "crates/swarmvm-session-runtime-actor-state-product-route-ledger" }
+swarmvm-session-native-transport-handoff = { path = "crates/swarmvm-session-native-transport-handoff" }
+swarmvm-session-execution-kernel = { path = "crates/swarmvm-session-execution-kernel" }
+libbun = { git = "https://github.com/enki/libbun.git", rev = "2f053c35e56a47468391341ba8d89d347711641e" }
+libloading = "0.8"
+coset = "0.4.2"
+ed25519-dalek = "2.2.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_ipld_dagcbor = "0.6.4"
+serde_json = { version = "1.0.145", features = ["preserve_order"] }
+hex = "0.4.3"
+sha2 = "0.10"
+thiserror = "2.0.17"
+rustls-pki-types = "1.14.1"
+rustls = "0.23"
+rustls-webpki = { version = "0.103.13", features = ["ring"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "time", "net", "io-util"] }
+tokio-rustls = "0.26.4"
+tokio-util = "0.7.18"
+tokio-postgres = { version = "0.7.17", default-features = false, features = ["runtime", "with-serde_json-1"] }
+quinn = { version = "0.11.9", default-features = false, features = ["runtime-tokio", "rustls-aws-lc-rs", "log", "bloom"] }
+axum = "0.8"
+bytes = "1"
+http = "1"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["http1", "http2", "server"] }
+hyper-util = { version = "0.1", features = ["http1", "http2", "server", "service", "tokio"] }
+tower = { version = "0.5", features = ["util"] }
+rand = { version = "0.10", features = ["thread_rng"] }
+russh = "0.61.1"
+toml = "0.8.19"
+wasm-bindgen = "0.2.118"
+x509-parser = "0.18.1"
+rcgen = "0.14.8"
+# Determinism tables (string-model S1 / ADR-2140). Exact-pinned: the Unicode
+# data version behind NFC + grapheme segmentation is part of the semantics
+# version. Upgrade only by explicit ruling (both currently vendor Unicode 17.0.0).
+unicode-normalization = "=0.1.25"
+unicode-segmentation = "=1.13.2"
+# NUMBER-MODEL rung N1 (charter R1): the SwarmInteger exact-integer backing is
+# arbitrary-precision num-bigint, PINNED exact (=x.y.z) for deterministic replay.
+# This is a permanent end-state dependency, not a bridge.
+num-bigint = "=0.4.6"
+num-traits = "=0.2.19"
+
+[profile.dev]
+debug = 0
+lto = false
+codegen-units = 256
+incremental = true
+
+[profile.wasm-dev]
+inherits = "release"
+opt-level = 1
+debug = true
+lto = false
+codegen-units = 256
+incremental = true

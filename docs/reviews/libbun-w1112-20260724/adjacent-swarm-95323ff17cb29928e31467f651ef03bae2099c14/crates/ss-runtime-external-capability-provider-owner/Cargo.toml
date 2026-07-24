@@ -1,0 +1,20 @@
+[package]
+name = "ss-runtime-external-capability-provider-owner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+libbun = { workspace = true, features = ["dynamic-loading"] }
+serde.workspace = true
+serde_json.workspace = true
+durable-direct-run-kernel.workspace = true
+ss-runtime-provider-host-set-owner.workspace = true
+ss-runtime-provider-listing-owner.workspace = true
+swarm-capability-model.workspace = true
+swarm-capability-linker-core.workspace = true
+swarm-provider-host-set.workspace = true
+swarm-rust-sdk-static-provider-host.workspace = true
+swarm-substrate-invariant.workspace = true
+thiserror.workspace = true

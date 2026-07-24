@@ -1,0 +1,40 @@
+[package]
+name = "swarm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+default-run = "swarm"
+
+[features]
+# The first-party CLI is a full native distribution. Reduced/core hosts opt out
+# with `default-features = false` and then admit only the exact plugin entries
+# they package.
+default = ["native-distribution-default"]
+native-distribution-default = [
+    "native-distribution-libbun",
+]
+native-distribution-libbun = []
+
+[dependencies]
+serde_json.workspace = true
+ss-cli-output.workspace = true
+ss-command-model.workspace = true
+ss-runtime-command-model.workspace = true
+ss-runtime-external-capability-provider-owner.workspace = true
+ss-runtime-native-provider-composition-owner.workspace = true
+ss-runtime-provider-host-set-owner.workspace = true
+ss-runtime-provider-listing-owner.workspace = true
+ss-runtime-source-command-owner.workspace = true
+ss-runtime-source-path-owner.workspace = true
+ss-runtime-test-owner.workspace = true
+ss-runtime-test-plan-owner.workspace = true
+swarm-rust-sdk-static-provider-host.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+libbun = { workspace = true, features = ["dynamic-loading"] }
+
+[[bin]]
+name = "swarm"
+path = "src/main.rs"
