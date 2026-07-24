@@ -1,0 +1,22 @@
+[package]
+name = "libbun-public-api-boundary-fixture"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+libbun = { path = "../../.." }
+
+[[bin]]
+name = "adjacent-public-controls"
+path = "src/bin/adjacent_public_controls.rs"
+
+[[bin]]
+name = "import-raw-installer"
+path = "src/bin/import_raw_installer.rs"
+
+[[bin]]
+name = "call-raw-installer"
+path = "src/bin/call_raw_installer.rs"
+
+[workspace]

@@ -17,7 +17,6 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 use std::time::Instant;
 
-use libbun_prepared_export_wire::DriveRequest;
 use libbun_prepared_export_wire::MAX_CANDIDATE_BYTES;
 use libbun_prepared_export_wire::MAX_REQUEST_BYTES;
 use libbun_prepared_export_wire::TERMINAL_HEADER_LEN;
@@ -38,32 +37,11 @@ pub struct PreparedExport {
 }
 
 enum WorkerLaunch {
-    Bundled,
     #[cfg(test)]
     Exact {
         program: PathBuf,
         arguments: Vec<OsString>,
     },
-}
-
-/// Finite adapter-install operation for one already-selected artifact, export,
-/// and opaque invocation. The loading material is consumed into an affine
-/// prepared export and cannot be projected back out.
-pub fn install_prepared_export(
-    prepared_artifact: Vec<u8>,
-    selected_export: String,
-    opaque_invocation: Vec<u8>,
-) -> PreparedExport {
-    PreparedExport {
-        worker: WorkerLaunch::Bundled,
-        request: libbun_prepared_export_wire::encode_drive_material(DriveRequest {
-            prepared_artifact,
-            selected_export,
-            opaque_invocation,
-        }),
-        #[cfg(test)]
-        panic_after_admission: false,
-    }
 }
 
 impl PreparedExport {
@@ -158,27 +136,9 @@ impl PreparedExport {
 impl WorkerLaunch {
     fn resolve(self) -> io::Result<(PathBuf, Vec<OsString>)> {
         match self {
-            Self::Bundled => {
-                let executable = std::env::current_exe()?;
-                let directory = executable.parent().ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::NotFound,
-                        "host executable has no parent directory for bundled worker resolution",
-                    )
-                })?;
-                Ok((directory.join(worker_asset_name()), Vec::new()))
-            }
             #[cfg(test)]
             Self::Exact { program, arguments } => Ok((program, arguments)),
         }
-    }
-}
-
-fn worker_asset_name() -> &'static str {
-    if cfg!(windows) {
-        "libbun-runtime-native.exe"
-    } else {
-        "libbun-runtime-native"
     }
 }
 

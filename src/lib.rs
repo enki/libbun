@@ -9,5 +9,5 @@ mod prepared_export;
 
 pub use prepared_export::{
     Cancelled, Cargo, DeadlineElapsed, DriveCancellation, DriveControl, MechanicalFault,
-    MechanicalFaultKind, MechanicalTerminal, PreparedExport, install_prepared_export,
+    MechanicalFaultKind, MechanicalTerminal, PreparedExport,
 };
