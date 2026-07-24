@@ -1912,6 +1912,7 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn call_provider_until_settled_for_prepared_export(
         &mut self,
         request: ProviderRequest,

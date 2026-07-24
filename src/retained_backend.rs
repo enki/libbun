@@ -1,19 +1,29 @@
 use std::fmt;
+use std::io::{self, Read};
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::path::{Path, PathBuf};
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
 #[cfg(test)]
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender, TryRecvError};
 use std::sync::{Arc, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
+use crate::helper_protocol::{
+    HelperHello, HelperRequest, HelperRequestPayload, HelperResponse, HelperResponsePayload,
+    LIBBUN_HELPER_PROTOCOL_VERSION, read_frame, write_frame,
+};
+use crate::plugin_abi::LIBBUN_PLUGIN_ABI_VERSION;
+#[cfg(test)]
+use crate::{BunEmbeddingRuntime, BunHost};
 use crate::{
-    BunEmbeddingRuntime, BunHost, BunRuntimeConfig, LibbunError, LibbunResult, OutputRecord,
-    ProviderCallResult, ProviderContractIdentity, ProviderDomainClass, ProviderRequest,
-    ProviderSettleOptions, SettledProviderReceipt, StructuralValue,
+    BunRuntimeConfig, LibbunError, LibbunResult, OutputRecord, ProviderCallResult,
+    ProviderContractIdentity, ProviderDomainClass, ProviderRequest, ProviderSettleOptions,
+    SettledProviderReceipt, StructuralValue,
 };
 
 #[cfg(test)]
@@ -275,9 +285,17 @@ enum Continuation {
 }
 
 #[derive(Clone)]
-struct WorkerFactory {
-    config: BunRuntimeConfig,
-    spawn: fn(BunRuntimeConfig) -> LibbunResult<WorkerCustody>,
+enum WorkerFactory {
+    Contained {
+        config: BunRuntimeConfig,
+        helper: PathBuf,
+        bubblewrap: PathBuf,
+    },
+    #[cfg(test)]
+    InProcess {
+        config: BunRuntimeConfig,
+        spawn: fn(BunRuntimeConfig) -> LibbunResult<WorkerCustody>,
+    },
 }
 
 struct WorkerCustody {
@@ -315,17 +333,36 @@ enum RetirementOutcome {
     Adopted(MechanicalFault),
 }
 
+impl WorkerFactory {
+    fn spawn(&self) -> LibbunResult<WorkerCustody> {
+        match self {
+            Self::Contained {
+                config,
+                helper,
+                bubblewrap,
+            } => spawn_contained_worker_with_paths(
+                config.clone(),
+                helper.clone(),
+                bubblewrap.clone(),
+            ),
+            #[cfg(test)]
+            Self::InProcess { config, spawn } => spawn(config.clone()),
+        }
+    }
+
+    fn has_forced_retirement(&self) -> bool {
+        matches!(self, Self::Contained { .. })
+    }
+}
+
 impl BunProviderBackend {
-    pub fn open<R>(config: BunRuntimeConfig) -> LibbunResult<Self>
-    where
-        R: BunEmbeddingRuntime + 'static,
-    {
+    pub fn open(config: BunRuntimeConfig) -> LibbunResult<Self> {
         ensure_durable_reaper().map_err(|message| {
             LibbunError::initialize(format!(
                 "retained prepared-export durable reaper initialization failed: {message}"
             ))
         })?;
-        let worker = spawn_worker::<R>(config)?;
+        let worker = spawn_contained_worker(config)?;
         Ok(Self {
             worker: Some(worker),
         })
@@ -513,7 +550,8 @@ impl Continuation {
             }
             Self::Restartable(factory) => {
                 let factory = factory.clone();
-                (factory.spawn)(factory.config.clone())
+                factory
+                    .spawn()
                     .map(|worker| BunProviderBackend {
                         worker: Some(worker),
                     })
@@ -604,19 +642,39 @@ fn drive_worker(
         return terminal_after_worker_disconnect(worker);
     }
 
+    let has_forced_retirement = worker.factory.has_forced_retirement();
     let response = match receive.recv_timeout(control.remaining()) {
         Ok(response) => response,
         Err(RecvTimeoutError::Timeout) => {
             control.interrupt.request();
-            adopt_for_disposal(worker);
-            return MechanicalTerminal::MechanicalFault(MechanicalFaultTerminal {
-                fault: MechanicalFault::new(
-                    MechanicalFaultKind::WorkerTermination,
-                    "retained_prepared_export_deadline_retirement_adopted",
-                    "the drive exceeded its foreground deadline; unresolved runtime custody was adopted before this terminal was published",
-                ),
-                continuation: None,
-            });
+            if !has_forced_retirement {
+                adopt_for_disposal(worker);
+                return MechanicalTerminal::MechanicalFault(MechanicalFaultTerminal {
+                    fault: MechanicalFault::new(
+                        MechanicalFaultKind::WorkerTermination,
+                        "retained_prepared_export_deadline_retirement_adopted",
+                        "the drive exceeded its foreground deadline; unresolved runtime custody was adopted before this terminal was published",
+                    ),
+                    continuation: None,
+                });
+            }
+            match receive.recv_timeout(control.retirement_timeout()) {
+                Ok(response) => response,
+                Err(RecvTimeoutError::Disconnected) => {
+                    return terminal_after_worker_disconnect(worker);
+                }
+                Err(RecvTimeoutError::Timeout) => {
+                    adopt_for_disposal(worker);
+                    return MechanicalTerminal::MechanicalFault(MechanicalFaultTerminal {
+                        fault: MechanicalFault::new(
+                            MechanicalFaultKind::WorkerTermination,
+                            "retained_prepared_export_deadline_retirement_adopted",
+                            "the drive exceeded its foreground deadline; unresolved runtime custody was adopted before this terminal was published",
+                        ),
+                        continuation: None,
+                    });
+                }
+            }
         }
         Err(RecvTimeoutError::Disconnected) => {
             return terminal_after_worker_disconnect(worker);
@@ -975,13 +1033,684 @@ fn adopt_for_disposal(worker: WorkerCustody) {
     }
 }
 
-fn spawn_worker<R>(config: BunRuntimeConfig) -> LibbunResult<WorkerCustody>
+fn spawn_contained_worker(mut config: BunRuntimeConfig) -> LibbunResult<WorkerCustody> {
+    let (helper, bubblewrap) = resolve_contained_worker_paths()?;
+    config.working_directory = config.working_directory.canonicalize().map_err(|error| {
+        LibbunError::initialize(format!(
+            "retained worker working directory `{}` cannot be resolved exactly: {error}",
+            config.working_directory.display()
+        ))
+    })?;
+    spawn_contained_worker_with_paths(config, helper, bubblewrap)
+}
+
+#[cfg(target_os = "linux")]
+fn resolve_contained_worker_paths() -> LibbunResult<(PathBuf, PathBuf)> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fn exact_executable(path: &Path, label: &str) -> LibbunResult<PathBuf> {
+        let exact = path.canonicalize().map_err(|error| {
+            LibbunError::initialize(format!(
+                "{label} `{}` cannot be resolved exactly: {error}",
+                path.display()
+            ))
+        })?;
+        let metadata = exact.metadata().map_err(|error| {
+            LibbunError::initialize(format!(
+                "{label} `{}` metadata cannot be read: {error}",
+                exact.display()
+            ))
+        })?;
+        if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+            return Err(LibbunError::initialize(format!(
+                "{label} `{}` is not an executable file",
+                exact.display()
+            )));
+        }
+        Ok(exact)
+    }
+
+    let current = std::env::current_exe().map_err(|error| {
+        LibbunError::initialize(format!(
+            "retained worker host executable cannot be resolved: {error}"
+        ))
+    })?;
+    let directory = current.parent().ok_or_else(|| {
+        LibbunError::initialize("retained worker host executable has no parent directory")
+    })?;
+    let mut helper_candidates = vec![directory.join("libbun-runtime-native")];
+    if directory.file_name().and_then(|name| name.to_str()) == Some("deps")
+        && let Some(parent) = directory.parent()
+    {
+        helper_candidates.push(parent.join("libbun-runtime-native"));
+    }
+    let helper = helper_candidates
+        .iter()
+        .find(|candidate| candidate.is_file())
+        .ok_or_else(|| {
+            LibbunError::initialize(format!(
+                "exact sibling libbun-runtime-native is absent beside `{}`",
+                current.display()
+            ))
+        })?;
+    let helper = exact_executable(helper, "retained runtime worker")?;
+
+    let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
+        .into_iter()
+        .find(|candidate| candidate.is_file())
+        .ok_or_else(|| {
+            LibbunError::initialize(
+                "exact retained worker containment requires /usr/bin/bwrap or /bin/bwrap",
+            )
+        })?;
+    let bubblewrap = exact_executable(bubblewrap, "Bubblewrap containment runtime")?;
+    Ok((helper, bubblewrap))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn resolve_contained_worker_paths() -> LibbunResult<(PathBuf, PathBuf)> {
+    Err(LibbunError::initialize(
+        "exact retained worker containment is currently available only on Linux",
+    ))
+}
+
+fn spawn_contained_worker_with_paths(
+    config: BunRuntimeConfig,
+    helper: PathBuf,
+    bubblewrap: PathBuf,
+) -> LibbunResult<WorkerCustody> {
+    let factory = WorkerFactory::Contained {
+        config: config.clone(),
+        helper: helper.clone(),
+        bubblewrap: bubblewrap.clone(),
+    };
+    let (commands, receiver) = mpsc::channel();
+    let (initialized, initialization) = mpsc::sync_channel(1);
+    let join = thread::Builder::new()
+        .name("libbun-contained-runtime-owner".to_owned())
+        .spawn(move || contained_worker_loop(config, helper, bubblewrap, receiver, initialized))
+        .map_err(|error| {
+            LibbunError::initialize(format!(
+                "contained runtime owner thread spawn failed: {error}"
+            ))
+        })?;
+    match initialization.recv() {
+        Ok(Ok(())) => Ok(WorkerCustody {
+            commands,
+            join: Some(join),
+            factory,
+        }),
+        Ok(Err(error)) => {
+            let _ = join.join();
+            Err(error)
+        }
+        Err(error) => {
+            let _ = join.join();
+            Err(LibbunError::initialize(format!(
+                "contained runtime owner disconnected during initialization: {error}"
+            )))
+        }
+    }
+}
+
+struct ContainedProcess {
+    child: Child,
+    stdin: Option<ChildStdin>,
+    responses: Receiver<Result<HelperResponse, String>>,
+    response_reader: Option<JoinHandle<()>>,
+    stderr_reader: Option<JoinHandle<io::Result<Vec<u8>>>>,
+    next_id: u64,
+    finished: bool,
+}
+
+impl ContainedProcess {
+    fn start(config: &BunRuntimeConfig, helper: &Path, bubblewrap: &Path) -> LibbunResult<Self> {
+        let mut child = Command::new(bubblewrap)
+            .arg("--die-with-parent")
+            .arg("--unshare-user")
+            .arg("--uid")
+            .arg("0")
+            .arg("--gid")
+            .arg("0")
+            .arg("--unshare-pid")
+            .arg("--new-session")
+            .arg("--proc")
+            .arg("/proc")
+            .arg("--dev")
+            .arg("/dev")
+            .arg("--ro-bind")
+            .arg("/")
+            .arg("/")
+            .arg("--chdir")
+            .arg(&config.working_directory)
+            .arg("--")
+            .arg(helper)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| {
+                LibbunError::initialize(format!(
+                    "exact-contained retained worker admission failed: {error}"
+                ))
+            })?;
+
+        let Some(stdin) = child.stdin.take() else {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(LibbunError::initialize(
+                "contained retained worker stdin custody is missing",
+            ));
+        };
+        let Some(stdout) = child.stdout.take() else {
+            drop(stdin);
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(LibbunError::initialize(
+                "contained retained worker stdout custody is missing",
+            ));
+        };
+        let Some(stderr) = child.stderr.take() else {
+            drop(stdin);
+            drop(stdout);
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(LibbunError::initialize(
+                "contained retained worker stderr custody is missing",
+            ));
+        };
+        let (response_sender, responses) = mpsc::channel();
+        let response_reader = match thread::Builder::new()
+            .name("libbun-contained-response-reader".to_owned())
+            .spawn(move || read_helper_responses(stdout, response_sender))
+        {
+            Ok(reader) => reader,
+            Err(error) => {
+                drop(stdin);
+                drop(stderr);
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(LibbunError::initialize(format!(
+                    "contained retained worker response reader spawn failed: {error}"
+                )));
+            }
+        };
+        let stderr_reader = match thread::Builder::new()
+            .name("libbun-contained-stderr-reader".to_owned())
+            .spawn(move || drain_helper_stderr(stderr))
+        {
+            Ok(reader) => reader,
+            Err(error) => {
+                drop(stdin);
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = response_reader.join();
+                return Err(LibbunError::initialize(format!(
+                    "contained retained worker stderr reader spawn failed: {error}"
+                )));
+            }
+        };
+        let mut process = Self {
+            child,
+            stdin: Some(stdin),
+            responses,
+            response_reader: Some(response_reader),
+            stderr_reader: Some(stderr_reader),
+            next_id: 1,
+            finished: false,
+        };
+        process.initialize(config)?;
+        Ok(process)
+    }
+
+    fn initialize(&mut self, config: &BunRuntimeConfig) -> LibbunResult<()> {
+        let hello = self.transact(
+            HelperRequestPayload::Hello(HelperHello::current(std::env::consts::ARCH)),
+            Duration::from_secs(5),
+        )?;
+        let HelperResponsePayload::Hello(hello) = hello else {
+            return Err(LibbunError::initialize(
+                "contained retained worker returned a non-hello handshake payload",
+            ));
+        };
+        let expected = HelperHello::current(std::env::consts::ARCH);
+        if hello.plugin_abi_version != LIBBUN_PLUGIN_ABI_VERSION
+            || hello.helper_protocol_version != LIBBUN_HELPER_PROTOCOL_VERSION
+            || hello.target != expected.target
+            || hello.libbun_version != expected.libbun_version
+            || hello.bun_revision != expected.bun_revision
+        {
+            return Err(LibbunError::initialize(
+                "contained retained worker handshake does not match the owning libbun build",
+            ));
+        }
+        match self.transact(
+            HelperRequestPayload::Create {
+                config: config.clone(),
+            },
+            Duration::from_secs(5),
+        )? {
+            HelperResponsePayload::Unit => {}
+            _ => {
+                return Err(LibbunError::initialize(
+                    "contained retained worker returned a non-unit create payload",
+                ));
+            }
+        }
+        match self.transact(HelperRequestPayload::DrainOutput, Duration::from_secs(5))? {
+            HelperResponsePayload::Output(output) if output.is_empty() => Ok(()),
+            HelperResponsePayload::Output(output) => Err(LibbunError::initialize(format!(
+                "contained retained worker produced {} unowned output record(s) during admission",
+                output.len()
+            ))),
+            _ => Err(LibbunError::initialize(
+                "contained retained worker returned a non-output admission drain payload",
+            )),
+        }
+    }
+
+    fn drive(
+        &mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+        interrupt: &AtomicBool,
+    ) -> WorkerDriveResponse {
+        let call_id =
+            match self.send(HelperRequestPayload::CallProviderUntilSettled { request, options }) {
+                Ok(id) => id,
+                Err(error) => {
+                    return WorkerDriveResponse {
+                        result: Err(error),
+                        unowned_output: Vec::new(),
+                    };
+                }
+            };
+        let call = match self.receive_interruptible(call_id, interrupt) {
+            Ok(response) => response,
+            Err(error) => {
+                return WorkerDriveResponse {
+                    result: Err(error),
+                    unowned_output: Vec::new(),
+                };
+            }
+        };
+        let result = match call.result {
+            Ok(HelperResponsePayload::SettledProvider(receipt)) => Ok(receipt),
+            Ok(_) => Err(LibbunError::backend_state(
+                "retained_worker_protocol_payload_mismatch",
+                "contained retained worker returned a non-settled provider payload",
+            )),
+            Err(message) => Err(LibbunError::backend_state(
+                "retained_worker_helper_drive_rejected",
+                message,
+            )),
+        };
+
+        let drain_id = match self.send(HelperRequestPayload::DrainOutput) {
+            Ok(id) => id,
+            Err(error) => {
+                return WorkerDriveResponse {
+                    result: Err(error),
+                    unowned_output: Vec::new(),
+                };
+            }
+        };
+        let unowned_output = match self.receive_interruptible(drain_id, interrupt) {
+            Ok(HelperResponse {
+                result: Ok(HelperResponsePayload::Output(output)),
+                ..
+            }) => output,
+            Ok(HelperResponse { result: Ok(_), .. }) => {
+                return WorkerDriveResponse {
+                    result: Err(LibbunError::backend_state(
+                        "retained_worker_protocol_payload_mismatch",
+                        "contained retained worker returned a non-output drain payload",
+                    )),
+                    unowned_output: Vec::new(),
+                };
+            }
+            Ok(HelperResponse {
+                result: Err(message),
+                ..
+            }) => {
+                return WorkerDriveResponse {
+                    result: Err(LibbunError::backend_state(
+                        "retained_worker_output_drain_failed",
+                        message,
+                    )),
+                    unowned_output: Vec::new(),
+                };
+            }
+            Err(error) => {
+                return WorkerDriveResponse {
+                    result: Err(error),
+                    unowned_output: Vec::new(),
+                };
+            }
+        };
+        WorkerDriveResponse {
+            result,
+            unowned_output,
+        }
+    }
+
+    fn graceful_shutdown(&mut self) -> LibbunResult<()> {
+        let exit = match self.transact(HelperRequestPayload::Exit, Duration::from_secs(1)) {
+            Ok(exit) => exit,
+            Err(error) => {
+                self.force_terminate()?;
+                return Err(error);
+            }
+        };
+        let status = self.finish_process(Duration::from_secs(1))?;
+        match exit {
+            HelperResponsePayload::Unit if status.success() => Ok(()),
+            HelperResponsePayload::Unit => Err(LibbunError::shutdown(format!(
+                "contained retained worker exited with status {status}"
+            ))),
+            _ => Err(LibbunError::shutdown(
+                "contained retained worker returned a non-unit exit payload",
+            )),
+        }
+    }
+
+    fn transact(
+        &mut self,
+        payload: HelperRequestPayload,
+        timeout: Duration,
+    ) -> LibbunResult<HelperResponsePayload> {
+        let id = self.send(payload)?;
+        let response = self.receive(id, timeout)?;
+        response.result.map_err(|message| {
+            LibbunError::backend_state("retained_worker_helper_rejected", message)
+        })
+    }
+
+    fn send(&mut self, payload: HelperRequestPayload) -> LibbunResult<u64> {
+        let id = self.next_id;
+        self.next_id = self.next_id.checked_add(1).ok_or_else(|| {
+            LibbunError::backend_state(
+                "retained_worker_protocol_sequence_exhausted",
+                "contained retained worker protocol sequence exhausted u64",
+            )
+        })?;
+        let stdin = self.stdin.as_mut().ok_or_else(|| {
+            LibbunError::backend_state(
+                "retained_worker_stdin_closed",
+                "contained retained worker stdin is already closed",
+            )
+        })?;
+        write_frame(stdin, &HelperRequest { id, payload }).map_err(|error| {
+            LibbunError::backend_state("retained_worker_protocol_write_failed", error.to_string())
+        })?;
+        Ok(id)
+    }
+
+    fn receive(&mut self, id: u64, timeout: Duration) -> LibbunResult<HelperResponse> {
+        match self.responses.recv_timeout(timeout) {
+            Ok(Ok(response)) if response.id == id => Ok(response),
+            Ok(Ok(response)) => Err(LibbunError::backend_state(
+                "retained_worker_protocol_correspondence_failed",
+                format!(
+                    "contained retained worker response {} did not match request {id}",
+                    response.id
+                ),
+            )),
+            Ok(Err(message)) => Err(LibbunError::backend_state(
+                "retained_worker_protocol_read_failed",
+                message,
+            )),
+            Err(RecvTimeoutError::Timeout) => Err(LibbunError::backend_state(
+                "retained_worker_protocol_response_timeout",
+                format!("contained retained worker did not answer request {id} in time"),
+            )),
+            Err(RecvTimeoutError::Disconnected) => Err(LibbunError::backend_state(
+                "retained_worker_protocol_reader_disconnected",
+                "contained retained worker response reader disconnected",
+            )),
+        }
+    }
+
+    fn receive_interruptible(
+        &mut self,
+        id: u64,
+        interrupt: &AtomicBool,
+    ) -> LibbunResult<HelperResponse> {
+        loop {
+            if interrupt.load(Ordering::Acquire) {
+                match self.responses.try_recv() {
+                    Ok(Ok(response)) if response.id == id => return Ok(response),
+                    Ok(Ok(response)) => {
+                        return Err(LibbunError::backend_state(
+                            "retained_worker_protocol_correspondence_failed",
+                            format!(
+                                "contained retained worker response {} did not match request {id}",
+                                response.id
+                            ),
+                        ));
+                    }
+                    Ok(Err(message)) => {
+                        return Err(LibbunError::backend_state(
+                            "retained_worker_protocol_read_failed",
+                            message,
+                        ));
+                    }
+                    Err(TryRecvError::Disconnected) => {
+                        return Err(LibbunError::backend_state(
+                            "retained_worker_protocol_reader_disconnected",
+                            "contained retained worker response reader disconnected",
+                        ));
+                    }
+                    Err(TryRecvError::Empty) => {
+                        self.force_terminate()?;
+                        return Err(LibbunError::backend_state(
+                            "retained_prepared_export_interrupt_observed",
+                            "contained retained worker was forcibly retired after interruption",
+                        ));
+                    }
+                }
+            }
+            match self.responses.recv_timeout(Duration::from_millis(2)) {
+                Ok(Ok(response)) if response.id == id => return Ok(response),
+                Ok(Ok(response)) => {
+                    return Err(LibbunError::backend_state(
+                        "retained_worker_protocol_correspondence_failed",
+                        format!(
+                            "contained retained worker response {} did not match request {id}",
+                            response.id
+                        ),
+                    ));
+                }
+                Ok(Err(message)) => {
+                    return Err(LibbunError::backend_state(
+                        "retained_worker_protocol_read_failed",
+                        message,
+                    ));
+                }
+                Err(RecvTimeoutError::Timeout) => {}
+                Err(RecvTimeoutError::Disconnected) => {
+                    return Err(LibbunError::backend_state(
+                        "retained_worker_protocol_reader_disconnected",
+                        "contained retained worker response reader disconnected",
+                    ));
+                }
+            }
+        }
+    }
+
+    fn force_terminate(&mut self) -> LibbunResult<()> {
+        self.stdin.take();
+        if !self.finished {
+            if let Err(kill_error) = self.child.kill()
+                && self.child.try_wait().map_err(|wait_error| {
+                    LibbunError::shutdown(format!(
+                        "contained retained worker status probe failed after kill refusal: {wait_error}"
+                    ))
+                })?.is_none()
+            {
+                return Err(LibbunError::shutdown(format!(
+                    "contained retained worker namespace leader could not be killed: {kill_error}"
+                )));
+            }
+            self.child.wait().map_err(|error| {
+                LibbunError::shutdown(format!(
+                    "contained retained worker namespace leader could not be reaped: {error}"
+                ))
+            })?;
+            self.finished = true;
+        }
+        self.join_pumps()
+    }
+
+    fn finish_process(&mut self, timeout: Duration) -> LibbunResult<ExitStatus> {
+        self.stdin.take();
+        let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
+            LibbunError::shutdown("contained retained worker exit deadline overflow")
+        })?;
+        loop {
+            match self.child.try_wait().map_err(|error| {
+                LibbunError::shutdown(format!(
+                    "contained retained worker namespace leader status failed: {error}"
+                ))
+            })? {
+                Some(status) => {
+                    self.finished = true;
+                    self.join_pumps()?;
+                    return Ok(status);
+                }
+                None if Instant::now() < deadline => thread::yield_now(),
+                None => {
+                    self.force_terminate()?;
+                    return Err(LibbunError::shutdown(
+                        "contained retained worker acknowledged exit but did not terminate before its deadline",
+                    ));
+                }
+            }
+        }
+    }
+
+    fn join_pumps(&mut self) -> LibbunResult<()> {
+        if let Some(reader) = self.response_reader.take() {
+            reader.join().map_err(|_| {
+                LibbunError::shutdown("contained retained worker response reader unwound")
+            })?;
+        }
+        if let Some(reader) = self.stderr_reader.take() {
+            reader
+                .join()
+                .map_err(|_| {
+                    LibbunError::shutdown("contained retained worker stderr reader unwound")
+                })?
+                .map_err(|error| {
+                    LibbunError::shutdown(format!(
+                        "contained retained worker stderr drain failed: {error}"
+                    ))
+                })?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for ContainedProcess {
+    fn drop(&mut self) {
+        if !self.finished {
+            let _ = self.force_terminate();
+        }
+    }
+}
+
+fn read_helper_responses(
+    mut stdout: ChildStdout,
+    responses: Sender<Result<HelperResponse, String>>,
+) {
+    loop {
+        match read_frame(&mut stdout) {
+            Ok(Some(response)) => {
+                if responses.send(Ok(response)).is_err() {
+                    break;
+                }
+            }
+            Ok(None) => {
+                let _ = responses.send(Err(
+                    "contained retained worker closed stdout before the protocol ended".to_owned(),
+                ));
+                break;
+            }
+            Err(error) => {
+                let _ = responses.send(Err(error.to_string()));
+                break;
+            }
+        }
+    }
+}
+
+fn drain_helper_stderr(mut stderr: ChildStderr) -> io::Result<Vec<u8>> {
+    const MAX_CAPTURED_STDERR: usize = 64 * 1024;
+
+    let mut captured = Vec::new();
+    let mut chunk = [0_u8; 4096];
+    loop {
+        let read = stderr.read(&mut chunk)?;
+        if read == 0 {
+            break;
+        }
+        let retained = MAX_CAPTURED_STDERR.saturating_sub(captured.len()).min(read);
+        captured.extend_from_slice(&chunk[..retained]);
+    }
+    Ok(captured)
+}
+
+fn contained_worker_loop(
+    config: BunRuntimeConfig,
+    helper: PathBuf,
+    bubblewrap: PathBuf,
+    receiver: Receiver<WorkerCommand>,
+    initialized: SyncSender<LibbunResult<()>>,
+) {
+    let mut process = match ContainedProcess::start(&config, &helper, &bubblewrap) {
+        Ok(process) => process,
+        Err(error) => {
+            let _ = initialized.send(Err(error));
+            return;
+        }
+    };
+    if initialized.send(Ok(())).is_err() {
+        return;
+    }
+    while let Ok(command) = receiver.recv() {
+        match command {
+            WorkerCommand::Drive {
+                request,
+                options,
+                interrupt,
+                response,
+            } => {
+                let drive = process.drive(request, options, interrupt.as_ref());
+                let terminated = matches!(&drive.result, Err(error) if is_typed_interrupt(error));
+                let _ = response.send(drive);
+                if terminated {
+                    break;
+                }
+            }
+            WorkerCommand::Shutdown { response } => {
+                let result = process.graceful_shutdown();
+                if let Some(response) = response {
+                    let _ = response.send(result);
+                }
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+fn spawn_in_process_worker<R>(config: BunRuntimeConfig) -> LibbunResult<WorkerCustody>
 where
     R: BunEmbeddingRuntime + 'static,
 {
-    let factory = WorkerFactory {
+    let factory = WorkerFactory::InProcess {
         config: config.clone(),
-        spawn: spawn_worker::<R>,
+        spawn: spawn_in_process_worker::<R>,
     };
     let (commands, receiver) = mpsc::channel();
     let (initialized, initialization) = mpsc::sync_channel(1);
@@ -1012,6 +1741,7 @@ where
     }
 }
 
+#[cfg(test)]
 fn retained_worker_loop<R>(
     config: BunRuntimeConfig,
     receiver: Receiver<WorkerCommand>,
@@ -1085,6 +1815,8 @@ fn select_request_for_owner_test(
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    #[cfg(target_os = "linux")]
+    use std::os::unix::fs::PermissionsExt;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use serde_json::json;
@@ -1223,8 +1955,12 @@ mod tests {
     }
 
     fn backend(host_id: &str) -> BunProviderBackend {
-        BunProviderBackend::open::<OwnerTestRuntime>(BunRuntimeConfig::new(host_id, "/tmp"))
-            .expect("owner test backend opens")
+        let worker =
+            spawn_in_process_worker::<OwnerTestRuntime>(BunRuntimeConfig::new(host_id, "/tmp"))
+                .expect("owner test backend opens");
+        BunProviderBackend {
+            worker: Some(worker),
+        }
     }
 
     fn selected(
@@ -1438,5 +2174,114 @@ mod tests {
             thread::yield_now();
         }
         assert!(SHUTDOWNS.load(Ordering::Relaxed) > before);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn contained_process_interrupt_and_deadline_reap_and_restart_the_exact_helper() {
+        let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
+            .into_iter()
+            .find(|candidate| candidate.is_file())
+            .expect("contained process proof requires Bubblewrap")
+            .canonicalize()
+            .expect("Bubblewrap path resolves exactly");
+        let fixture = tempfile::tempdir().expect("fixture directory is created");
+        let helper = fixture.path().join("libbun-runtime-native");
+        std::fs::write(
+            &helper,
+            r#"#!/usr/bin/python3
+import json
+import struct
+import sys
+import time
+
+reader = sys.stdin.buffer
+writer = sys.stdout.buffer
+
+def read_frame():
+    header = reader.read(4)
+    if not header:
+        return None
+    length = struct.unpack(">I", header)[0]
+    return json.loads(reader.read(length))
+
+def write_frame(value):
+    encoded = json.dumps(value, separators=(",", ":")).encode()
+    writer.write(struct.pack(">I", len(encoded)))
+    writer.write(encoded)
+    writer.flush()
+
+while True:
+    request = read_frame()
+    if request is None:
+        break
+    payload = request["payload"]
+    kind = payload["type"]
+    if kind == "hello":
+        response = {"type": "hello", "payload": payload["payload"]}
+    elif kind == "create" or kind == "exit":
+        response = {"type": "unit"}
+    elif kind == "drainOutput":
+        response = {"type": "output", "payload": []}
+    elif kind == "callProviderUntilSettled":
+        time.sleep(60)
+        response = {"type": "unit"}
+    else:
+        response = {"type": "unit"}
+    write_frame({"id": request["id"], "result": {"Ok": response}})
+    if kind == "exit":
+        break
+"#,
+        )
+        .expect("fixture helper is written");
+        let mut permissions = helper
+            .metadata()
+            .expect("fixture helper metadata is readable")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&helper, permissions).expect("fixture helper is executable");
+        let helper = helper.canonicalize().expect("helper path resolves exactly");
+        let config = BunRuntimeConfig::new("contained-owner-test", fixture.path());
+        let worker = spawn_contained_worker_with_paths(config, helper, bubblewrap)
+            .expect("exact-contained fixture worker opens");
+        let backend = BunProviderBackend {
+            worker: Some(worker),
+        };
+        let (package, invocation) = selected("ok", json!(null));
+        let prepared = backend
+            .prepare(package, invocation)
+            .expect("matching selected input prepares");
+        let control = DriveControl::deadline_after(Duration::from_secs(2))
+            .expect("drive deadline is representable");
+        let interrupt = control.interrupt();
+        let requester = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(20));
+            interrupt.request();
+        });
+        let cancelled = prepared.drive(control);
+        requester.join().expect("interrupt requester joins");
+        assert!(matches!(cancelled, MechanicalTerminal::Cancelled(_)));
+
+        let (package, invocation) = selected("ok", json!(null));
+        let restarted = cancelled
+            .prepare_next(package, invocation)
+            .expect("forced retirement preserves one exact-path restart");
+        let deadline = restarted.drive(
+            DriveControl::deadline_after(Duration::from_millis(20))
+                .expect("deadline is representable"),
+        );
+        assert!(matches!(deadline, MechanicalTerminal::DeadlineElapsed(_)));
+
+        let (package, invocation) = selected("ok", json!(null));
+        let restarted = deadline
+            .prepare_next(package, invocation)
+            .expect("deadline retirement preserves one exact-path restart");
+        assert!(matches!(
+            restarted.shutdown(
+                ShutdownControl::deadline_after(Duration::from_secs(2))
+                    .expect("shutdown deadline is representable")
+            ),
+            BackendShutdownTerminal::Complete
+        ));
     }
 }
