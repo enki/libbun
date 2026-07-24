@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
+import os
 import re
 import shlex
 import subprocess
@@ -18,7 +20,7 @@ SWARM_TREE = "43b47bbd49a6053d270b3e15cc141cb1b1bb86da"
 BASE = Path("docs/reviews/libbun-w1112-20260724")
 SNAPSHOT_BASE = BASE / f"adjacent-swarm-{SWARM_SHA}"
 
-ROOT = Path(
+DISCOVERED_ROOT = Path(
     subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
         text=True,
@@ -27,7 +29,13 @@ ROOT = Path(
         check=True,
     ).stdout.strip()
 )
-SWARM_ROOT = Path("/home/ubuntu/swarm")
+ROOT = Path(os.environ.get("LIBBUN_REPO", DISCOVERED_ROOT)).resolve()
+SWARM_ROOT = Path(os.environ.get("SWARM_REPO", "/home/ubuntu/swarm")).resolve()
+
+REPO_LABELS = {
+    ROOT: '"$LIBBUN_REPO"',
+    SWARM_ROOT: '"$SWARM_REPO"',
+}
 
 ADJACENT_PATHS = (
     "crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs",
@@ -43,6 +51,25 @@ ADJACENT_PATHS = (
     "crates/swarm-provider-host-set/Cargo.toml",
     "tests/conformance/ss/provider/external_provider_json_text_nfc.test.ss",
     "tests/conformance/ss/provider/imported_helper_external_result_payload.test.ss",
+    "docs/PROVIDER_EXECUTION_AND_SDK_LAW.md",
+    "docs/PROVIDER_VALUE_JSON_WIRE_V1.md",
+    "docs/SWARMSCRIPT_ROADMAP.md",
+    "docs/WAVE0_WAVE1_SEMANTIC_CLOSURE_INDEX.md",
+    "crates/swarm-provider-value-model/src/lib.rs",
+    "crates/swarm-provider-value-model/Cargo.toml",
+    "crates/swarm-capability-linker-core/src/lib.rs",
+    "crates/swarm-capability-linker-core/Cargo.toml",
+    "crates/swarm-rust-sdk-static-provider-host/Cargo.toml",
+    "crates/swarmvm-image/Cargo.toml",
+    "tests/negative/ss/provider/external_provider_json_nfc_duplicate_keys.test.ss",
+    "crates/ss-runtime-test-execution-owner/Cargo.toml",
+    "crates/ss-runtime-test-execution-owner/src/lib.rs",
+    "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs",
+    "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs",
+    "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs",
+    "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs",
+    "crates/ss-runtime-provider-host-set-owner/Cargo.toml",
+    "crates/ss-runtime-provider-host-set-owner/src/lib.rs",
 )
 
 LOCK_PRIVACY_PATHS = (
@@ -63,7 +90,51 @@ COMPLIANCE_PATHS = (
     "vendor/bun.LIBBUN_VENDOR.json",
     "vendor/bun/LICENSE.md",
     "vendor/bun/Cargo.lock",
+    "vendor/bun/Cargo.toml",
+    "vendor/bun/src/clap/LICENSE",
+    "vendor/bun/src/unicode/uucode_lib/LICENSE.md",
+    "vendor/bun/vendor/lolhtml/LICENSE",
 )
+
+CORRECTION2_VERDICTS = {
+    "owner-generative-correction2-independent-verdict.md": (
+        "47acbee0fe5a67231969efd8141ba8195bcecc8a",
+        "docs/reviews/libbun-w1112-20260724/owner-generative-correction2-independent-verdict.md",
+    ),
+    "lifecycle-correction2-independent-verdict.md": (
+        "0a3844d11bb42d67550da0bb1e069ecf17fbe69d",
+        "docs/reviews/libbun-w1112-20260724/lifecycle-correction2-independent-verdict.md",
+    ),
+    "containment-release-correction2-independent-verdict.md": (
+        "84feaf68aa99c5bc0e393cbfc1b6a92716cefdf1",
+        "docs/reviews/libbun-w1112-containment-release-correction2-independent-verdict-20260724.md",
+    ),
+}
+
+PARTS = ("owner-generative", "lifecycle", "containment-release", "synthesis")
+PART_TITLES = {
+    "owner-generative": "Owner/W1-10/generative correspondence/admission/reservation/release",
+    "lifecycle": "Lifecycle/JSC interruption/retained-host/quarantine/reaper/shutdown",
+    "containment-release": "Containment/persistent output/locks/packaging/release",
+    "synthesis": "W1-11/W1-12 full-SCC synthesis",
+}
+PRIOR_VERDICTS = {
+    "owner-generative": (
+        "47acbee0fe5a67231969efd8141ba8195bcecc8a",
+        "owner-generative-correction2-independent-verdict.md",
+    ),
+    "lifecycle": (
+        "0a3844d11bb42d67550da0bb1e069ecf17fbe69d",
+        "lifecycle-correction2-independent-verdict.md",
+    ),
+    "containment-release": (
+        "84feaf68aa99c5bc0e393cbfc1b6a92716cefdf1",
+        "containment-release-correction2-independent-verdict.md",
+    ),
+}
+REVIEW_BASE = "51b0118428d7881f39f32df396ef32349a5a52ab"
+VERDICT_CONTRACT = "b046f85a3dd41ac86cabed2de6391876ea77c0f4"
+VERIFIER = Path("scripts/verify-libbun-w1112-review-bundle-20260724.py")
 
 
 def run(args: list[str], cwd: Path, allow_search_miss: bool = False) -> tuple[int, str]:
@@ -109,7 +180,20 @@ def clean(text: str) -> str:
 
 
 def command_text(repo: Path, args: list[str]) -> str:
-    return "git -C " + shlex.quote(str(repo)) + " " + " ".join(shlex.quote(arg) for arg in args)
+    try:
+        repo_label = REPO_LABELS[repo.resolve()]
+    except KeyError as error:
+        raise RuntimeError(f"unbound report repository: {repo}") from error
+    return "git -C " + repo_label + " " + " ".join(shlex.quote(arg) for arg in args)
+
+
+def repository_prologue() -> str:
+    return clean(
+        "Repository labels used by every durable command record:\n\n"
+        f"- `LIBBUN_REPO`: any checkout containing exact libbun SHA `{LIBBUN_SHA}`.\n"
+        f"- `SWARM_REPO`: any checkout containing exact Swarm SHA `{SWARM_SHA}`.\n\n"
+        "The resolved filesystem values are execution inputs only and never enter generated bytes.\n"
+    )
 
 
 def search_section(
@@ -203,18 +287,52 @@ def exact_source_search_report() -> str:
             "Exit 0; all current lifecycle and destructor sites are named.",
         ),
         search_section(
-            "Package, lock, license, compliance, release, and extracted-smoke topology",
+            "Selected package and lock topology",
             ROOT,
             LIBBUN_SHA,
-            "package|archive|release|linked|unlinked|fallback|fresh-process|Cargo.lock|"
-            "license|notice|compliance|workflow|tag|symbol|extract|smoke",
+            "^name = |^version = |^members = |^resolver = |^\\[package\\]|"
+            "^\\[\\[package\\]\\]|libbun|lolhtml|JavaScriptCore|WebKit|bun",
             (
-                "Cargo.toml", "native/Cargo.toml", "runtime/Cargo.toml", "wire/Cargo.toml",
+                "Cargo.toml", "Cargo.lock", "native/Cargo.toml", "native/Cargo.lock",
+                "runtime/Cargo.toml", "runtime/Cargo.lock", "wire/Cargo.toml",
+                "tests/fixtures/public_api_boundary/Cargo.toml",
+                "tests/fixtures/public_api_boundary/Cargo.lock",
+                "vendor/bun/Cargo.toml", "vendor/bun/Cargo.lock",
+            ),
+            "Searches every directly attached package manifest and lock used by the bounded linked native/package closure.",
+            "Exit 0; selected workspace, package, and locked dependency records are visible at the exact product SHA.",
+        ),
+        search_section(
+            "Privacy harness topology",
+            ROOT,
+            LIBBUN_SHA,
+            "install_prepared_export|compile-fail|public.API|adjacent|raw.installer|libbun",
+            LOCK_PRIVACY_PATHS[4:],
+            "Searches every directly attached privacy manifest, fixture, and harness source.",
+            "Exit 0; all six external privacy inputs and their obsolete-aperture tripwires are visible.",
+        ),
+        search_section(
+            "License, provenance, and compliance topology",
+            ROOT,
+            LIBBUN_SHA,
+            "copyright|Copyright|license|License|LICENSE|permission|Permission|"
+            "provenance|source|commit|lolhtml|WebKit|Bun|libbun",
+            COMPLIANCE_PATHS,
+            "Searches every directly attached license, provenance, vendoring, and compliance input.",
+            "Exit 0; every selected compliance input participates in the exact-source search.",
+        ),
+        search_section(
+            "Release and extracted-smoke topology",
+            ROOT,
+            LIBBUN_SHA,
+            "package|archive|release|linked|unlinked|fallback|fresh-process|workflow|"
+            "tag|symbol|extract|smoke",
+            (
                 "scripts", ".github", "README.md", "docs", "vendor/README.md",
                 "vendor/bun.LIBBUN_VENDOR.json",
             ),
-            "Finds all current packaging/release modes and compliance inputs without scanning lock payload noise.",
-            "Exit 0; matches expose current fresh-process/fallback and missing immutable release workflow.",
+            "Finds current packaging/release modes and the immutable archive/extracted-smoke boundary.",
+            "Exit 0; current fresh-process/fallback and release workflow facts are visible.",
         ),
         search_section(
             "Current test and external privacy fixture definitions",
@@ -225,6 +343,25 @@ def exact_source_search_report() -> str:
             ("src", "native/src", "wire/src", "runtime/src", "tests"),
             "Enumerates every current unit/integration/privacy fixture definition to retain, delete, or migrate.",
             "Exit 0; all candidate test families and raw-installer tripwires are visible.",
+        ),
+        search_section(
+            "Adjacent W1-10 ProviderValue input and governing law",
+            SWARM_ROOT,
+            SWARM_SHA,
+            "ProviderValue|W1-10|canonical|duplicate|NFC|JSON|StructuralValue|"
+            "DurableExternalProviderInvocationAuthority",
+            (
+                "docs/PROVIDER_EXECUTION_AND_SDK_LAW.md",
+                "docs/PROVIDER_VALUE_JSON_WIRE_V1.md",
+                "docs/SWARMSCRIPT_ROADMAP.md",
+                "docs/WAVE0_WAVE1_SEMANTIC_CLOSURE_INDEX.md",
+                "crates/swarm-provider-value-model/src/lib.rs",
+                "crates/swarm-capability-linker-core/src/lib.rs",
+                "crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs",
+                "tests/negative/ss/provider/external_provider_json_nfc_duplicate_keys.test.ss",
+            ),
+            "Binds W1-10 ProviderValue as the exact by-value W1-11 invocation cargo and its hostile canonical-wire refusal law.",
+            "Exit 0; the defining type, reexport/conversion boundary, laws, closure index, invocation field, and negative fixture are visible.",
         ),
         search_section(
             "Adjacent exact-call and invocation producers",
@@ -241,12 +378,13 @@ def exact_source_search_report() -> str:
             "Exit 0; constructors, raw splitters, and settlement operations are all present.",
         ),
         search_section(
-            "Adjacent sole consumer, transport, process, and shutdown graph",
+            "Adjacent sole consumer, transport, retained-host pool, and shutdown graph",
             SWARM_ROOT,
             SWARM_SHA,
             "SsExternalCapabilityProviderHost|invoke_manifest_resolved_call|ProviderRequest|"
             "adapter_source|begin_invocation|settle_provider|shutdown|impl Drop|Command::new|"
-            "wait_with_output|libbun",
+            "wait_with_output|libbun|ExternalCapabilityProviderPool|checkout|replace|"
+            "provider_settlement_lane|runtime_execution_domain|body_authority_registry",
             (
                 "crates/ss-runtime-external-capability-provider-owner/src/lib.rs",
                 "crates/swarm-provider-host-set/src/external_transport.rs",
@@ -254,20 +392,37 @@ def exact_source_search_report() -> str:
                 "crates/ss/src/product.rs",
                 "crates/ss/tests/external_capability_provider.rs",
                 "crates/ss-runtime-external-capability-provider-owner/Cargo.toml",
+                "crates/ss-runtime-test-execution-owner/src/lib.rs",
+                "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs",
+                "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs",
+                "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs",
+                "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs",
+                "crates/ss-runtime-provider-host-set-owner/src/lib.rs",
                 "crates/ss/Cargo.toml",
                 "Cargo.toml",
             ),
-            "Binds the sole libbun consumer, callback trait boundary, raw reconstruction, process callers, shutdown, and Cargo direction.",
-            "Exit 0; all current cross-repository ownership and compatibility shapes are visible.",
+            "Binds the sole libbun consumer, callback trait boundary, raw reconstruction, retained-host checkout/replacement chain, final shutdown, and Cargo direction.",
+            "Exit 0; all current cross-repository ownership, pool custody, and compatibility shapes are visible.",
+        ),
+        search_section(
+            "Adjacent package and dependency direction",
+            SWARM_ROOT,
+            SWARM_SHA,
+            "^name = |^version = |^\\[dependencies|libbun|swarm.provider.value|"
+            "capability.linker|provider.host|test.execution|swarmvm.image",
+            tuple(path for path in ADJACENT_PATHS if path.endswith("Cargo.toml")),
+            "Searches every attached adjacent package manifest needed to choose the acyclic producer/consumer owner move.",
+            "Exit 0; all attached adjacent package identities and dependency edges are visible.",
         ),
     ]
     return clean(
-        "# libbun W1-11/W1-12 exact-source search report (correction 2)\n\n"
+        "# libbun W1-11/W1-12 exact-source search report (correction 3)\n\n"
         f"Libbun product SHA: {LIBBUN_SHA}\n\n"
         f"Libbun product tree: {LIBBUN_TREE}\n\n"
         f"Adjacent swarm SHA: {SWARM_SHA}\n\n"
         f"Adjacent swarm tree: {SWARM_TREE}\n\n"
-        "Every section records its literal Git command, pattern, pathspecs, semantic meaning, expected exit, observed exit, and output. "
+        + repository_prologue()
+        + "\nEvery section records its literal Git command, pattern, pathspecs, semantic meaning, expected exit, observed exit, and output. "
         "Exit 1 is accepted only for the explicitly labeled required-definition absence search.\n\n"
         + "\n".join(sections)
     )
@@ -312,7 +467,7 @@ def vendored_boundary_report() -> str:
             + git_blob(ROOT, LIBBUN_SHA, path).decode(errors="replace")
         )
     return clean(
-        "# libbun W1-11/W1-12 vendored Bun boundary report (correction 2)\n\n"
+        "# libbun W1-11/W1-12 vendored Bun boundary report (correction 3)\n\n"
         f"Generated from exact product SHA {LIBBUN_SHA}, tree {LIBBUN_TREE}.\n\n"
         "Generator command: python3 scripts/generate-libbun-w1112-review-evidence-20260724.py --emit vendored-bun-boundary-report.md\n\n"
         "No shell pipeline or awk transformation participates in identity generation.\n\n"
@@ -350,7 +505,7 @@ def adjacent_source_index() -> str:
         "# Adjacent swarm owner/producer/consumer source index\n\n"
         f"Adjacent source SHA: {SWARM_SHA}\n\n"
         f"Adjacent source tree: {SWARM_TREE}\n\n"
-        "These snapshots bind the real producer -> invocation/output settlement -> sole libbun consumer -> transport/process/shutdown/test SCC. "
+        "These snapshots bind W1-10 ProviderValue and law -> exact producer -> invocation/output settlement -> sole libbun consumer -> retained-host pool -> transport/process/shutdown/test SCC. "
         "They are review evidence only and do not move product ownership.\n\n"
         "| Original path | Git blob | Source SHA-256 | Bytes | Snapshot path | Snapshot SHA-256 | Exact |\n"
         "| --- | --- | --- | ---: | --- | --- | --- |\n"
@@ -375,15 +530,6 @@ def lifecycle_jsc_bundle() -> str:
         file_sha, blob, size = identity_row(ROOT, LIBBUN_SHA, path)
         rows.append(f"| {path} | {blob} | {file_sha} | {size} |")
     spans = (
-        ("vendor/bun/src/jsc/VirtualMachine.rs", 605, 810),
-        ("vendor/bun/src/jsc/VirtualMachine.rs", 1170, 1230),
-        ("vendor/bun/src/jsc/VirtualMachine.rs", 1360, 1570),
-        ("vendor/bun/src/jsc/VirtualMachine.rs", 1941, 2180),
-        ("vendor/bun/src/jsc/VirtualMachine.rs", 2208, 2410),
-        ("vendor/bun/src/jsc/VirtualMachine.rs", 4302, 4360),
-        ("vendor/bun/src/jsc/VM.rs", 1, 220),
-        ("vendor/bun/src/jsc/JSGlobalObject.rs", 190, 235),
-        ("vendor/bun/src/jsc/JSGlobalObject.rs", 960, 1005),
         ("vendor/bun/src/jsc/bindings/bindings.cpp", 4880, 4995),
         ("vendor/bun/src/jsc/bindings/bindings.cpp", 6124, 6145),
         ("vendor/bun/src/jsc/bindings/ZigGlobalObject.cpp", 2988, 3055),
@@ -391,10 +537,11 @@ def lifecycle_jsc_bundle() -> str:
         ("vendor/bun/src/jsc/VirtualMachine.zig", 2095, 2135),
     )
     return clean(
-        "# Vendored JSC lifecycle source bundle\n\n"
+        "# Vendored JSC lifecycle supplemental source bundle (correction 3)\n\n"
         f"Exact product SHA: {LIBBUN_SHA}\n\n"
         f"Exact product tree: {LIBBUN_TREE}\n\n"
-        "This bundle binds VM construction, global-object access, event-loop drain, termination request/reset, worker teardown, and C++ VM calls. "
+        "The ordered lifecycle plan directly attaches complete `VirtualMachine.rs`, `JSGlobalObject.rs`, `VM.rs`, and `virtual_machine_exports.rs` bytes. "
+        "This supplemental bundle binds their exact full-file identities plus the complete relevant C++/Zig termination, reset, teardown, and VM-call items. "
         "The C++ excerpt proves JSC__VM__deinit has an empty body; it cannot prove process death, containment drain, output joins, or retirement. "
         "Cooperative termination reset is therefore reusable only after the owner proves complete invocation and output drain independently.\n\n"
         "## Full-file identities\n\n"
@@ -442,21 +589,29 @@ def process_drop_report() -> str:
             "Exit 0; all named VM/global/C++ lifecycle operations are visible.",
         ),
         search_section(
-            "Adjacent consumer, transport, process, Drop, and shutdown callers",
+            "Adjacent consumer, transport, retained-host pool, process, Drop, and shutdown callers",
             SWARM_ROOT,
             SWARM_SHA,
             "invoke_manifest_resolved_call|begin_execution_session|shutdown|impl Drop|"
             "Command::new|\\.spawn\\(|wait_with_output|libbun|ProviderRequest|"
-            "into_call_input_and_output_settlement|into_contract_and_module",
+            "into_call_input_and_output_settlement|into_contract_and_module|"
+            "ExternalCapabilityProviderPool|checkout|replace|working_directory|"
+            "provider_settlement_lane|runtime_execution_domain",
             (
                 "crates/ss-runtime-external-capability-provider-owner/src/lib.rs",
                 "crates/swarm-provider-host-set/src/external_transport.rs",
                 "crates/swarm-provider-host-set/src/provider_host_set.rs",
                 "crates/ss/src/product.rs",
                 "crates/ss/tests/external_capability_provider.rs",
+                "crates/ss-runtime-test-execution-owner/src/lib.rs",
+                "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs",
+                "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs",
+                "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs",
+                "crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs",
+                "crates/ss-runtime-provider-host-set-owner/src/lib.rs",
             ),
-            "Traces every attached external consumer/process/shutdown edge and current raw reconstruction.",
-            "Exit 0; all attached direct callers and compatibility edges are visible.",
+            "Traces every attached external consumer, retained-host checkout/replacement, process, Drop, and final shutdown edge.",
+            "Exit 0; all attached direct callers, pool custody, and compatibility edges are visible.",
         ),
         search_section(
             "Adjacent external fixture graph",
@@ -468,6 +623,7 @@ def process_drop_report() -> str:
                 "crates/ss/tests/external_capability_provider.rs",
                 "tests/conformance/ss/provider/external_provider_json_text_nfc.test.ss",
                 "tests/conformance/ss/provider/imported_helper_external_result_payload.test.ss",
+                "tests/negative/ss/provider/external_provider_json_nfc_duplicate_keys.test.ss",
             ),
             "Binds the current real-binary retained-runtime and external-result fixture graph.",
             "Exit 0; every attached external fixture/test definition is visible.",
@@ -477,30 +633,74 @@ def process_drop_report() -> str:
         "# Process, Drop, shutdown caller, and external fixture report\n\n"
         f"Libbun source: {LIBBUN_SHA} ({LIBBUN_TREE})\n\n"
         f"Adjacent swarm source: {SWARM_SHA} ({SWARM_TREE})\n\n"
+        + repository_prologue()
+        + "\n"
         + "\n".join(sections)
     )
 
 
 def lock_privacy_compliance_index() -> str:
     paths = LOCK_PRIVACY_PATHS + COMPLIANCE_PATHS
-    rows = []
+    selection_reasons = {
+        "Cargo.lock": "libbun facade workspace lock",
+        "native/Cargo.lock": "native linked engine lock",
+        "runtime/Cargo.lock": "worker runtime lock",
+        "tests/fixtures/public_api_boundary/Cargo.lock": "external privacy fixture lock",
+        "tests/fixtures/public_api_boundary/Cargo.toml": "external privacy package",
+        "tests/fixtures/public_api_boundary/src/bin/adjacent_public_controls.rs": "adjacent public-control fixture",
+        "tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs": "raw installer call refusal fixture",
+        "tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs": "raw installer import refusal fixture",
+        "tests/public_api_boundary.rs": "privacy harness owner",
+        "LICENSE": "libbun source-package license",
+        "vendor/README.md": "vendored-source policy",
+        "vendor/bun.LIBBUN_VENDOR.json": "Bun provenance and linked dependency declaration",
+        "vendor/bun/LICENSE.md": "Bun source-package license",
+        "vendor/bun/Cargo.lock": "vendored Bun locked dependency graph",
+        "vendor/bun/Cargo.toml": "vendored Bun workspace and dependency selection",
+        "vendor/bun/src/clap/LICENSE": "linked Bun clap source license",
+        "vendor/bun/src/unicode/uucode_lib/LICENSE.md": "linked Bun Unicode source license",
+        "vendor/bun/vendor/lolhtml/LICENSE": "provenance-declared linked lolhtml license",
+    }
+    selected_rows = []
     for path in paths:
         data = git_blob(ROOT, LIBBUN_SHA, path)
         blob = git_blob_oid(ROOT, LIBBUN_SHA, path)
         package_names = sorted(set(re.findall(rb'^name = "([^"]+)"$', data, re.MULTILINE)))
         package_summary = str(len(package_names)) if path.endswith("Cargo.lock") else "-"
-        rows.append(
-            f"| {path} | {blob} | {sha256(data)} | {len(data)} | {package_summary} |"
+        selected_rows.append(
+            f"| {path} | {blob} | {sha256(data)} | {len(data)} | {package_summary} | "
+            f"{selection_reasons[path]} |"
         )
+    tracked = run(["git", "ls-tree", "-r", "--name-only", LIBBUN_SHA], ROOT)[1].splitlines()
+    cargo_paths = sorted(path for path in tracked if path.endswith(("Cargo.toml", "Cargo.lock")))
+    license_paths = sorted(
+        path for path in tracked
+        if re.search(r"(^|/)(LICENSE|LICENCE|NOTICE|COPYING)([._-].*)?$", path, re.IGNORECASE)
+    )
+    inventory_rows = []
+    for family, inventory in (("Cargo manifest/lock", cargo_paths), ("license/notice", license_paths)):
+        for path in inventory:
+            data = git_blob(ROOT, LIBBUN_SHA, path)
+            inventory_rows.append(
+                f"| {family} | {path} | {git_blob_oid(ROOT, LIBBUN_SHA, path)} | "
+                f"{sha256(data)} | {len(data)} | {'selected' if path in paths else 'inventory only'} |"
+            )
     return clean(
         "# Lock, privacy fixture, license, provenance, and compliance index\n\n"
         f"Exact product SHA: {LIBBUN_SHA}\n\n"
         f"Exact product tree: {LIBBUN_TREE}\n\n"
-        "All four nonvendored locks, the complete six-file external privacy harness, and all current license/vendor provenance inputs are direct attachments. "
-        "The vendored lock is also direct, so a concrete implementation can derive repeat-lock and compliance inventory without reconstructing omitted bytes.\n\n"
-        "| Path | Git blob | SHA-256 | Bytes | Unique lock packages |\n"
-        "| --- | --- | --- | ---: | ---: |\n"
-        + "\n".join(rows)
+        "The table below selects the bounded linked native/package closure: all four nonvendored locks, the complete six-file external privacy harness, "
+        "the vendored workspace/lock, source-package licenses, vendor provenance, and licenses for the linked Bun/JSC dependencies named by that provenance. "
+        "The second table inventories every tracked Cargo manifest/lock and license/notice path so the selected closure is reproducible without claiming that every vendored tool/test license is attached.\n\n"
+        "## Selected direct attachments\n\n"
+        "| Path | Git blob | SHA-256 | Bytes | Unique lock packages | Selection reason |\n"
+        "| --- | --- | --- | ---: | ---: | --- |\n"
+        + "\n".join(selected_rows)
+        + "\n\n## Exact-tree inventory\n\n"
+        f"Command: {command_text(ROOT, ['ls-tree', '-r', '--name-only', LIBBUN_SHA])}\n\n"
+        "| Family | Path | Git blob | SHA-256 | Bytes | Disposition |\n"
+        "| --- | --- | --- | --- | ---: | --- |\n"
+        + "\n".join(inventory_rows)
         + "\n"
     )
 
@@ -515,15 +715,247 @@ REPORTS = {
 }
 
 
+def write_exact(path: Path, data: bytes) -> None:
+    destination = ROOT / path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(data)
+    print(f"WROTE {path}")
+
+
+def refresh() -> None:
+    for path in ADJACENT_PATHS:
+        write_exact(SNAPSHOT_BASE / path, git_blob(SWARM_ROOT, SWARM_SHA, path))
+    for destination, (commit, source_path) in CORRECTION2_VERDICTS.items():
+        write_exact(BASE / destination, git_blob(ROOT, commit, source_path))
+    for name, generate in REPORTS.items():
+        write_exact(BASE / name, generate().encode())
+
+
+def refresh_dry_runs(parts: tuple[str, ...] = PARTS) -> None:
+    for part in parts:
+        prompt = (ROOT / BASE / f"{part}-prompt.md").read_text()
+        files = (ROOT / BASE / f"{part}-files.txt").read_text().splitlines()
+        result = subprocess.run(
+            [
+                "oracle", "--provider", "openai", "--engine", "api",
+                "--model", "gpt-5.6-sol", "--reasoning-mode", "pro",
+                "--dry-run", "summary", "--files-report", "--prompt", prompt,
+                *[argument for path in files for argument in ("--file", path)],
+            ],
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        if result.returncode:
+            raise RuntimeError(
+                f"Oracle dry-run failed for {part} ({result.returncode}):\n"
+                + result.stdout.decode(errors="replace")
+            )
+        write_exact(BASE / f"{part}-oracle-dry-run.txt", result.stdout)
+
+
+def file_digest(path: Path) -> str:
+    return sha256((ROOT / path).read_bytes())
+
+
+def ordered_attachments(part: str) -> list[dict[str, object]]:
+    paths = (ROOT / BASE / f"{part}-files.txt").read_text().splitlines()
+    attachments = []
+    for raw in paths:
+        path = Path(raw)
+        data = (ROOT / path).read_bytes()
+        attachments.append({"path": raw, "sha256": sha256(data), "bytes": len(data)})
+    return attachments
+
+
+def dry_run_counts(part: str) -> tuple[int, int]:
+    text = (ROOT / BASE / f"{part}-oracle-dry-run.txt").read_text()
+    call = re.search(r"would call gpt-5\.6-sol with ~([0-9,]+) tokens", text)
+    total = re.search(r"^Total: ([0-9,]+) tokens", text, re.MULTILINE)
+    if not call or not total:
+        raise RuntimeError(f"cannot parse Oracle dry-run counts for {part}")
+    return int(total.group(1).replace(",", "")), int(call.group(1).replace(",", ""))
+
+
+def fable_plan(part: str, attachments: list[dict[str, object]]) -> str:
+    prompt_path = BASE / f"{part}-prompt.md"
+    plan_path = BASE / f"{part}-files.txt"
+    if part == "synthesis":
+        prior_line = "- Prior independent verdicts: all three correction-2 parts are BUNDLE REVISE"
+    else:
+        commit, _ = PRIOR_VERDICTS[part]
+        prior_line = f"- Prior independent verdict: PART BUNDLE REVISE at {commit}"
+    rows = "\n".join(
+        f"| {index} | {item['path']} | {item['sha256']} | {item['bytes']} |"
+        for index, item in enumerate(attachments, 1)
+    )
+    return clean(
+        f"# Correction-3 Fable file plan: {PART_TITLES[part]}\n\n"
+        f"{prior_line}\n"
+        "- State: NOT LAUNCHED\n"
+        "- Engine: local Fable wrapper\n"
+        "- Model: claude-fable-5\n"
+        "- Effort: max\n"
+        "- Deliverable: CONCRETE IMPLEMENTATION\n"
+        f"- Prompt: {prompt_path}\n"
+        f"- Prompt SHA-256: {file_digest(prompt_path)}\n"
+        f"- Ordered file plan: {plan_path}\n"
+        f"- Ordered file count: {len(attachments)}\n"
+        "- Identical to Oracle ordered attachments: yes\n\n"
+        "## Ordered attachments\n\n"
+        "| # | Path | SHA-256 | Bytes |\n"
+        "| ---: | --- | --- | ---: |\n"
+        f"{rows}\n\n"
+        "No Fable session, request, response, or output exists. Fresh literal independent "
+        "PART BUNDLE PASS verdicts for correction 3 remain required before launch.\n"
+    )
+
+
+def manifest(part: str, attachments: list[dict[str, object]]) -> dict[str, object]:
+    prompt_path = BASE / f"{part}-prompt.md"
+    plan_path = BASE / f"{part}-files.txt"
+    dry_path = BASE / f"{part}-oracle-dry-run.txt"
+    fable_path = BASE / f"{part}-fable-plan.md"
+    total_tokens, call_tokens = dry_run_counts(part)
+    result: dict[str, object] = {
+        "schema": "libbun.w1112.external-review-manifest.v3",
+        "correction": 3,
+        "part": part,
+        "title": PART_TITLES[part],
+        "exact_source_sha": LIBBUN_SHA,
+        "exact_source_tree": LIBBUN_TREE,
+        "review_base_commit": REVIEW_BASE,
+        "adjacent_source": {
+            "repository": "SWARM_REPO",
+            "sha": SWARM_SHA,
+            "tree": SWARM_TREE,
+        },
+        "verdict_contract_commit": VERDICT_CONTRACT,
+        "deliverable": "CONCRETE IMPLEMENTATION",
+        "evidence_generator": {
+            "path": str(Path("scripts/generate-libbun-w1112-review-evidence-20260724.py")),
+            "sha256": file_digest(Path("scripts/generate-libbun-w1112-review-evidence-20260724.py")),
+            "check_command": "LIBBUN_REPO=<libbun-checkout> SWARM_REPO=<swarm-checkout> python3 scripts/generate-libbun-w1112-review-evidence-20260724.py --check",
+        },
+        "bundle_verifier": {
+            "path": str(VERIFIER),
+            "sha256": file_digest(VERIFIER),
+            "command": f"SWARM_REPO=<swarm-checkout> python3 {VERIFIER}",
+            "independent_checkout_replay": True,
+        },
+        "prompt": {"path": str(prompt_path), "sha256": file_digest(prompt_path)},
+        "ordered_file_plan": {
+            "path": str(plan_path),
+            "sha256": file_digest(plan_path),
+            "count": len(attachments),
+        },
+        "ordered_attachments": attachments,
+        "total_attachment_bytes": sum(int(item["bytes"]) for item in attachments),
+        "oracle": {
+            "provider": "openai",
+            "engine": "api",
+            "model": "gpt-5.6-sol",
+            "reasoning_mode": "pro",
+            "required_live_banner": [
+                "first-party OpenAI", "gpt-5.6-sol", "Responses API Pro", "xhigh reasoning"
+            ],
+            "dry_run_command": (
+                f"mapfile -t files < {plan_path}; oracle --provider openai --engine api "
+                f"--model gpt-5.6-sol --reasoning-mode pro --dry-run summary --files-report "
+                f"--prompt \"$(cat {prompt_path})\" --file \"${{files[@]}}\""
+            ),
+            "dry_run_report": {"path": str(dry_path), "sha256": file_digest(dry_path)},
+            "estimated_total_tokens": total_tokens,
+            "estimated_call_tokens": call_tokens,
+            "state": "NOT LAUNCHED",
+            "session_id": None,
+            "request_id": None,
+            "response_id": None,
+            "output_paths": [],
+        },
+        "fable": {
+            "model": "claude-fable-5",
+            "effort": "max",
+            "file_plan": {"path": str(fable_path), "sha256": file_digest(fable_path)},
+            "state": "NOT LAUNCHED",
+            "session_id": None,
+            "request_id": None,
+            "response_id": None,
+            "output_paths": [],
+        },
+        "correction_evidence_state": "CORRECTION 3 COMPLETE; FRESH LITERAL INDEPENDENT REVIEW PENDING",
+        "independent_bundle_review": {
+            "reviewer": "PENDING correction-3 source-aware independent reviewer",
+            "verdict": "PENDING; literal PART BUNDLE PASS required before launch",
+        },
+        "omissions": [
+            "Oracle and Fable response artifacts are intentionally absent because model launch is out of scope.",
+            "Fresh literal independent PART BUNDLE PASS at the correction-3 commit is pending and this manifest does not authorize launch.",
+        ],
+        "launch_state": "NOT LAUNCHED",
+    }
+    if part == "synthesis":
+        result["prior_independent_verdicts"] = [
+            {"part": name, "commit": PRIOR_VERDICTS[name][0], "verdict": "PART BUNDLE REVISE"}
+            for name in PARTS[:3]
+        ]
+        result["synthesis_inputs"] = [
+            {
+                "part": name,
+                "manifest_path": str(BASE / f"{name}-manifest.json"),
+                "manifest_sha256": file_digest(BASE / f"{name}-manifest.json"),
+                "state": "FRESH LITERAL PART BUNDLE PASS PENDING",
+            }
+            for name in PARTS[:3]
+        ]
+    else:
+        commit, record = PRIOR_VERDICTS[part]
+        record_path = BASE / record
+        result["prior_independent_verdict"] = {
+            "commit": commit,
+            "verdict": "PART BUNDLE REVISE",
+            "records": [{"path": str(record_path), "sha256": file_digest(record_path)}],
+        }
+    return result
+
+
+def refresh_metadata() -> None:
+    refresh_dry_runs(PARTS[:3])
+    for part in PARTS[:3]:
+        attachments = ordered_attachments(part)
+        write_exact(BASE / f"{part}-fable-plan.md", fable_plan(part, attachments).encode())
+        payload = json.dumps(manifest(part, attachments), indent=2, sort_keys=False) + "\n"
+        write_exact(BASE / f"{part}-manifest.json", payload.encode())
+    refresh_dry_runs(("synthesis",))
+    attachments = ordered_attachments("synthesis")
+    write_exact(BASE / "synthesis-fable-plan.md", fable_plan("synthesis", attachments).encode())
+    payload = json.dumps(manifest("synthesis", attachments), indent=2, sort_keys=False) + "\n"
+    write_exact(BASE / "synthesis-manifest.json", payload.encode())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--emit", choices=REPORTS)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--refresh", action="store_true")
+    parser.add_argument("--refresh-dry-runs", action="store_true")
+    parser.add_argument("--refresh-metadata", action="store_true")
     args = parser.parse_args()
-    if bool(args.emit) == bool(args.check):
-        parser.error("choose exactly one of --emit REPORT or --check")
+    if sum((bool(args.emit), args.check, args.refresh, args.refresh_dry_runs, args.refresh_metadata)) != 1:
+        parser.error(
+            "choose exactly one of --emit REPORT, --check, --refresh, --refresh-dry-runs, or --refresh-metadata"
+        )
     if args.emit:
         sys.stdout.write(REPORTS[args.emit]())
+        return 0
+    if args.refresh:
+        refresh()
+        return 0
+    if args.refresh_dry_runs:
+        refresh_dry_runs()
+        return 0
+    if args.refresh_metadata:
+        refresh_metadata()
         return 0
 
     failed = False

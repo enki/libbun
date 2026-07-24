@@ -1,0 +1,38 @@
+[package]
+name = "swarm-rust-sdk-static-provider-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+test-support = []
+
+[dependencies]
+prepared-runtime-image-manifest-model.workspace = true
+hex.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+swarm-capability-linker-core.workspace = true
+swarm-capability-contract-tson.workspace = true
+swarm-capability-model.workspace = true
+swarm-provider-value-model.workspace = true
+swarm-rust-sdk-capability.workspace = true
+swarm-rust-sdk-static-provider-package-graph.workspace = true
+swarm-rust-sdk-static-provider-listing.workspace = true
+swarm-substrate-invariant.workspace = true
+swarmscript-liquid.workspace = true
+swarmscript-capability-registry.workspace = true
+swarmscript-types.workspace = true
+
+[dev-dependencies]
+libswarm-package-graph-contract-source-admission.workspace = true
+libswarm-package-graph-source-model.workspace = true
+swarm-contract-tson.workspace = true
+
+[lints]
+workspace = true

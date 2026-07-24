@@ -1,30 +1,54 @@
 [oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
-🧿 oracle 0.16.0 — AI babysitter with merge rights.
-[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~165,311 tokens and 25 files.
+🧿 oracle 0.16.0 — Your prompt's adult supervision.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~255,342 tokens and 49 files.
 File Token Usage
-    51,506    18.94%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
+    32,291    11.87%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/docs/SWARMSCRIPT_ROADMAP.md
+    29,427    10.82%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-capability-linker-core/src/lib.rs
     29,241    10.75%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs
+    23,840     8.76%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs
     20,118     7.40%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs
-    16,402     6.03%  docs/reviews/libbun-w1112-20260724/process-drop-caller-and-fixture-report.md
     12,852     4.72%  src/prepared_export.rs
+    12,416     4.56%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/provider_host_set.rs
+    11,831     4.35%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/docs/PROVIDER_EXECUTION_AND_SDK_LAW.md
+    11,403     4.19%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/src/product.rs
      7,392     2.72%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/Cargo.toml
+     6,404     2.35%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/docs/WAVE0_WAVE1_SEMANTIC_CLOSURE_INDEX.md
+     5,883     2.16%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md
+     5,525     2.03%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-value-model/src/lib.rs
+     4,554     1.67%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/tests/external_capability_provider.rs
      4,468     1.64%  docs/reviews/libbun-w1112-20260724/verdict-snapshot.md
      4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
+     4,296     1.58%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/docs/PROVIDER_VALUE_JSON_WIRE_V1.md
+     4,105     1.51%  docs/reviews/libbun-w1112-20260724/owner-generative-correction2-independent-verdict.md
      3,956     1.45%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/src/lib.rs
      3,407     1.25%  docs/README.md
-     2,470     0.91%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md
-     2,165     0.80%  docs/reviews/libbun-w1112-20260724/owner-generative-independent-verdict.md
+     1,722     0.63%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/lib.rs
+     1,578     0.58%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-provider-host-set-owner/src/lib.rs
+     1,506     0.55%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs
      1,471     0.54%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/external_transport.rs
+       923     0.34%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs
        890     0.33%  README.md
+       845     0.31%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/Cargo.toml
        695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
-       545     0.20%  docs/reviews/libbun-w1112-20260724/correction2-index.md
+       675     0.25%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs
+       654     0.24%  docs/reviews/libbun-w1112-20260724/correction3-index.md
        542     0.20%  tests/public_api_boundary.rs
        484     0.18%  tests/fixtures/public_api_boundary/Cargo.lock
+       462     0.17%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/Cargo.toml
+       426     0.16%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/Cargo.toml
+       397     0.15%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/Cargo.toml
        394     0.14%  Cargo.toml
+       319     0.12%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/Cargo.toml
+       282     0.10%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/imported_helper_external_result_payload.test.ss
+       280     0.10%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-value-model/Cargo.toml
        263     0.10%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/Cargo.toml
+       245     0.09%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-capability-linker-core/Cargo.toml
+       243     0.09%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/external_provider_json_text_nfc.test.ss
+       218     0.08%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/negative/ss/provider/external_provider_json_nfc_duplicate_keys.test.ss
        203     0.07%  tests/fixtures/public_api_boundary/Cargo.toml
+       195     0.07%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-provider-host-set-owner/Cargo.toml
        167     0.06%  tests/fixtures/public_api_boundary/src/bin/adjacent_public_controls.rs
        164     0.06%  src/lib.rs
         75     0.03%  tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs
         65     0.02%  tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs
-Total: 164,402 tokens (60.44% of 272,000)
+Total: 254,259 tokens (93.48% of 272,000)

@@ -1,0 +1,32 @@
+[package]
+name = "swarmvm-image"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+durable-direct-run-boundary-model.workspace = true
+libswarm-package-graph-contract-source-admission.workspace = true
+libswarm-package-graph-executable-program-receipt-owner.workspace = true
+libswarm-package-graph-provider-requirements.workspace = true
+prepared-runtime-artifact-model.workspace = true
+rmp-serde = "1.3"
+serde.workspace = true
+serde_ipld_dagcbor.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+swarm-capability-model.workspace = true
+swarm-capability-contract-tson.workspace = true
+swarm-substrate-invariant = { path = "../swarm-substrate-invariant" }
+swarmscript-capability-registry = { path = "../swarmscript-capability-registry" }
+swarmscript-intrinsic-registry = { path = "../swarmscript-intrinsic-registry" }
+swarmscript-module-interface-artifact.workspace = true
+swarmscript-process-lifecycle-sidecar-authority.workspace = true
+swarmvm-provider-effect-image-finalization-authority.workspace = true
+swarmvm-isa-types = { path = "../swarmvm-isa-types" }
+swarmvm-runtime-types = { path = "../swarmvm-runtime-types" }
+thiserror.workspace = true
+
+[dev-dependencies]
+swarmvm-runtime-types = { path = "../swarmvm-runtime-types", features = ["test-fixtures"] }

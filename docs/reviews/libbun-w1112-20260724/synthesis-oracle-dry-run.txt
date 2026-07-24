@@ -1,53 +1,51 @@
 [oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
-🧿 oracle 0.16.0 — Prompt once, harvest many omens.
-[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~217,760 tokens and 48 files.
+🧿 oracle 0.16.0 — Your AI's swagger, audited.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~266,174 tokens and 46 files.
 File Token Usage
-    51,506    18.94%  docs/reviews/libbun-w1112-20260724/exact-source-search-report.md
-    31,447    11.56%  docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md
-    16,402     6.03%  docs/reviews/libbun-w1112-20260724/process-drop-caller-and-fixture-report.md
+    87,933    32.33%  vendor/bun/src/jsc/VirtualMachine.rs
+    29,241    10.75%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs
+    21,987     8.08%  vendor/bun/src/jsc/JSGlobalObject.rs
     12,852     4.72%  src/prepared_export.rs
-    10,525     3.87%  docs/reviews/libbun-w1112-20260724/vendored-bun-boundary-report.md
      9,481     3.49%  native/src/lib.rs
-     7,235     2.66%  scripts/generate-libbun-w1112-review-evidence-20260724.py
-     5,865     2.16%  docs/reviews/libbun-w1112-20260724/containment-release-manifest.json
-     5,313     1.95%  docs/reviews/libbun-w1112-20260724/lifecycle-manifest.json
+     7,066     2.60%  docs/reviews/libbun-w1112-20260724/owner-generative-manifest.json
+     6,148     2.26%  docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md
+     5,948     2.19%  docs/reviews/libbun-w1112-20260724/containment-release-manifest.json
+     5,754     2.12%  docs/reviews/libbun-w1112-20260724/lifecycle-manifest.json
+     5,525     2.03%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-value-model/src/lib.rs
+     4,583     1.68%  docs/reviews/libbun-w1112-20260724/owner-generative-fable-plan.md
      4,468     1.64%  docs/reviews/libbun-w1112-20260724/verdict-snapshot.md
      4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
+     4,347     1.60%  vendor/bun/src/jsc/virtual_machine_exports.rs
      4,283     1.57%  docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md
-     4,000     1.47%  docs/reviews/libbun-w1112-20260724/containment-release-independent-verdict.md
+     4,105     1.51%  docs/reviews/libbun-w1112-20260724/owner-generative-correction2-independent-verdict.md
      3,956     1.45%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/src/lib.rs
-     3,908     1.44%  docs/reviews/libbun-w1112-20260724/owner-generative-manifest.json
-     3,442     1.27%  docs/reviews/libbun-w1112-20260724/containment-release-fable-plan.md
-     3,407     1.25%  docs/README.md
-     3,159     1.16%  docs/reviews/libbun-w1112-20260724/lifecycle-fable-plan.md
-     2,470     0.91%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md
+     3,520     1.29%  docs/reviews/libbun-w1112-20260724/containment-release-fable-plan.md
+     3,503     1.29%  docs/reviews/libbun-w1112-20260724/lifecycle-fable-plan.md
+     3,155     1.16%  vendor/bun/src/jsc/VM.rs
+     3,087     1.13%  docs/reviews/libbun-w1112-20260724/containment-release-correction2-independent-verdict.md
+     2,927     1.08%  docs/reviews/libbun-w1112-20260724/lifecycle-correction2-independent-verdict.md
+     2,644     0.97%  docs/reviews/libbun-w1112-20260724/owner-generative-oracle-dry-run.txt
      2,444     0.90%  docs/LIBBUN-WORKER-RELEASE-CONTRACT.md
-     2,165     0.80%  docs/reviews/libbun-w1112-20260724/owner-generative-independent-verdict.md
-     2,107     0.77%  docs/reviews/libbun-w1112-20260724/owner-generative-fable-plan.md
+     1,998     0.73%  docs/reviews/libbun-w1112-20260724/owner-generative-files.txt
      1,961     0.72%  wire/src/lib.rs
+     1,906     0.70%  docs/reviews/libbun-w1112-20260724/lifecycle-oracle-dry-run.txt
      1,703     0.63%  native/build.rs
+     1,702     0.63%  docs/reviews/libbun-w1112-20260724/containment-release-oracle-dry-run.txt
      1,667     0.61%  runtime/build.rs
-     1,593     0.59%  docs/reviews/libbun-w1112-20260724/lifecycle-oracle-dry-run.txt
      1,471     0.54%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/external_transport.rs
-     1,382     0.51%  docs/reviews/libbun-w1112-20260724/containment-release-oracle-dry-run.txt
-     1,335     0.49%  docs/reviews/libbun-w1112-20260724/lock-privacy-compliance-index.md
-     1,060     0.39%  docs/reviews/libbun-w1112-20260724/lifecycle-files.txt
-     1,030     0.38%  docs/reviews/libbun-w1112-20260724/owner-generative-oracle-dry-run.txt
-       896     0.33%  docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md
+     1,366     0.50%  docs/reviews/libbun-w1112-20260724/lifecycle-files.txt
+     1,093     0.40%  docs/reviews/libbun-w1112-20260724/containment-release-files.txt
+     1,060     0.39%  docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md
+       902     0.33%  docs/reviews/libbun-w1112-20260724/containment-release-prompt.md
        890     0.33%  README.md
-       888     0.33%  docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md
-       861     0.32%  docs/reviews/libbun-w1112-20260724/containment-release-prompt.md
-       696     0.26%  docs/reviews/libbun-w1112-20260724/containment-release-files.txt
+       884     0.33%  docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md
        695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
-       645     0.24%  docs/reviews/libbun-w1112-20260724/owner-generative-files.txt
-       554     0.20%  docs/reviews/libbun-w1112-20260724/lifecycle-correction-ruling.md
-       545     0.20%  docs/reviews/libbun-w1112-20260724/correction2-index.md
+       654     0.24%  docs/reviews/libbun-w1112-20260724/correction3-index.md
        542     0.20%  tests/public_api_boundary.rs
        394     0.14%  Cargo.toml
        364     0.13%  runtime/src/main.rs
        291     0.11%  native/Cargo.toml
        194     0.07%  runtime/Cargo.toml
-       164     0.06%  docs/reviews/libbun-w1112-20260724/lifecycle-independent-verdict.commit
        164     0.06%  src/lib.rs
         80     0.03%  wire/Cargo.toml
-Total: 216,967 tokens (79.77% of 272,000)
+Total: 265,405 tokens (97.58% of 272,000)

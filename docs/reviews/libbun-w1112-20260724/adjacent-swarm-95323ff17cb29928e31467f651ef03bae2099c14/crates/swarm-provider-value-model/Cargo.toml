@@ -1,0 +1,24 @@
+[package]
+name = "swarm-provider-value-model"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+serde_json.workspace = true
+swarm-canonical-string.workspace = true
+swarmscript-number-model.workspace = true
+swarmscript-typed-semantic-hir-model.workspace = true
+unicode-normalization.workspace = true
+unicode-segmentation.workspace = true
+
+[dev-dependencies]
+# R41195 unit scope only: parse a real authored call occurrence and drive it
+# through TypedModuleSummary's exact static-child attachment transition.
+swarmscript-check-module-identity-model.workspace = true
+swarmscript-source.workspace = true

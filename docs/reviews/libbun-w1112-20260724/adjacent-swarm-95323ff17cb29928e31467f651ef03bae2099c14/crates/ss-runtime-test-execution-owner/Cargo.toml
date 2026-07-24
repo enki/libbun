@@ -1,0 +1,66 @@
+[package]
+name = "ss-runtime-test-execution-owner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+durable-direct-run-kernel.workspace = true
+durable-direct-run-ss-test-declaration-model.workspace = true
+hmac = "0.12.1"
+libswarm-package-graph-executable-program-model.workspace = true
+libswarm-package-graph.workspace = true
+libswarm-package-graph-model.workspace = true
+libswarm-package-graph-provider-requirements.workspace = true
+libswarm-package-graph-resolution.workspace = true
+libswarm-package-graph-source-model.workspace = true
+libswarm-package-graph-source-session.workspace = true
+prepared-runtime-artifact-model.workspace = true
+prepared-runtime-artifact-result-model.workspace = true
+prepared-runtime-image-manifest-model.workspace = true
+rand.workspace = true
+rmp-serde = "1.3"
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+ss-command-model.workspace = true
+ss-report-model.workspace = true
+ss-runtime-external-capability-provider-owner.workspace = true
+ss-runtime-native-provider-composition-owner.workspace = true
+ss-runtime-source-path-owner.workspace = true
+ss-runtime-source-compiler-owner.workspace = true
+ss-runtime-source-runner-config-model.workspace = true
+ss-runtime-source-test-runner-config-owner.workspace = true
+ss-runtime-source-work-set-checker.workspace = true
+ss-runtime-test-discovery-owner.workspace = true
+ss-runtime-test-model.workspace = true
+ss-runtime-test-plan-owner.workspace = true
+ss-runtime-test-reusable-artifact-index-operation-owner.workspace = true
+ss-runtime-test-reusable-artifact-index-owner.workspace = true
+ss-runtime-test-reusable-artifact-claim.workspace = true
+ss-runtime-test-result-identity-owner.workspace = true
+ss-runtime-test-runtime-plan-owner.workspace = true
+ss-source-entrypoint-artifacts.workspace = true
+ss-test-terminal-reporter.workspace = true
+swarm-rust-sdk-static-provider-host.workspace = true
+swarm-affine-custody-observation.workspace = true
+swarm-provider-host-set.workspace = true
+swarm-substrate-invariant.workspace = true
+swarmscript-check-ingress-model.workspace = true
+swarmscript-check-ss-test-typecheck-product-owner.workspace = true
+swarmscript-compiler-input-admission.workspace = true
+swarmscript-compiler-observation.workspace = true
+swarmscript-module-graph-model.workspace = true
+swarmscript-module-interface-artifact.workspace = true
+swarmscript-source.workspace = true
+swarmscript-typed-semantic-hir-model.workspace = true
+zeroize = "1.8.2"
+
+[dev-dependencies]
+durable-direct-run-kernel = { workspace = true, features = ["test-fixtures"] }
+libswarm-package-graph-checker-model.workspace = true
+prepared-runtime-image-model.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31.3", default-features = false, features = ["fs", "signal"] }

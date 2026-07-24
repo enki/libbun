@@ -1,0 +1,22 @@
+[package]
+name = "swarm-capability-linker-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+libswarm-package-graph-contract-source-admission.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+swarm-contract-tson.workspace = true
+swarm-provider-value-model.workspace = true
+swarm-substrate-invariant.workspace = true
+
+[dev-dependencies]
+static_assertions = "1.1.0"
