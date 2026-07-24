@@ -1,4 +1,4 @@
-# libbun W1-11/W1-12 exact-source search report (correction 3)
+# libbun W1-11/W1-12 exact-source search report (correction 4)
 
 Libbun product SHA: 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb
 
@@ -6335,6 +6335,148 @@ Output:
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:wire/src/lib.rs:157:    #[test]
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:wire/src/lib.rs:158:    fn request_round_trips_opaque_fields() {
 
+## Adjacent repository-wide generative mint/carrier/consumer closure
+
+Meaning: Discovers the complete 24-file selected invocation, output-correspondence mint/join, carrier, drive-consumer, final-output, fault, and static-host source closure before any fixed attachment list is trusted.
+
+Expected result: Exit 0 with exactly the 24 paths bound by the compact complete-source bundle.
+
+Command: git -C "$SWARM_REPO" grep -n -E 'DurableExternalProviderInvocationAuthority|SelectedProviderResumeHostInputForDirectRunOwnerV1|SelectedProviderBoundaryHostRequest|SelectedProviderBoundaryExecutionResultForProviderHostOwner|mint_provider_boundary_output_correspondence_v1|PendingProviderBoundaryOutputCommitAuthority|invoke_selected_provider_boundary_request_for_direct_run_owner_v1|admit_selected_boundary_typed_request_for_direct_run_provider_resume_owner_v1' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates
+
+Pattern: DurableExternalProviderInvocationAuthority|SelectedProviderResumeHostInputForDirectRunOwnerV1|SelectedProviderBoundaryHostRequest|SelectedProviderBoundaryExecutionResultForProviderHostOwner|mint_provider_boundary_output_correspondence_v1|PendingProviderBoundaryOutputCommitAuthority|invoke_selected_provider_boundary_request_for_direct_run_owner_v1|admit_selected_boundary_typed_request_for_direct_run_provider_resume_owner_v1
+
+Pathspecs: crates
+
+Exit: 0
+
+Output:
+
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-external-capability-provider-owner/src/lib.rs:18:    DurableExternalProviderInvocationAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-external-capability-provider-owner/src/lib.rs:19:    SelectedProviderBoundaryExecutionResultForProviderHostOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-external-capability-provider-owner/src/lib.rs:124:        invocation: DurableExternalProviderInvocationAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-external-capability-provider-owner/src/lib.rs:125:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, CapabilitySdkError>
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:20:    SelectedProviderBoundaryExecutionResultForProviderHostOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:21:    SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:229:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:231:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:295:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:297:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:338:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:339:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:360:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:361:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:409:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:410:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:435:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:436:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:502:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:503:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:542:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:543:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:566:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:567:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:591:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs:592:    ) -> Result<SelectedProviderBoundaryExecutionResultForProviderHostOwner, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs:19:    SelectedProviderResumeHostInputForDirectRunOwnerV1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs:826:    ) -> Result<SelectedProviderResumeHostInputForDirectRunOwnerV1, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture.rs:23:    SelectedProviderResumeHostInputForDirectRunOwnerV1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:1903:                    .invoke_selected_provider_boundary_request_for_direct_run_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/provider_resume_lifecycle.rs:147:    ProviderHost(SelectedProviderResumeHostInputForDirectRunOwnerV1),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/provider_resume_lifecycle.rs:151:    selected_input: SelectedProviderResumeHostInputForDirectRunOwnerV1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:442:                        .invoke_selected_provider_boundary_request_for_direct_run_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/provider_drive_result.rs:21:    SelectedProviderBoundaryExecutionResultForProviderHostOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/provider_drive_result.rs:153:        result: SelectedProviderBoundaryExecutionResultForProviderHostOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/provider_drive_result.rs:424:        result: SelectedProviderBoundaryExecutionResultForProviderHostOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime.rs:209:    SelectedProviderResumeHostInputForDirectRunOwnerV1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_image/plan/operation_algebra/boundary_and_work_selection.rs:21:        swarm_capability_model::PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/process_carriers.rs:8:    MatchedProviderBoundaryOutputAuthority, PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/process_carriers.rs:163:        pending_output_authority: PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/process_carriers.rs:171:        pending_output_authority: PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/process_carriers.rs:597:        pending_output_authority: PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/process_carriers.rs:646:        pending_output_authority: PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/root.inc.rs:287:    SelectedProviderResumeHostInputForDirectRunOwnerV1, SourceEntrypointExecutableImage,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs:736:        crate::session::work_runtime::SelectedProviderResumeHostInputForDirectRunOwnerV1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/mod.rs:33:    SelectedProviderResumeHostInputForDirectRunOwnerV1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_runtime_stores_impl.rs:563:    ) -> Result<SelectedProviderResumeHostInputForDirectRunOwnerV1, String> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_runtime_stores_impl.rs:610:            SelectedProviderResumeHostInputForDirectRunOwnerV1::from_session_work_runtime_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_runtime_stores_impl.rs:1343:            swarm_capability_model::PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_runtime_stores_impl.rs:1369:            swarm_capability_model::mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store.rs:61:    SelectedProviderResumeHostInputForDirectRunOwnerV1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:24:use swarm_rust_sdk_static_provider_host::SelectedProviderBoundaryHostRequest;
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:250:impl SelectedProviderResumeHostInputForDirectRunOwnerV1 {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:413:    ) -> swarm_capability_model::CapabilitySdkResult<SelectedProviderBoundaryHostRequest> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:417:            .admit_selected_boundary_typed_request_for_direct_run_provider_resume_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:876:pub struct SelectedProviderResumeHostInputForDirectRunOwnerV1 {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:894:    ProviderHost(SelectedProviderResumeHostInputForDirectRunOwnerV1),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:1689:impl std::fmt::Debug for SelectedProviderResumeHostInputForDirectRunOwnerV1 {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:1693:            .write_str("SelectedProviderResumeHostInputForDirectRunOwnerV1 { input: <sealed> }")
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/lib.rs:18:    MatchedProviderBoundaryOutputAuthority, PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/lib.rs:21:    mint_provider_boundary_output_correspondence_v1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:11:// compiler-custody: symbol=PendingProviderBoundaryOutputCommitAuthority disposition=migrating reviewer=package-root-compiler-kernel-hardcut-20260722 justification="runtime boundary authority crosses host and session owners; exact first root-scope edit: work_runtime/work_runtime_stores_impl.rs at mint_provider_boundary_output_correspondence_v1 must mint and retain its ticket"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:13:pub struct PendingProviderBoundaryOutputCommitAuthority {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:21:// compiler-custody: symbol=SelectedProviderBoundaryOutputAuthority disposition=migrating reviewer=package-root-compiler-kernel-hardcut-20260722 justification="runtime boundary authority crosses host and session owners; exact first root-scope edit: work_runtime/work_runtime_stores_impl.rs at mint_provider_boundary_output_correspondence_v1 must mint and retain its ticket"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:34:// compiler-custody: symbol=MatchedProviderBoundaryOutputAuthority disposition=migrating reviewer=package-root-compiler-kernel-hardcut-20260722 justification="runtime boundary authority crosses host and session owners; exact first root-scope edit: work_runtime/work_runtime_stores_impl.rs at mint_provider_boundary_output_correspondence_v1 must mint and retain its ticket"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:46:        pending: PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:126:pub fn mint_provider_boundary_output_correspondence_v1() -> (
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:127:    PendingProviderBoundaryOutputCommitAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:132:        PendingProviderBoundaryOutputCommitAuthority {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:181:impl PendingProviderBoundaryOutputCommitAuthority {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:303:impl fmt::Debug for PendingProviderBoundaryOutputCommitAuthority {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:305:        formatter.write_str("PendingProviderBoundaryOutputCommitAuthority(<sealed>)")
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:369:        let (pending, selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:388:        let (pending, selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:415:        let (pending, selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:435:        let (left_pending, _left_selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:436:        let (_right_pending, right_selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:451:        let (left_pending, _left_selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:452:        let (_right_pending, right_selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:467:        let (left_pending, _left_selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/src/provider_boundary_correspondence.rs:468:        let (_right_pending, right_selected) = mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/external_transport.rs:6:    DurableExternalProviderInvocationAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/external_transport.rs:7:    SelectedProviderBoundaryExecutionResultForProviderHostOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/external_transport.rs:22:        invocation: DurableExternalProviderInvocationAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/external_transport.rs:23:    ) -> CapabilitySdkResult<SelectedProviderBoundaryExecutionResultForProviderHostOwner>;
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/external_transport.rs:118:        invocation: DurableExternalProviderInvocationAuthority,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/external_transport.rs:119:    ) -> CapabilitySdkResult<SelectedProviderBoundaryExecutionResultForProviderHostOwner> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:17:    SelectedProviderBoundaryExecutionResultForProviderHostOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:18:    SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:696:    pub fn invoke_selected_provider_boundary_request_for_direct_run_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:698:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:699:    ) -> CapabilitySdkResult<SelectedProviderBoundaryExecutionResultForProviderHostOwner> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:899:    pub fn admit_selected_boundary_typed_request_for_direct_run_provider_resume_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:904:    ) -> CapabilitySdkResult<SelectedProviderBoundaryHostRequest> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:920:                SelectedProviderBoundaryHostRequest::from_manifest_resolved_external_call_admission_for_provider_host_set_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1007:    pub fn invoke_selected_provider_boundary_request_for_direct_run_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1009:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1010:    ) -> CapabilitySdkResult<SelectedProviderBoundaryExecutionResultForProviderHostOwner> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1015:                    .invoke_selected_provider_boundary_request_for_direct_run_owner_v1(request)
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/host_set.rs:534:        request: SelectedProviderBoundaryHostRequest,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/host_set.rs:535:    ) -> CapabilitySdkResult<SelectedProviderBoundaryExecutionResultForProviderHostOwner> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/host_set.rs:544:            SelectedProviderBoundaryExecutionResultForProviderHostOwner::from_static_provider_host_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:131:// compiler-custody: symbol=SelectedProviderBoundaryHostRequest disposition=migrating reviewer=package-root-compiler-kernel-hardcut-20260722 justification="provider boundary lineage starts in compiler runtime; exact first root-scope edit: WorkRuntimeStores::commit_selected_host_boundary_pending_activity_for_swarmvm_session_runtime_owner_v1 must pass its ticket through host settlement"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:133:pub struct SelectedProviderBoundaryHostRequest {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:150:    RustSdk(SelectedProviderBoundaryHostRequest),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:151:    ManifestResolvedExternal(DurableExternalProviderInvocationAuthority),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:154:// compiler-custody: symbol=DurableExternalProviderInvocationAuthority disposition=migrating reviewer=package-root-compiler-kernel-hardcut-20260722 justification="provider boundary lineage starts in compiler runtime; exact first root-scope edit: WorkRuntimeStores::commit_selected_host_boundary_pending_activity_for_swarmvm_session_runtime_owner_v1 must pass its ticket through host settlement"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:156:pub struct DurableExternalProviderInvocationAuthority {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:701:// compiler-custody: symbol=SelectedProviderBoundaryExecutionResultForProviderHostOwner disposition=migrating reviewer=package-root-compiler-kernel-hardcut-20260722 justification="provider boundary lineage starts in compiler runtime; exact first root-scope edit: WorkRuntimeStores::commit_selected_host_boundary_pending_activity_for_swarmvm_session_runtime_owner_v1 must pass its ticket through host settlement"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:703:pub struct SelectedProviderBoundaryExecutionResultForProviderHostOwner {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:947:    ) -> SelectedProviderBoundaryHostRequest {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:948:        SelectedProviderBoundaryHostRequest {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1177:impl fmt::Debug for SelectedProviderBoundaryHostRequest {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1186:            .debug_struct("SelectedProviderBoundaryHostRequest")
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1194:impl SelectedProviderBoundaryHostRequest {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1258:    ) -> CapabilitySdkResult<SelectedProviderBoundaryExecutionResultForProviderHostOwner> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1272:            SelectedProviderBoundaryExecutionResultForProviderHostOwner {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1320:                    DurableExternalProviderInvocationAuthority {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1339:impl DurableExternalProviderInvocationAuthority {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1359:    ) -> CapabilitySdkResult<SelectedProviderBoundaryExecutionResultForProviderHostOwner> {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:1368:            SelectedProviderBoundaryExecutionResultForProviderHostOwner {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs:2550:impl SelectedProviderBoundaryExecutionResultForProviderHostOwner {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs:439:            swarm_capability_model::mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs:468:            swarm_capability_model::mint_provider_boundary_output_correspondence_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs:501:            swarm_capability_model::mint_provider_boundary_output_correspondence_v1();
+
 ## Adjacent W1-10 ProviderValue input and governing law
 
 Meaning: Binds W1-10 ProviderValue as the exact by-value W1-11 invocation cargo and its hostile canonical-wire refusal law.
@@ -6780,11 +6922,11 @@ Meaning: Binds the sole libbun consumer, callback trait boundary, raw reconstruc
 
 Expected result: Exit 0; all current cross-repository ownership, pool custody, and compatibility shapes are visible.
 
-Command: git -C "$SWARM_REPO" grep -n -E 'SsExternalCapabilityProviderHost|invoke_manifest_resolved_call|ProviderRequest|adapter_source|begin_invocation|settle_provider|shutdown|impl Drop|Command::new|wait_with_output|libbun|ExternalCapabilityProviderPool|checkout|replace|provider_settlement_lane|runtime_execution_domain|body_authority_registry' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates/ss-runtime-external-capability-provider-owner/src/lib.rs crates/swarm-provider-host-set/src/external_transport.rs crates/swarm-provider-host-set/src/provider_host_set.rs crates/ss/src/product.rs crates/ss/tests/external_capability_provider.rs crates/ss-runtime-external-capability-provider-owner/Cargo.toml crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-provider-host-set-owner/src/lib.rs crates/ss/Cargo.toml Cargo.toml
+Command: git -C "$SWARM_REPO" grep -n -E 'SsExternalCapabilityProviderHost|invoke_manifest_resolved_call|ProviderRequest|adapter_source|begin_invocation|settle_provider|shutdown|impl Drop|Command::new|wait_with_output|libbun|ExternalCapabilityProviderPool|checkout|replace|provider_settlement_lane|runtime_execution_domain|body_authority_registry' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates/ss-runtime-external-capability-provider-owner/src/lib.rs crates/swarm-provider-host-set/src/external_transport.rs crates/swarm-provider-host-set/src/provider_host_set.rs crates/ss/src/product.rs crates/ss/tests/external_capability_provider.rs crates/ss-runtime-external-capability-provider-owner/Cargo.toml crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs crates/ss-runtime-provider-host-set-owner/src/lib.rs crates/ss/Cargo.toml Cargo.toml
 
 Pattern: SsExternalCapabilityProviderHost|invoke_manifest_resolved_call|ProviderRequest|adapter_source|begin_invocation|settle_provider|shutdown|impl Drop|Command::new|wait_with_output|libbun|ExternalCapabilityProviderPool|checkout|replace|provider_settlement_lane|runtime_execution_domain|body_authority_registry
 
-Pathspecs: crates/ss-runtime-external-capability-provider-owner/src/lib.rs crates/swarm-provider-host-set/src/external_transport.rs crates/swarm-provider-host-set/src/provider_host_set.rs crates/ss/src/product.rs crates/ss/tests/external_capability_provider.rs crates/ss-runtime-external-capability-provider-owner/Cargo.toml crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-provider-host-set-owner/src/lib.rs crates/ss/Cargo.toml Cargo.toml
+Pathspecs: crates/ss-runtime-external-capability-provider-owner/src/lib.rs crates/swarm-provider-host-set/src/external_transport.rs crates/swarm-provider-host-set/src/provider_host_set.rs crates/ss/src/product.rs crates/ss/tests/external_capability_provider.rs crates/ss-runtime-external-capability-provider-owner/Cargo.toml crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs crates/ss-runtime-provider-host-set-owner/src/lib.rs crates/ss/Cargo.toml Cargo.toml
 
 Exit: 0
 
@@ -6962,6 +7104,22 @@ Output:
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs:2060:            candidate.into_projection_parts_for_runtime_execution_domain_owner_v1();
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs:2066:        let malformed_payload = SsRuntimeExecutionDomainExecutedFilePayload::admit_authenticated_pool_worker_payload_for_runtime_execution_domain_owner_v1(
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs:2089:        let payload = SsRuntimeExecutionDomainExecutedFilePayload::encode_for_runtime_execution_domain_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:5:    runtime_execution_domain_owner: SsRuntimeExecutionDomainOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:37:            runtime_execution_domain_owner: SsRuntimeExecutionDomainOwner::new(),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:86:        admitted: runtime_execution_domain::SsRuntimeExecutionDomainAdmittedPoolWorkerSettlement,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:88:        runtime_execution_domain::commit_admitted_pool_worker_settlement_for_execution_graph_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:98:        runtime_execution_domain::settle_pool_worker_loss_for_execution_graph_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:114:                &mut self.runtime_execution_domain_owner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:10:use super::runtime_execution_domain::{
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:42:    runtime_execution_domain: SsRuntimeExecutionDomainState,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:238:            runtime_execution_domain: SsRuntimeExecutionDomainState::new(),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:249:        self.runtime_execution_domain
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:259:        self.runtime_execution_domain.require_empty_for_projection()
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:273:        self.runtime_execution_domain.project_settled_outcomes(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:386:        .runtime_execution_domain
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:731:fn shutdown_runtime_execution_domain_owner(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:732:    runtime_execution_domain_owner: &mut SsRuntimeExecutionDomainOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:735:    runtime_execution_domain_owner.shutdown(session)
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss/Cargo.toml:15:    "native-distribution-libbun",
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss/Cargo.toml:17:native-distribution-libbun = []
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss/Cargo.toml:36:libbun = { workspace = true, features = ["dynamic-loading"] }
@@ -7021,17 +7179,40 @@ Output:
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1032:impl Drop for ProviderHostExecutionSession {
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1035:            let _ = session.shutdown_for_provider_host_set_owner_v1();
 
+## Adjacent retained-runtime final shutdown edge
+
+Meaning: Binds the retained-host checkout/replacement pools, the live-feed close carrier, the separately defined final shutdown helper, and both stale real-worker plugin migration sites.
+
+Expected result: Exit 0; definitions and callers expose whether final close actually consumes the retained runtime and where stale plugin packaging must be removed.
+
+Command: git -C "$SWARM_REPO" grep -n -E 'close_for_execution_graph_owner|shutdown_runtime_execution_domain_owner|provider_settlement_pool\.shutdown|provider_pool\.shutdown|current_native_plugin_asset|plugin/target/release' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs crates/ss/tests/external_capability_provider.rs
+
+Pattern: close_for_execution_graph_owner|shutdown_runtime_execution_domain_owner|provider_settlement_pool\.shutdown|provider_pool\.shutdown|current_native_plugin_asset|plugin/target/release
+
+Pathspecs: crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs crates/ss/tests/external_capability_provider.rs
+
+Exit: 0
+
+Output:
+
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs:40:        self.provider_pool.shutdown()
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs:167:        let shutdown_result = self.provider_settlement_pool.shutdown();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:121:    pub(in crate::test_runner::artifact_session) fn close_for_execution_graph_owner(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:731:fn shutdown_runtime_execution_domain_owner(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss/tests/external_capability_provider.rs:429:    let asset = libbun::release::current_native_plugin_asset()
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss/tests/external_capability_provider.rs:439:        .join("libbun/plugin/target/release")
+
 ## Adjacent package and dependency direction
 
 Meaning: Searches every attached adjacent package manifest needed to choose the acyclic producer/consumer owner move.
 
 Expected result: Exit 0; all attached adjacent package identities and dependency edges are visible.
 
-Command: git -C "$SWARM_REPO" grep -n -E '^name = |^version = |^\[dependencies|libbun|swarm.provider.value|capability.linker|provider.host|test.execution|swarmvm.image' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates/ss-runtime-external-capability-provider-owner/Cargo.toml Cargo.toml crates/ss/Cargo.toml crates/swarm-provider-host-set/Cargo.toml crates/swarm-provider-value-model/Cargo.toml crates/swarm-capability-linker-core/Cargo.toml crates/swarm-rust-sdk-static-provider-host/Cargo.toml crates/swarmvm-image/Cargo.toml crates/ss-runtime-test-execution-owner/Cargo.toml crates/ss-runtime-provider-host-set-owner/Cargo.toml
+Command: git -C "$SWARM_REPO" grep -n -E '^name = |^version = |^\[dependencies|libbun|swarm.provider.value|capability.linker|provider.host|test.execution|swarmvm.image' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates/ss-runtime-external-capability-provider-owner/Cargo.toml Cargo.toml crates/ss/Cargo.toml crates/swarm-provider-host-set/Cargo.toml crates/swarm-provider-value-model/Cargo.toml crates/swarm-capability-linker-core/Cargo.toml crates/swarm-rust-sdk-static-provider-host/Cargo.toml crates/swarmvm-image/Cargo.toml crates/ss-runtime-test-execution-owner/Cargo.toml crates/ss-runtime-provider-host-set-owner/Cargo.toml crates/swarm-capability-model/Cargo.toml crates/ss-runtime-source-compiler-owner/Cargo.toml
 
 Pattern: ^name = |^version = |^\[dependencies|libbun|swarm.provider.value|capability.linker|provider.host|test.execution|swarmvm.image
 
-Pathspecs: crates/ss-runtime-external-capability-provider-owner/Cargo.toml Cargo.toml crates/ss/Cargo.toml crates/swarm-provider-host-set/Cargo.toml crates/swarm-provider-value-model/Cargo.toml crates/swarm-capability-linker-core/Cargo.toml crates/swarm-rust-sdk-static-provider-host/Cargo.toml crates/swarmvm-image/Cargo.toml crates/ss-runtime-test-execution-owner/Cargo.toml crates/ss-runtime-provider-host-set-owner/Cargo.toml
+Pathspecs: crates/ss-runtime-external-capability-provider-owner/Cargo.toml Cargo.toml crates/ss/Cargo.toml crates/swarm-provider-host-set/Cargo.toml crates/swarm-provider-value-model/Cargo.toml crates/swarm-capability-linker-core/Cargo.toml crates/swarm-rust-sdk-static-provider-host/Cargo.toml crates/swarmvm-image/Cargo.toml crates/ss-runtime-test-execution-owner/Cargo.toml crates/ss-runtime-provider-host-set-owner/Cargo.toml crates/swarm-capability-model/Cargo.toml crates/ss-runtime-source-compiler-owner/Cargo.toml
 
 Exit: 0
 
@@ -7057,6 +7238,15 @@ Output:
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-provider-host-set-owner/Cargo.toml:8:[dependencies]
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-provider-host-set-owner/Cargo.toml:10:swarm-provider-host-set.workspace = true
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-provider-host-set-owner/Cargo.toml:11:swarm-rust-sdk-static-provider-host.workspace = true
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:2:name = "ss-runtime-source-compiler-owner"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:11:[dependencies]
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:54:ss-runtime-provider-host-set-owner.workspace = true
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:62:swarm-capability-linker-core.workspace = true
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:66:swarm-provider-host-set.workspace = true
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:67:swarm-provider-value-model.workspace = true
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:70:swarm-rust-sdk-static-provider-host.workspace = true
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:116:swarmvm-image = { path = "../swarmvm-image" }
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/Cargo.toml:137:swarm-rust-sdk-static-provider-host = { workspace = true, features = ["test-support"] }
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/Cargo.toml:2:name = "ss-runtime-test-execution-owner"
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/Cargo.toml:8:[dependencies]
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/Cargo.toml:46:swarm-rust-sdk-static-provider-host.workspace = true
@@ -7072,6 +7262,9 @@ Output:
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-linker-core/Cargo.toml:2:name = "swarm-capability-linker-core"
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-linker-core/Cargo.toml:12:[dependencies]
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-linker-core/Cargo.toml:18:swarm-provider-value-model.workspace = true
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/Cargo.toml:2:name = "swarm-capability-model"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/Cargo.toml:9:[dependencies]
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-capability-model/Cargo.toml:11:swarm-capability-linker-core = { path = "../swarm-capability-linker-core" }
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/Cargo.toml:2:name = "swarm-provider-host-set"
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/Cargo.toml:12:[dependencies]
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/Cargo.toml:17:swarm-capability-linker-core.workspace = true

@@ -1,0 +1,146 @@
+[package]
+name = "ss-runtime-source-compiler-owner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+test-fixtures = []
+
+[dependencies]
+actor-state-product-route-authority.workspace = true
+carrier-witness-core.workspace = true
+direct-run-rust-profile-state.workspace = true
+durable-direct-run-actor-state-product-model.workspace = true
+durable-direct-run-boundary-model.workspace = true
+durable-direct-run-event-product-api-model.workspace = true
+durable-direct-run-event-store-binding-model.workspace = true
+durable-direct-run-event-subscription-model.workspace = true
+durable-direct-run-prepared-runtime-artifact-owner.workspace = true
+durable-direct-run-provider-result-mode-model.workspace = true
+durable-direct-run-rust-sdk-event-frame-projection.workspace = true
+durable-direct-run-rust-sdk-event-model.workspace = true
+durable-direct-run-source-import-model.workspace = true
+durable-execution-core = { path = "../durable-execution-core" }
+durable-execution-plan-patch-model.workspace = true
+fs2.workspace = true
+hex.workspace = true
+libswarm-package-graph-contract-source-admission.workspace = true
+libswarm-package-graph-checker-model.workspace = true
+libswarm-package-graph-executable-program-model.workspace = true
+libswarm-package-graph-import-plan.workspace = true
+libswarm-package-graph-model.workspace = true
+libswarm-package-graph-native-provider-manifest-owner.workspace = true
+libswarm-package-graph-package-root-admission.workspace = true
+libswarm-package-graph-provider-requirements.workspace = true
+libswarm-package-graph-resolution-record-admission.workspace = true
+libswarm-package-graph-root-resolution.workspace = true
+libswarm-package-graph-source-session.workspace = true
+libswarm-package-graph-source-model.workspace = true
+libswarm-package-graph-specifier.workspace = true
+lalrpop-util = "0.23.1"
+mesh-core-wasm = { path = "../mesh-core-wasm" }
+num-bigint.workspace = true
+prepared-runtime-image-manifest-model.workspace = true
+prepared-runtime-artifact-model.workspace = true
+regex = "1"
+rmp-serde = "1.3"
+scopeguard = "1.2"
+serde = { workspace = true, features = ["derive"] }
+serde_ipld_dagcbor.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+ss-runtime-provider-host-set-owner.workspace = true
+ss-runtime-source-path-owner.workspace = true
+ss-runtime-source-runner-config-model.workspace = true
+ss-runtime-test-model.workspace = true
+ss-runtime-test-result-identity-owner.workspace = true
+ss-test-module-interface-body-section-owner.workspace = true
+swarm-capability-model.workspace = true
+swarm-capability-contract-tson.workspace = true
+swarm-capability-linker-core.workspace = true
+swarm-contract-tson.workspace = true
+swarm-hash-link.workspace = true
+swarm-native-async.workspace = true
+swarm-provider-host-set.workspace = true
+swarm-provider-value-model.workspace = true
+swarm-runtime-authority.workspace = true
+swarm-rust-sdk-capability.workspace = true
+swarm-rust-sdk-static-provider-host.workspace = true
+swarm-rust-sdk-static-provider-inventory.workspace = true
+swarm-rust-sdk-static-provider-listing.workspace = true
+swarm-rust-sdk-static-provider-package-graph.workspace = true
+swarm-stage-work-scheduler.workspace = true
+swarm-affine-custody-observation.workspace = true
+swarm-substrate-invariant.workspace = true
+swarmscript-actor-state-write-set-law.workspace = true
+swarmscript-bind.workspace = true
+swarmscript-builtin-member-model.workspace = true
+swarmscript-boundary-contract-model.workspace = true
+swarmscript-builtin-member-type-surface.workspace = true
+swarmscript-capability-registry.workspace = true
+swarmscript-check-authored-lowering-model.workspace = true
+swarmscript-check-authority-carrier-model.workspace = true
+swarmscript-check-call-target-model.workspace = true
+swarmscript-check-function-identity-model.workspace = true
+swarmscript-check-h7-front-pass-owner.workspace = true
+swarmscript-check-materialized-source-model.workspace = true
+swarmscript-check-model.workspace = true
+swarmscript-check-module-identity-model.workspace = true
+swarmscript-check-namespace-import-authority.workspace = true
+swarmscript-check-type-ops.workspace = true
+swarmscript-compiler-input-ast-model.workspace = true
+swarmscript-compiler-observation.workspace = true
+swarmscript-compiler-observation-export.workspace = true
+swarmscript-flow.workspace = true
+swarmscript-engine-stage-diagnostics.workspace = true
+swarmscript-engine-types.workspace = true
+swarmscript-h7-contract-model.workspace = true
+swarmscript-lexer.workspace = true
+swarmscript-liquid = { path = "../swarmscript-liquid" }
+swarmscript-module-graph-model.workspace = true
+swarmscript-module-interface-artifact.workspace = true
+swarmscript-number-model.workspace = true
+swarmscript-parse-diagnostics.workspace = true
+swarmscript-process-lifecycle-sidecar-authority.workspace = true
+swarmscript-source.workspace = true
+swarmscript-typed-meta-model.workspace = true
+swarmscript-typed-semantic-hir-model.workspace = true
+swarmscript-types.workspace = true
+swarmvm-import-execution-authority-owner.workspace = true
+swarmvm-actor-ref-authority.workspace = true
+swarmvm-actor-request-authority.workspace = true
+swarmvm-host-abi = { path = "../swarmvm-host-abi" }
+swarmvm-host-sql-authority.workspace = true
+swarmvm-image = { path = "../swarmvm-image" }
+swarmvm-isa = { path = "../swarmvm-isa" }
+swarmvm-isa-types.workspace = true
+swarmvm-machine-core.workspace = true
+swarmvm-process-liveness-owner.workspace = true
+swarmvm-process-tree-model.workspace = true
+swarmvm-provider-effect-image-finalization-authority.workspace = true
+swarmvm-runtime-activity-input-authority.workspace = true
+swarmvm-runtime-hostcall-core.workspace = true
+swarmvm-runtime-types = { path = "../swarmvm-runtime-types" }
+swarmvm-session-runtime-effect-model.workspace = true
+swarmvm-session-runtime-model.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+unicode-normalization.workspace = true
+
+[dev-dependencies]
+durable-execution-core = { path = "../durable-execution-core", features = ["test-fixtures"] }
+libswarm-package-graph-checker-model.workspace = true
+libswarm-package-graph-source-model.workspace = true
+mesh-identity-wasm = { path = "../mesh-identity-wasm" }
+swarm-rust-sdk-static-provider-host = { workspace = true, features = ["test-support"] }
+swarmscript-intrinsic-registry = { path = "../swarmscript-intrinsic-registry" }
+swarmvm-runtime-types = { path = "../swarmvm-runtime-types", features = ["test-support"] }
+swarmvm-isa-types = { path = "../swarmvm-isa-types", features = ["test-fixtures"] }
+
+[build-dependencies]
+lalrpop = "0.23.1"
+
+[lints]
+workspace = true

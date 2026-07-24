@@ -1,11 +1,11 @@
 {
-  "schema": "libbun.w1112.external-review-manifest.v3",
-  "correction": 3,
+  "schema": "libbun.w1112.external-review-manifest.v4",
+  "correction": 4,
   "part": "lifecycle",
   "title": "Lifecycle/JSC interruption/retained-host/quarantine/reaper/shutdown",
   "exact_source_sha": "6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb",
   "exact_source_tree": "cb964de8ab8162449fbe95959bf34d231570aa5c",
-  "review_base_commit": "51b0118428d7881f39f32df396ef32349a5a52ab",
+  "review_base_commit": "c2ea016e4c9810fa86ddfd21bd4b30823746a9b9",
   "adjacent_source": {
     "repository": "SWARM_REPO",
     "sha": "95323ff17cb29928e31467f651ef03bae2099c14",
@@ -15,23 +15,23 @@
   "deliverable": "CONCRETE IMPLEMENTATION",
   "evidence_generator": {
     "path": "scripts/generate-libbun-w1112-review-evidence-20260724.py",
-    "sha256": "029181b9fea6b356bf3144860447d312c5299bf732016b1ccd731fe50afecdaa",
+    "sha256": "f4158b8bf8d9862de47105b87957bf961d7d87f8ec1ba7096de5156c5fa31309",
     "check_command": "LIBBUN_REPO=<libbun-checkout> SWARM_REPO=<swarm-checkout> python3 scripts/generate-libbun-w1112-review-evidence-20260724.py --check"
   },
   "bundle_verifier": {
     "path": "scripts/verify-libbun-w1112-review-bundle-20260724.py",
-    "sha256": "e428c140a4b4485732dec06c21049e1f5247684c35847a8cde9f082f55ed53bd",
+    "sha256": "52c35938408a84107acb43282f27761844369494fd6fcb6b3ae1ce6a9e54b749",
     "command": "SWARM_REPO=<swarm-checkout> python3 scripts/verify-libbun-w1112-review-bundle-20260724.py",
     "independent_checkout_replay": true
   },
   "prompt": {
     "path": "docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md",
-    "sha256": "fad68fc98857a4cdcdba72141bd9d7716ab5f0eee7b2961cbcae4d35ac1d3dd7"
+    "sha256": "db33f0c83d35142167661c69d3eb55118a0c333753ba4d9f76073519051e230b"
   },
   "ordered_file_plan": {
     "path": "docs/reviews/libbun-w1112-20260724/lifecycle-files.txt",
-    "sha256": "290820a3d841842f42fe64ba710a7d0ed96e8ffd708fe274497665f5877940b9",
-    "count": 39
+    "sha256": "00689c94b1b2e86a91523146bb63c618a3cfd8750df8bb139b44610f98bb49c8",
+    "count": 37
   },
   "ordered_attachments": [
     {
@@ -45,29 +45,24 @@
       "bytes": 2382
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/correction3-index.md",
-      "sha256": "39084f069d98bc4c0898d648d63e994e38c0a1011881f3b5e78d3732783da4e1",
-      "bytes": 2011
+      "path": "docs/reviews/libbun-w1112-20260724/correction4-index.md",
+      "sha256": "f2c4b1452288fe220cfe1a0ae167a2c543cc8d2c6ff87843991e99fc397bfbbc",
+      "bytes": 2074
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/verdict-snapshot.md",
-      "sha256": "3138238c945c94f8212855889b0d23600fd97009a006bc57ea862a5aa7d6a6d6",
-      "bytes": 16588
-    },
-    {
-      "path": "docs/reviews/libbun-w1112-20260724/lifecycle-correction2-independent-verdict.md",
-      "sha256": "c51b2da064580f411759b1a436fb414abe89d39de3956f8834d1f8d5b1dc6a5a",
-      "bytes": 9282
+      "path": "docs/reviews/libbun-w1112-20260724/lifecycle-correction3-independent-verdict.md",
+      "sha256": "82a9678c444921696178bc051d27484f7ccfa50ea154a52dc369b6a58733a938",
+      "bytes": 12423
     },
     {
       "path": "docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md",
-      "sha256": "67c94590d9b2203205a74dd3c49d2bb1a79f83ba0123d6d012d70f2244dd2849",
+      "sha256": "0b0c735ef749de1929678c89405ba96537c46e3dd2e9ceb15a89e4ac6d8b2e2f",
       "bytes": 15244
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/process-drop-caller-and-fixture-report.md",
-      "sha256": "a27f74cc0ae6a76719000312b10c7180c28403ab24890afa1b875c12bf3d8d34",
-      "bytes": 79220
+      "path": "docs/reviews/libbun-w1112-20260724/lifecycle-process-worker-source-bundle.md",
+      "sha256": "847aa002148fa3c3612c160c56623e425d4e32bfe092df2b152e7a88a346d62d",
+      "bytes": 70338
     },
     {
       "path": "src/lib.rs",
@@ -135,44 +130,29 @@
       "bytes": 13386
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-value-model/Cargo.toml",
-      "sha256": "8f6a90758239f6dc323ff83fcf71cc6915cbd4291998e1cc8718d171a364ca64",
-      "bytes": 709
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/Cargo.toml",
+      "sha256": "dd05cd50a38d1ed15cd2f5276c29c6039688eed4f66052b9591946d2a4f74d9b",
+      "bytes": 24507
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs",
-      "sha256": "c4dcc653964e40c424bfff20278dd62e6e1d04e7134d09320bc21208c08b6e2d",
-      "bytes": 108022
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/Cargo.toml",
+      "sha256": "1a004d65bf705642c090df2249478d83a1ac20740f572b82a296e31375de9a69",
+      "bytes": 1240
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/Cargo.toml",
-      "sha256": "cbe99d18d1eb62551907fa249b6632c0ca0a691d246559b0459039c25d9339aa",
-      "bytes": 1074
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/src/product.rs",
+      "sha256": "916e4474f9d3d0f2785f7613200b477bc0a0df8ae21245ba4d644650f93d5525",
+      "bytes": 37483
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/src/lib.rs",
-      "sha256": "e3818b7ce41be8a6a5c5f424418881b4f433883b54a81ddeb96650b2ce9a4439",
-      "bytes": 14848
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/tests/external_capability_provider.rs",
+      "sha256": "22aa9c60530d9ab1a7d8e1d4ca9b3587d5dd520e2a3f7b442d7046072fc35191",
+      "bytes": 14251
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-external-capability-provider-owner/Cargo.toml",
-      "sha256": "6f9a0d10b0aa4f13049b63013f1469726de88a4adbd2ac48bc862c29b5bb9ee0",
-      "bytes": 690
-    },
-    {
-      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/provider_host_set.rs",
-      "sha256": "14a1994c40bb5c0dfb6e0610b523b5deaf67404e4a2785971cd3c56501a77699",
-      "bytes": 45089
-    },
-    {
-      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/src/external_transport.rs",
-      "sha256": "b855d0cc8662591ee1f53473831a47034e7c59ecde415883c33dadb6908f4623",
-      "bytes": 4907
-    },
-    {
-      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/Cargo.toml",
-      "sha256": "ce3c3333e5e73bd678f11f4b18cd447e82aee0891c1781d89c6f51aaab3083d1",
-      "bytes": 829
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs",
+      "sha256": "847c4f7b13917810adaa373299ae0df20c373cd4671a97eac265c6c093cc3399",
+      "bytes": 78342
     },
     {
       "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/Cargo.toml",
@@ -205,6 +185,16 @@
       "bytes": 85748
     },
     {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs",
+      "sha256": "3be90814fe8071aed3c48778c307a63266d3fc10aa689581e73f7a4e6bf83012",
+      "bytes": 6025
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs",
+      "sha256": "54c9aaee5abca13fb791eeffff19e8abd3b02134db567bec5135d439bc691760",
+      "bytes": 29621
+    },
+    {
       "path": "docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-provider-host-set-owner/Cargo.toml",
       "sha256": "00c9fd4051072e2b66e1342ad118b9e44f7637bcea68325c4c140f2ef692e93b",
       "bytes": 400
@@ -230,7 +220,7 @@
       "bytes": 493
     }
   ],
-  "total_attachment_bytes": 903289,
+  "total_attachment_bytes": 896324,
   "oracle": {
     "provider": "openai",
     "engine": "api",
@@ -245,10 +235,10 @@
     "dry_run_command": "mapfile -t files < docs/reviews/libbun-w1112-20260724/lifecycle-files.txt; oracle --provider openai --engine api --model gpt-5.6-sol --reasoning-mode pro --dry-run summary --files-report --prompt \"$(cat docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md)\" --file \"${files[@]}\"",
     "dry_run_report": {
       "path": "docs/reviews/libbun-w1112-20260724/lifecycle-oracle-dry-run.txt",
-      "sha256": "7f154b257c053a08d7f75cb99c99d9922f69a65727caa52cd868404ad70ef9ee"
+      "sha256": "c6cb5f387ea1b4b66971f0474c862793a5fd7cd07e20c793d68104d1b3388f4e"
     },
-    "estimated_total_tokens": 268426,
-    "estimated_call_tokens": 269325,
+    "estimated_total_tokens": 268280,
+    "estimated_call_tokens": 269113,
     "state": "NOT LAUNCHED",
     "session_id": null,
     "request_id": null,
@@ -260,7 +250,7 @@
     "effort": "max",
     "file_plan": {
       "path": "docs/reviews/libbun-w1112-20260724/lifecycle-fable-plan.md",
-      "sha256": "39f1a8c4777310a3029068b8b81c2a4fb61a05cf27ffcbbab7d115cc10810491"
+      "sha256": "c5ad1aaac0cb5ab71fcbee8e8bcf2fd2fe1d13b01e3f8ab63933b4a68818e4aa"
     },
     "state": "NOT LAUNCHED",
     "session_id": null,
@@ -268,23 +258,23 @@
     "response_id": null,
     "output_paths": []
   },
-  "correction_evidence_state": "CORRECTION 3 COMPLETE; FRESH LITERAL INDEPENDENT REVIEW PENDING",
+  "correction_evidence_state": "CORRECTION 4 COMPLETE; FRESH LITERAL INDEPENDENT REVIEW PENDING",
   "independent_bundle_review": {
-    "reviewer": "PENDING correction-3 source-aware independent reviewer",
+    "reviewer": "PENDING correction-4 source-aware independent reviewer",
     "verdict": "PENDING; literal PART BUNDLE PASS required before launch"
   },
   "omissions": [
     "Oracle and Fable response artifacts are intentionally absent because model launch is out of scope.",
-    "Fresh literal independent PART BUNDLE PASS at the correction-3 commit is pending and this manifest does not authorize launch."
+    "Fresh literal independent PART BUNDLE PASS at the correction-4 commit is pending and this manifest does not authorize launch."
   ],
   "launch_state": "NOT LAUNCHED",
   "prior_independent_verdict": {
-    "commit": "0a3844d11bb42d67550da0bb1e069ecf17fbe69d",
+    "commit": "a5ab10f422fb955b899e6ce1089b8c74a4600860",
     "verdict": "PART BUNDLE REVISE",
     "records": [
       {
-        "path": "docs/reviews/libbun-w1112-20260724/lifecycle-correction2-independent-verdict.md",
-        "sha256": "c51b2da064580f411759b1a436fb414abe89d39de3956f8834d1f8d5b1dc6a5a"
+        "path": "docs/reviews/libbun-w1112-20260724/lifecycle-correction3-independent-verdict.md",
+        "sha256": "82a9678c444921696178bc051d27484f7ccfa50ea154a52dc369b6a58733a938"
       }
     ]
   }

@@ -135,6 +135,481 @@ Output:
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:tests/public_api_boundary.rs:11:        .join("external-public-api-boundary");
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:tests/public_api_boundary.rs:13:    Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 
+## Repository-wide vendored process-exit, termination, worker-wait, and shutdown inventory
+
+Meaning: Discovers the concrete process-exit to WebWorker termination/wait and ordered shutdown SCC plus every adjacent termination reset/caller before the compact source bundle is selected.
+
+Expected result: Exit 0; the compact lifecycle source bundle must bind every source that changes process-exit selection, worker termination clearing, live-worker wait, or ordered shutdown semantics.
+
+Command: git -C "$LIBBUN_REPO" grep -n -E 'Bun__Process__exit|process_exit|global_exit|terminate_all_workers_and_wait|terminate_all_and_wait|notifyNeedTermination|request[Tt]ermination|clear[Tt]ermination|has[Tt]ermination[Rr]equest|WebWorker__notifyNeedTermination|live_workers::(register|unregister)|fn (spin|shutdown|destroy|exit)' 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb -- vendor/bun/src
+
+Pattern: Bun__Process__exit|process_exit|global_exit|terminate_all_workers_and_wait|terminate_all_and_wait|notifyNeedTermination|request[Tt]ermination|clear[Tt]ermination|has[Tt]ermination[Rr]equest|WebWorker__notifyNeedTermination|live_workers::(register|unregister)|fn (spin|shutdown|destroy|exit)
+
+Pathspecs: vendor/bun/src
+
+Exit: 0
+
+Output:
+
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/ast/ast_memory_allocator.rs:297:    pub fn exit(&self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/ast/ast_memory_allocator.zig:44:    pub fn exit(this: *const @This()) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/ast/lib.rs:3307:    pub fn exit() {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/ast/new_store.rs:204:                pub unsafe fn destroy(store: *mut Store) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/boringssl_sys/boringssl.zig:19016:    pub fn shutdown(this: *SSL) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/brotli_sys/brotli_c.rs:116:    pub fn destroy_instance(state: &mut BrotliDecoder) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/brotli_sys/brotli_c.rs:440:    pub fn destroy_instance(state: &mut BrotliEncoder) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/brotli_sys/brotli_c.zig:46:    pub fn destroyInstance(state: *BrotliDecoder) callconv(.c) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/brotli_sys/brotli_c.zig:270:    pub fn destroyInstance(state: *BrotliEncoder) callconv(.c) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun.zig:2752:pub inline fn destroy(pointer: anytype) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun.zig:2808:pub fn exitThread() noreturn {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_alloc/heap_breakdown.rs:250:    pub fn destroy<T>(&self, ptr: *mut T) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_alloc/heap_breakdown.zig:112:    pub inline fn destroy(zone: *Zone, comptime T: type, ptr: *T) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_alloc/memory.rs:27:pub fn destroy<T>(ptr: Box<T>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_alloc/memory.zig:21:pub fn destroy(allocator: std.mem.Allocator, ptr: anytype) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_bin/phase_c_exports.rs:169:// WebWorker__notifyNeedTermination
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_core/Global.rs:651:// calls. `#[link_name]` avoids colliding with this module's own `pub fn exit`.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_core/Global.rs:665:pub fn exit(code: u32) -> ! {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_core/Global.zig:112:pub fn exit(code: u32) noreturn {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_core/heap.rs:101:pub unsafe fn destroy<T: ?Sized>(ptr: *mut T) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_core/util.rs:4721:pub fn exit_thread() -> ! {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bun_core_macros/lib.rs:304:            unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/ThreadPool.rs:171:    pub fn shutdown() -> bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/ThreadPool.rs:326:    pub fn shutdown_io_pool() -> bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/ThreadPool.zig:60:        pub fn shutdown() bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/ThreadPool.zig:142:    pub fn shutdownIOPool() bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/analyze_transpiled_module.rs:449:    unsafe fn destroy_raw(this: *mut ModuleInfo);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/analyze_transpiled_module.rs:458:    unsafe fn destroy_raw(this: *mut ModuleInfo) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/analyze_transpiled_module.zig:277:    pub fn destroy(self: *ModuleInfo) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/linker_context/postProcessJSChunk.rs:68:    // the renamer field, or an explicit `chunk.renamer.take()` at fn exit. Verify.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler/linker_context/postProcessJSChunk.rs:606:        // `cross_chunk_prefix` is a local that drops at fn exit, but the joiner
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/bundler_jsc/analyze_jsc.rs:230:    pub unsafe fn destroy(identifier_array: *mut IdentifierArray) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/cares_sys/c_ares.rs:437:    pub unsafe fn destroy(this: *mut struct_hostent) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/cares_sys/c_ares.rs:702:    pub unsafe fn destroy(this: *mut AddrInfo) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/cares_sys/c_ares.rs:838:    pub unsafe fn destroy(this: *mut Channel) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/collections/pool.rs:514:    fn destroy_node(node: *mut Node<T>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/collections/pool.zig:248:        fn destroyNode(node: *LinkedList.Node) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/event_loop/AnyEventLoop.rs:520:    pub fn exit(self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/event_loop/ConcurrentTask.rs:322:    pub unsafe fn destroy(this: *mut ConcurrentTask) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/event_loop/README.md:326:pub fn exit(this: *EventLoop) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/event_loop/lib.rs:72:        fn exit();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/http/ProxyTunnel.rs:129:    fn shutdown_err_of<'a>(this: NonNull<Self>) -> &'a Cell<Error> {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/http/ProxyTunnel.rs:707:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/http/ProxyTunnel.zig:328:pub fn shutdown(this: *ProxyTunnel) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/http_jsc/websocket_client/WebSocketProxyTunnel.rs:585:    pub unsafe fn shutdown(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/http_jsc/websocket_client/WebSocketProxyTunnel.zig:345:pub fn shutdown(this: *WebSocketProxyTunnel) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:942:        has_process_exited: false,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:993:    has_process_exited: bool,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:1025:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:1026:            (*this).on_process_exit(&mut *process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:1346:        // `on_close_io`/`on_process_exit` via this pointer while we are still
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:1404:        // `on_process_exit` synchronously (already-exited child).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:1425:        self.has_process_exited && self.remaining_fds == 0
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:1465:    pub fn on_process_exit(&mut self, _: &mut Process, status: Status, _: &Rusage) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.rs:1466:        self.has_process_exited = true;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.zig:722:    has_process_exited: bool = false,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.zig:917:        return this.has_process_exited and this.remaining_fds == 0;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/PackageManager/security_scanner.zig:962:        this.has_process_exited = true;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:269:    pub has_called_process_exit: bool,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:305:    /// pointer so call sites in `on_process_exit` are safe.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:428:        if !self.has_called_process_exit || self.remaining_fds != 0 {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:568:            (*this).has_called_process_exit = false;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:808:            // dispatch below may reenter `on_process_exit` through it without
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:1087:    pub fn on_process_exit(&mut self, proc: *mut Process, _: Status, _: &Rusage) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:1094:        self.has_called_process_exit = true;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:1125:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:1187:            has_called_process_exit: false,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:1250:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.rs:1251:            (*this).on_process_exit(process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.zig:12:    has_called_process_exit: bool = false,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.zig:89:        if (!this.has_called_process_exit or this.remaining_fds != 0)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.zig:150:        this.has_called_process_exit = false;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/lifecycle_script_runner.zig:489:        this.has_called_process_exit = true;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/patch_install.rs:158:    /// queue, the named reclaim point is `unsafe fn destroy`. Cross-file callers map
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/install/patch_install.rs:164:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/io/MaxBuf.rs:64:    fn destroy(this: NonNull<MaxBuf>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/io/MaxBuf.zig:27:fn destroy(this: *MaxBuf) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/io/ParentDeathWatchdog.rs:245:        bun_core::add_exit_callback(on_process_exit);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/io/ParentDeathWatchdog.rs:343:    // Global.exit → Bun__onExit → on_process_exit → kill_descendants.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/io/ParentDeathWatchdog.rs:350:extern "C" fn on_process_exit() {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/io/ParentDeathWatchdog.rs:447:/// daemon's intermediate parent exits between disarm and `on_process_exit` →
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/js_printer/lib.rs:501:        pub fn destroy(self: Box<Self>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/AsyncModule.rs:1321:        // Zig: `defer source_code_printer.?.* = printer;` — fires at fn exit,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/ConcurrentPromiseTask.rs:130:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/EventLoopHandle.zig:46:    pub fn exit(this: EventLoopHandle) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/JSGlobalObject.rs:214:        JSGlobalObject__requestTermination(self)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/JSGlobalObject.rs:219:        JSGlobalObject__clearTerminationException(self)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/JSGlobalObject.rs:1730:    safe fn JSGlobalObject__clearTerminationException(this: &JSGlobalObject);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/JSGlobalObject.rs:1734:    safe fn JSGlobalObject__requestTermination(this: &JSGlobalObject);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/JSGlobalObject.zig:62:    pub const requestTermination = JSGlobalObject__requestTermination;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/JSGlobalObject.zig:63:    pub const clearTerminationException = JSGlobalObject__clearTerminationException;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/JSGlobalObject.zig:857:    extern fn JSGlobalObject__clearTerminationException(this: *JSGlobalObject) void;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/JSGlobalObject.zig:861:    extern fn JSGlobalObject__requestTermination(this: *JSGlobalObject) void;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/ProcessAutoKiller.rs:82:    pub fn on_subprocess_exit(&mut self, process: *mut Process) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/RefString.rs:96:    pub unsafe fn destroy(this: *mut RefString) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/RegularExpression.rs:98:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/Strong.rs:229:    pub unsafe fn destroy(this: NonNull<Impl>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/TextCodec.rs:51:    pub unsafe fn destroy(this: *mut TextCodec) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/TopExceptionScope.rs:351:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/TopExceptionScope.rs:576:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/TopExceptionScope.rs:759:// (consumes; double-destruct is UB and is gated by `unsafe fn destroy`).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/URL.rs:154:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.rs:43:    safe fn JSC__VM__notifyNeedTermination(vm: &VM);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.rs:161:        JSC__VM__notifyNeedTermination(self)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.rs:188:        crate::cpp::JSC__VM__hasTerminationRequest(self)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:117:    extern fn JSC__VM__notifyNeedTermination(vm: *VM) void;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:120:    pub fn notifyNeedTermination(vm: *VM) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:121:        JSC__VM__notifyNeedTermination(vm);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:154:    extern fn JSC__VM__hasTerminationRequest(vm: *VM) bool;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:155:    pub fn hasTerminationRequest(vm: *VM) bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:156:        return JSC__VM__hasTerminationRequest(vm);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1396:            // SAFETY: `global_object` is the live VM global; `process_exit` is
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1398:            unsafe { (hooks.process_exit)(global_object.as_ptr(), 7) };
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1404:            unsafe { (hooks.process_exit)(global_object.as_ptr(), 1) };
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1425:        // callback unwind past this frame (re-entry hits `process_exit` →
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1511:    pub fn global_exit(&mut self) -> ! {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1532:                (hooks.terminate_all_workers_and_wait)(10_000);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1678:    pub process_exit: unsafe fn(global: *mut JSGlobalObject, code: u8),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1734:    /// thread's `event_loop().auto_tick()`, so [`global_exit`] reaches it
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1737:    pub terminate_all_workers_and_wait: fn(timeout_ms: u64),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:3054:    pub fn on_subprocess_exit(&mut self, process: *mut bun_spawn::Process) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:3055:        self.auto_killer.on_subprocess_exit(process);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:4302:    pub fn destroy(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.zig:704:        @panic("made it past Bun__Process__exit");
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/Weak.rs:55:    pub unsafe fn destroy(this: NonNull<WeakImpl>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/WorkTask.rs:91:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/array_buffer.rs:966:    pub fn destroy(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/array_buffer.zig:596:    pub fn destroy(this: *MarkedArrayBuffer) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/BunProcess.cpp:289:    if (vm.hasTerminationRequest() || vm.hasExceptionsAfterHandlingTraps())
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/BunProcess.cpp:1238:            Bun__Process__exit(lexicalGlobalObject, 1);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/BunProcess.cpp:3257:    Bun__Process__exit(zigGlobal, exitCode);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/BunProcess.cpp:3258:    // Main-thread Bun__Process__exit is noreturn. In a worker it returns; the
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/NodeVM.cpp:869:    vm().notifyNeedTermination();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/NodeVMScript.cpp:285:    if (vm.hasTerminationRequest()) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/ZigGlobalObject.cpp:3129:extern "C" void JSGlobalObject__requestTermination(JSC::JSGlobalObject* globalObject)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/ZigGlobalObject.cpp:3136:extern "C" void JSGlobalObject__clearTerminationException(JSC::JSGlobalObject* globalObject)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4971:bool JSC__VM__hasTerminationRequest(JSC::VM* vm)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4973:    return vm->hasTerminationRequest();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4982:void JSC__VM__notifyNeedTermination(JSC::VM* arg0)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4988:    vm.notifyNeedTermination();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/headers.h:317:CPP_DECL void JSC__VM__notifyNeedTermination(JSC::VM* arg0);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/headers.h:665:ZIG_DECL /*[[noreturn]]*/ void Bun__Process__exit(JSC::JSGlobalObject* arg0, uint8_t arg1); // TODO(@190n) figure out why with a real [[noreturn]] annotation this trips ASan before calling the function
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/libuv/uv/win.h:610:    struct uv_process_exit_s {                                              \
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/napi.h:334:        return this->vm().hasTerminationRequest();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/vm/SigintWatcher.cpp:202:        globalObject->vm().notifyNeedTermination();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/webcore/Worker.cpp:81:void WebWorker__notifyNeedTermination(void* worker);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/webcore/Worker.cpp:367:    WebWorker__notifyNeedTermination(impl_);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/webcore/Worker.h:90:/// WebWorker__notifyNeedTermination so the worker loop can observe it.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/event_loop.rs:162:    pub fn exit(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/event_loop.rs:180:    pub fn exit(&mut self) {}
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/event_loop.rs:318:    pub fn exit(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/event_loop.rs:344:    pub fn exit_maybe_drain_microtasks(
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/event_loop.zig:47:    pub fn exit(this: *Debug) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/event_loop.zig:57:    pub inline fn exit(_: Debug) void {}
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/event_loop.zig:79:pub fn exit(this: *EventLoop) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/event_loop.zig:92:pub fn exitMaybeDrainMicrotasks(this: *EventLoop, allow_drain_microtask: bool) bun.JSTerminated!void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/ipc.rs:789:    pub fn destroy(this: *mut WindowsWrite) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/ipc.zig:443:    pub fn destroy(self: *WindowsWrite) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/ipc.zig:985:const FromEnum = enum { subprocess_exited, subprocess, process };
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/ipc.zig:1018:            .subprocess_exited => "Subprocess.send() cannot be used after the process has exited.",
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/rare_data.zig:248:    fn destroy(this: *RefCountedEnvValue) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/virtual_machine_exports.rs:77:pub fn exit_during_uncaught_exception(this: &mut VirtualMachine) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:42://! non-null `vm` (in `notifyNeedTermination`) and the worker freeing the arena
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:45://! `notifyNeedTermination`.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:119:    /// `Cell` because `terminate_all_and_wait` walks the list through
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:130:    /// Set by the parent (`notifyNeedTermination`) or by the worker itself
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:139:    /// thread (`notify_need_termination`, `terminate_all_and_wait`, `exit`) and
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:165:    // `terminate_all_and_wait`); materialising `&mut WebWorker` on the worker
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:187:    /// observed concurrently by `terminate_all_and_wait` / parent-thread FFI;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:271:        // `defer mutex.unlock()` ordering) so that `terminate_all_and_wait`
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:327:/// `notifyNeedTermination()` raises a TerminationException at the next JSC
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:331:pub fn terminate_all_and_wait(timeout_ms: u64) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:404:    /// (`notify_need_termination`, `terminate_all_and_wait`) must hold
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:581:        live_workers::register(worker);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:607:                live_workers::unregister(worker);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:622:    pub extern "C" fn destroy(this: *mut WebWorker) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:673:    #[unsafe(export_name = "WebWorker__notifyNeedTermination")]
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:683:        log!("[{}] notifyNeedTermination", this.execution_context_id);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:695:            // `&VirtualMachine` binding — see `terminate_all_and_wait`.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:750:    // `terminate_all_and_wait`), so materialising `&mut WebWorker` here would
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:936:        // `vm_lock`, `notify_need_termination` / `terminate_all_and_wait`
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:959:        //   - a concurrent notifyNeedTermination()/terminateAllAndWait() can
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:976:        // `&VirtualMachine` (see `terminate_all_and_wait`).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:1017:    fn spin(&self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:1023:        // `vm_lock` (`notify_need_termination`, `terminate_all_and_wait`).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:1186:    ///   1. `vm = null` under lock    — a racing notifyNeedTermination() now sees
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:1206:    fn shutdown(&self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:1270:        live_workers::unregister(self);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:1328:    /// Takes `&self` (not `&mut self`) because `terminate_all_and_wait` /
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:1331:    pub fn exit(&self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.rs:1508:/// `terminate_all_and_wait` (`(*vm_ptr).jsc_vm`, `(*vm_ptr).event_loop()`).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:42://! non-null `vm` (in `notifyNeedTermination`) and the worker freeing the arena
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:45://! `notifyNeedTermination`.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:101:/// Set by the parent (`notifyNeedTermination`) or by the worker itself
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:194:/// `notifyNeedTermination()` raises a TerminationException at the next JSC
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:221:                    vm.jsc_vm.notifyNeedTermination();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:361:pub fn destroy(this: *WebWorker) callconv(.c) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:391:pub fn notifyNeedTermination(this: *WebWorker) callconv(.c) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:393:    log("[{d}] notifyNeedTermination", .{this.execution_context_id});
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:400:        vm.jsc_vm.notifyNeedTermination();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:533:    //   - a concurrent notifyNeedTermination()/terminateAllAndWait() can
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:575:fn spin(this: *WebWorker) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:681:///   1. `vm = null` under lock    — a racing notifyNeedTermination() now sees
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:693:fn shutdown(this: *WebWorker) noreturn {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:775:pub fn exit(this: *WebWorker) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:782:        vm.jsc_vm.notifyNeedTermination();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:965:    @export(&notifyNeedTermination, .{ .name = "WebWorker__notifyNeedTermination" });
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libarchive/lib.rs:1486:        // SAFETY: `file_buffer` outlives `stream` (stack-local, dropped at fn exit).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libarchive/lib.rs:1631:        // SAFETY: `file_buffer` outlives `stream` (stack-local, dropped at fn exit).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libdeflate_sys/libdeflate.rs:114:    pub unsafe fn destroy(this: *mut Compressor) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libdeflate_sys/libdeflate.rs:261:    pub unsafe fn destroy(this: *mut Decompressor) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libuv_sys/libuv.rs:437:    pub fn shutdown() {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libuv_sys/libuv.rs:1556:pub struct uv_process_exit_t {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libuv_sys/libuv.rs:1575:    pub exit_req: uv_process_exit_t,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libuv_sys/libuv.rs:3539:    assert_size!(uv_process_exit_t, 112);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libuv_sys/libuv.zig:321:pub const uv_process_exit_s = struct_uv_process_exit_s;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libuv_sys/libuv.zig:714:    pub fn shutdown() void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libuv_sys/libuv.zig:1650:pub const struct_uv_process_exit_s = extern struct {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/libuv_sys/libuv.zig:1668:    exit_req: struct_uv_process_exit_s = std.mem.zeroes(struct_uv_process_exit_s),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/lolhtml_sys/lol_html.rs:143:    pub unsafe fn destroy(this: *mut HTMLRewriter) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/lolhtml_sys/lol_html.rs:202:    pub unsafe fn destroy(this: *mut HTMLRewriterBuilder) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/lolhtml_sys/lol_html.rs:409:    pub unsafe fn destroy(selector: *mut HTMLSelector) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/lolhtml_sys/lol_html.rs:1070:    pub fn destroy(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/main_test.zig:70:    fn exitCode(this: *const Stats) u8 {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/ptr/ref_count.rs:675:    unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/ptr/shared.zig:466:        fn destroy(self: *Self) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/resolver/tsconfig_json.rs:233:    pub fn destroy(boxed: Box<Self>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/JSBundler.rs:1645:        fn destroy(this: *mut Plugin);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/JSBundler.rs:1706:        fn destroy(this: *mut Plugin) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/js_bun_spawn_bindings.rs:297:    // stay valid past `spawn_process` (Zig used a bump arena freed at fn exit).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/js_bun_spawn_bindings.rs:371:    // (`arena.deinit()` at fn exit); this `Vec` is the Rust equivalent and
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.rs:361:        // `process` forwarded raw (not reborrowed) so `on_process_exit` can
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.rs:362:        // hand it to `VirtualMachine::on_subprocess_exit` without a const→mut
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.rs:364:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.rs:365:            (*this).on_process_exit(process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.rs:893:    pub fn on_process_exit(&self, process: *mut Process, status: Status, rusage: &Rusage) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.rs:920:        unsafe { (*jsc_vm).on_subprocess_exit(process) };
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.rs:1032:            // `on_attached_process_exit` re-enters via the writer backref and may
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.rs:1036:            unsafe { FileSink::on_attached_process_exit(pipe_ptr.as_ptr(), &status) };
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess.zig:457:    return IPC.doSend(if (this.ipc_data) |*data| data else null, global, callFrame, if (this.hasExited()) .subprocess_exited else .subprocess);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess/Readable.rs:47:    /// `on_close_io`/`on_process_exit`/`testing_apis`) collapse to this one
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess/Writable.rs:78:    /// `on_process_exit`) collapse to this one site. `RefPtr` deliberately has
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess/Writable.rs:432:                    // set `deref_on_stdin_destroyed`. `on_attached_process_exit()`
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/bun/subprocess/Writable.rs:447:                        FileSink::on_attached_process_exit(
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:75:    fn has_called_process_exit_mut(&mut self) -> &mut bool;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:76:    fn exit_status_mut(&mut self) -> &mut Option<Status>;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:119:    unsafe fn on_process_exit(this: *mut Self, _proc: &Process, status: Status, _rusage: &Rusage) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:122:        *s.has_called_process_exit_mut() = true;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:151:    has_called_process_exit: bool,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:189:    fn has_called_process_exit_mut(&mut self) -> &mut bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:190:        &mut self.has_called_process_exit
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:192:    fn exit_status_mut(&mut self) -> &mut Option<Status> {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:214:        if !s.has_called_process_exit || s.remaining_fds != 0 {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:749:        has_called_process_exit: false,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:903:    has_called_process_exit: bool,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:939:    fn has_called_process_exit_mut(&mut self) -> &mut bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:940:        &mut self.has_called_process_exit
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:942:    fn exit_status_mut(&mut self) -> &mut Option<Status> {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:964:        if !s.has_called_process_exit || s.remaining_fds != 0 {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:1236:        has_called_process_exit: false,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:1372:    fn destroy_impl(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:1638:                    // hasTerminationRequest on VMEntryScope exit. Reporting it would
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:1990:        // Forward `this` raw — `on_process_exit` → `maybe_finished` may free it.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:1991:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:1992:            <CronRegisterJob as CronJobBase>::on_process_exit(this, &*process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:1997:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:1998:            <CronRemoveJob as CronJobBase>::on_process_exit(this, &*process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:2060:    *s.has_called_process_exit_mut() = false;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.rs:2242:    // `has_called_process_exit`), so it outlives `process`.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.zig:39:            this.has_called_process_exit = true;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.zig:66:    has_called_process_exit: bool = false,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.zig:85:        if (!this.has_called_process_exit or this.remaining_fds != 0) return;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.zig:562:    has_called_process_exit: bool = false,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.zig:581:        if (!this.has_called_process_exit or this.remaining_fds != 0) return;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.zig:977:                // hasTerminationRequest on VMEntryScope exit. Reporting it would
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/cron.zig:1166:    this.has_called_process_exit = false;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/html_rewriter.rs:2009:    fn destroy_on_zero(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/api/html_rewriter.rs:2120:    fn destroy_on_zero(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/bake/production.rs:253:            vm.global_exit();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/build_command.rs:1097:fn exit_or_watch(code: u8, watch: bool) -> ! {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/build_command.zig:719:fn exitOrWatch(code: u8, watch: bool) noreturn {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/bunx_command.rs:570:    fn exit_with_usage() -> ! {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/bunx_command.zig:327:    fn exitWithUsage() noreturn {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/filter_run.rs:217:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/filter_run.rs:218:            (*this).on_process_exit(&mut *process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/filter_run.rs:223:    pub fn on_process_exit(&mut self, proc: &mut Process, status: Status, _: &Rusage) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/filter_run.rs:231:        let _ = state.process_exit(self);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/filter_run.rs:348:    fn process_exit(&mut self, handle: &mut ProcessHandle<'a>) -> Result<(), bun_core::Error> {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/filter_run.rs:597:                // until program exit per on_process_exit note).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/filter_run.rs:947:    // in `ProcessHandle::start` / `State::process_exit` are sound under Stacked
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/multi_run.rs:264:        on_process_exit(_process, status, _rusage) => {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/multi_run.rs:268:            let _ = state.process_exit(&mut *this);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/multi_run.rs:384:    fn process_exit(&mut self, handle: &mut ProcessHandle<'a>) -> Result<(), Error> {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/repl.zig:1116:            global.clearTerminationException();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/repl.zig:1362:            global.clearTerminationException();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/repl_command.rs:160:            // never outlives ctx — global_exit() is `!`).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/repl_command.rs:232:            vm.global_exit();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/repl_command.rs:259:        vm.global_exit();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/run_command.rs:1100:        // trampoline reads it, never freed (`global_exit` ends the process).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/run_command.rs:1128:        // `Run::start` never returns (ends in `global_exit`); this is dead
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/run_command.rs:1166:        // freed (`global_exit` ends the process before any deinit).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/run_command.rs:1242:        // trampoline reads it, never freed (`global_exit` ends the process).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/run_command.rs:1351:    #[allow(unused_assignments)] // `printed_…` writes before `global_exit` are intentional Zig-shape.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/run_command.rs:1651:        vm.global_exit();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/run_command.rs:1702:fn exit_with_unhandled_note(vm: &mut VirtualMachine) -> ! {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/run_command.rs:1709:    vm.global_exit();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test/parallel/Worker.rs:338:    pub fn on_process_exit(&mut self, _: &Process, status: Status, _: &Rusage) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test/parallel/Worker.rs:374:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test/parallel/Worker.rs:409:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test/parallel/Worker.rs:410:            (*this).on_process_exit(&*process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test/parallel/Worker.zig:178:pub fn shutdown(this: *Worker) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test_command.rs:2403:                            vm.run_with_api_lock(|| unsafe { (*vm_ptr).global_exit() });
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test_command.rs:2446:                // (every exit path is `global_exit()`), so the storage Vec is
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test_command.rs:2498:                    vm.run_with_api_lock(|| unsafe { (*vm_ptr).global_exit() });
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test_command.rs:3031:            vm.run_with_api_lock(|| unsafe { (*vm_ptr).global_exit() });
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test_command.rs:3260:                        // SAFETY: global_exit diverges; raw-ptr reborrow mirrors Zig
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/cli/test_command.rs:3263:                        unsafe { (*vm_ptr).run_with_api_lock(|| (&mut *vm_ptr).global_exit()) };
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/crypto/CryptoHasher.zig:74:        fn destroy(handle: *CryptoHasher) callconv(.c) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:631:    unsafe fn destroy(this: *mut Self);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:1021:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:1809:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:1952:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:2123:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:3330:            unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:3423:    unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:3463:            unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:3510:            unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/dns_jsc/dns.rs:3694:    pub fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/jsc_hooks.rs:1194:unsafe fn process_exit(global: *mut JSGlobalObject, code: u8) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/jsc_hooks.rs:1415:    process_exit,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/jsc_hooks.rs:1426:    terminate_all_workers_and_wait,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/jsc_hooks.rs:1524:/// Main-thread only; called from `global_exit` after `is_shutting_down` is set.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/jsc_hooks.rs:1525:fn terminate_all_workers_and_wait(timeout_ms: u64) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/jsc_hooks.rs:1526:    bun_jsc::web_worker::terminate_all_and_wait(timeout_ms);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/napi/napi.zig:1063:    pub fn destroy(this: *napi_async_work) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/napi/napi_body.rs:1872:    pub fn destroy(this: *mut napi_async_work) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/napi/napi_body.rs:2782:    pub unsafe fn destroy(this: *mut ThreadSafeFunction) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_fs.rs:1062:        pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_fs.rs:1444:        pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_fs.rs:1869:        pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_fs.rs:2729:        pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_fs.rs:9405:    fn destroy_entry(&mut self);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_fs.rs:9448:    fn destroy_entry(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_fs.rs:9504:    fn destroy_entry(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_fs.rs:9562:    fn destroy_entry(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_process.rs:52:#[unsafe(export_name = "Bun__Process__exit")]
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_process.rs:53:pub extern "C" fn exit(global_object: &JSGlobalObject, code: u8) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_process.rs:62:        vm.global_exit();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_process.zig:8:    @export(&exit, .{ .name = "Bun__Process__exit" });
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/node_process.zig:299:pub fn exit(globalObject: *jsc.JSGlobalObject, code: u8) callconv(.c) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/path_watcher.rs:364:    unsafe fn destroy(this: *mut PathWatcher) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/path_watcher.zig:218:    fn destroy(this: *PathWatcher) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/node/zlib/NativeBrotli.rs:250:        fn destroy_on_zero(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/server/RequestContext.rs:1915:    fn destroy_sink(ptr: NonNull<ResponseStreamJSSink<SSL_ENABLED, HTTP3>>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/server/ServerWebSocket.rs:659:        // cleanup runs at fn exit. `this_value` is not mutated between here and
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/dispatch_tasks.rs:43:    /// `heap::alloc` payload enqueued by `ShellSubprocess::on_process_exit`.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/dispatch_tasks.rs:46:        // enqueued by `ShellSubprocess::on_process_exit`; `interp` outlives
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/interpreter.zig:1584:        pub fn destroy(this: @This(), ptr: anytype) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/states/Cmd.rs:622:        // `on_process_exit` / `buffered_output_close` which reach back into
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/states/Cmd.rs:1050:    /// Spec: Cmd.zig `onExit` — called by `ShellSubprocess::on_process_exit`.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/states/Cmd.rs:1069:            // The caller (`ShellSubprocess::on_process_exit`) does not touch
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/subproc.rs:334:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/subproc.rs:335:            (*this).on_process_exit(&*process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/shell/subproc.rs:915:    pub fn on_process_exit(&mut self, _: &Process, status: Status, _: &Rusage) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/Handlers.rs:458:    pub fn exit(self) -> bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/Handlers.zig:45:    pub fn exit(this: *Scope) bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/UpgradedDuplex.rs:386:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/UpgradedDuplex.rs:393:    pub fn shutdown_read(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/UpgradedDuplex.zig:394:pub fn shutdown(this: *UpgradedDuplex) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/UpgradedDuplex.zig:400:pub fn shutdownRead(this: *UpgradedDuplex) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/WindowsNamedPipe.rs:1211:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/WindowsNamedPipe.rs:1244:    pub fn shutdown_read(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/WindowsNamedPipe.zig:508:pub fn shutdown(this: *WindowsNamedPipe) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/WindowsNamedPipe.zig:514:pub fn shutdownRead(this: *WindowsNamedPipe) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/socket.zig:1336:        pub fn shutdown(this: *This, _: *jsc.JSGlobalObject, callframe: *jsc.CallFrame) bun.JSError!JSValue {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/socket_body.rs:2480:    pub fn shutdown(
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/ssl_wrapper.zig:135:        pub fn shutdownRead(this: *This) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/socket/ssl_wrapper.zig:146:        pub fn shutdown(this: *This, fast_shutdown: bool) bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/test_runner/bun_test.rs:514:    pub fn exit_file(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/test_runner/bun_test.rs:1441:    unsafe fn destroy(this: *mut RefData) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/test_runner/bun_test.zig:180:    pub fn exitFile(this: *BunTestRoot) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/test_runner/bun_test.zig:553:            globalThis.clearTerminationException();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/test_runner/bun_test.zig:672:            globalThis.clearTerminationException();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/test_runner/bun_test.zig:892:    pub fn destroy(this: *DescribeScope, gpa: std.mem.Allocator) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/test_runner/bun_test.zig:1024:    pub fn destroy(this: *ExecutionEntry, gpa: std.mem.Allocator) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/test_runner/timers/FakeTimers.rs:151:        // defer self.assert_valid(.locked) — re-checked at fn exit
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/valkey_jsc/valkey.rs:400:    pub fn shutdown(&mut self, global_object_or_finalizing: Option<&JSGlobalObject>) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/ArrayBufferSink.rs:190:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/ArrayBufferSink.zig:121:pub fn destroy(this: *ArrayBufferSink) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:383:    pub unsafe fn on_attached_process_exit(this: *mut FileSink, status: &SpawnStatus) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:436:    /// [`on_attached_process_exit`](Self::on_attached_process_exit)). `WritablePending::run`
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:460:    /// [`on_attached_process_exit`](Self::on_attached_process_exit)).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:537:    /// [`on_attached_process_exit`](Self::on_attached_process_exit)).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:576:    /// [`on_attached_process_exit`](Self::on_attached_process_exit)).
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:584:    /// [`on_attached_process_exit`](Self::on_attached_process_exit)). `clear_keep_alive_ref`
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:613:    /// [`on_attached_process_exit`](Self::on_attached_process_exit)). On rc→0 the
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:895:    /// callbacks and `on_attached_process_exit`: `writer.flush()` re-enters
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/FileSink.rs:905:    /// [`on_attached_process_exit`](Self::on_attached_process_exit)): live,
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/Response.rs:879:    fn destroy(this: *mut Response) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/Response.zig:456:fn destroy(this: *Response) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/blob/Store.zig:410:            pub inline fn destroy(self: *@This()) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/blob/copy_file.rs:1692:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/streams.rs:1906:    pub fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webcore/streams.zig:1258:        pub fn destroy(this: *@This()) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webview/ChromeProcess.rs:40:    // Intrusive refcount (`.deref()` called in on_process_exit); kept raw to
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webview/ChromeProcess.rs:47:// mutator thread; on_process_exit runs on the event loop thread which is the
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webview/ChromeProcess.rs:67:            // spawn() and cleared in on_process_exit before the box is dropped.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webview/ChromeProcess.rs:156:        on_process_exit(_process, status, _rusage) => {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webview/HostProcess.rs:33:    // Intrusive refcount (`.deref()` called in on_process_exit); kept raw to
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webview/HostProcess.rs:58:            // spawn() and cleared in on_process_exit before the box is dropped.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/runtime/webview/HostProcess.rs:113:        on_process_exit(_process, status, _rusage) => {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/spawn/lib.rs:93:        fn on_process_exit(process: *mut Process, status: Status, rusage: *const Rusage);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/spawn/lib.rs:108:        on_process_exit(process, status, rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/spawn/lib.rs:109:            process::sync::SyncWindowsProcess::on_process_exit(this, process, status, &*rusage),
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/spawn/lib.rs:115:        on_process_exit(_process, _status, _rusage) =>
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/spawn/process.rs:121:    h.on_process_exit(process, status, rusage);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/spawn/process.rs:2613:            pub fn on_process_exit(
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/standalone_graph/StandaloneModuleGraph.rs:1187:                                    // loop and drops at fn exit.
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/tcc_sys/tcc.rs:245:    pub unsafe fn destroy(s: *mut State) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/threading/Mutex.rs:402:pub fn spin_cycle() {}
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/threading/Mutex.zig:205:pub fn spinCycle() void {}
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/threading/ThreadPool.rs:927:    pub fn shutdown(&self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/threading/ThreadPool.rs:1438:    fn shutdown(&self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/threading/ThreadPool.zig:455:pub noinline fn shutdown(self: *ThreadPool) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/threading/ThreadPool.zig:722:    fn shutdown(self: *Event) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws/lib.rs:564:        pub fn shutdown_read(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws/lib.rs:578:        pub fn shutdown(&mut self, fast_shutdown: bool) -> bool {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/App.rs:122:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/App.zig:54:        pub fn destroy(app: *ThisApp) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/ConnectingSocket.rs:67:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/ConnectingSocket.rs:71:    pub fn shutdown_read(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/ConnectingSocket.zig:47:    pub fn shutdown(this: *ConnectingSocket) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/ConnectingSocket.zig:51:    pub fn shutdownRead(this: *ConnectingSocket) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/Loop.rs:320:    pub unsafe fn destroy(this: *mut PosixLoop) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/Loop.rs:527:    pub unsafe fn destroy(this: *mut WindowsLoop) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/SocketGroup.rs:123:    // expose `unsafe fn destroy(*mut Self)` and have the owner call it
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/SocketGroup.rs:129:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/h3.rs:440:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/h3.zig:253:    pub fn destroy(this: *App) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/lib.rs:242:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/lib.rs:246:    pub fn shutdown_read(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/lib.rs:321:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/lib.rs:325:    pub fn shutdown_read(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/quic/Stream.rs:47:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/socket.rs:327:    pub fn shutdown(&self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/socket.rs:337:    pub fn shutdown_read(&self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/socket.rs:892:        fn shutdown(&self);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/socket.rs:893:        fn shutdown_read(&self);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/socket.zig:206:        pub fn shutdown(this: ThisSocket) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/socket.zig:219:        pub fn shutdownRead(this: ThisSocket) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/socket.zig:543:    pub fn shutdown(this: AnySocket) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/socket.zig:550:    pub fn shutdownRead(this: AnySocket) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/us_socket_t.rs:80:    pub fn shutdown(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/us_socket_t.rs:85:    pub fn shutdown_read(&mut self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/us_socket_t.rs:555:    pub unsafe fn destroy(this: *mut Self) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/us_socket_t.zig:49:    pub fn shutdown(this: *us_socket_t) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/uws_sys/us_socket_t.zig:54:    pub fn shutdownRead(this: *us_socket_t) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/watcher/Watcher.rs:247:    pub fn shutdown(this: *mut Self, close_descriptors: bool) {
+
 ## Vendored VM termination, reset, drain, and deinit callers
 
 Meaning: Binds the JSC cooperative interrupt/reset, drain, teardown, and empty C++ deinit facts.
@@ -194,11 +669,11 @@ Meaning: Traces every attached external consumer, retained-host checkout/replace
 
 Expected result: Exit 0; all attached direct callers, pool custody, and compatibility edges are visible.
 
-Command: git -C "$SWARM_REPO" grep -n -E 'invoke_manifest_resolved_call|begin_execution_session|shutdown|impl Drop|Command::new|\.spawn\(|wait_with_output|libbun|ProviderRequest|into_call_input_and_output_settlement|into_contract_and_module|ExternalCapabilityProviderPool|checkout|replace|working_directory|provider_settlement_lane|runtime_execution_domain' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates/ss-runtime-external-capability-provider-owner/src/lib.rs crates/swarm-provider-host-set/src/external_transport.rs crates/swarm-provider-host-set/src/provider_host_set.rs crates/ss/src/product.rs crates/ss/tests/external_capability_provider.rs crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-provider-host-set-owner/src/lib.rs
+Command: git -C "$SWARM_REPO" grep -n -E 'invoke_manifest_resolved_call|begin_execution_session|shutdown|impl Drop|Command::new|\.spawn\(|wait_with_output|libbun|ProviderRequest|into_call_input_and_output_settlement|into_contract_and_module|ExternalCapabilityProviderPool|checkout|replace|working_directory|provider_settlement_lane|runtime_execution_domain' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates/ss-runtime-external-capability-provider-owner/src/lib.rs crates/swarm-provider-host-set/src/external_transport.rs crates/swarm-provider-host-set/src/provider_host_set.rs crates/ss/src/product.rs crates/ss/tests/external_capability_provider.rs crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs crates/ss-runtime-provider-host-set-owner/src/lib.rs
 
 Pattern: invoke_manifest_resolved_call|begin_execution_session|shutdown|impl Drop|Command::new|\.spawn\(|wait_with_output|libbun|ProviderRequest|into_call_input_and_output_settlement|into_contract_and_module|ExternalCapabilityProviderPool|checkout|replace|working_directory|provider_settlement_lane|runtime_execution_domain
 
-Pathspecs: crates/ss-runtime-external-capability-provider-owner/src/lib.rs crates/swarm-provider-host-set/src/external_transport.rs crates/swarm-provider-host-set/src/provider_host_set.rs crates/ss/src/product.rs crates/ss/tests/external_capability_provider.rs crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-provider-host-set-owner/src/lib.rs
+Pathspecs: crates/ss-runtime-external-capability-provider-owner/src/lib.rs crates/swarm-provider-host-set/src/external_transport.rs crates/swarm-provider-host-set/src/provider_host_set.rs crates/ss/src/product.rs crates/ss/tests/external_capability_provider.rs crates/ss-runtime-test-execution-owner/src/lib.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/body_authority_registry.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs crates/ss-runtime-provider-host-set-owner/src/lib.rs
 
 Exit: 0
 
@@ -375,6 +850,22 @@ Output:
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs:2060:            candidate.into_projection_parts_for_runtime_execution_domain_owner_v1();
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs:2066:        let malformed_payload = SsRuntimeExecutionDomainExecutedFilePayload::admit_authenticated_pool_worker_payload_for_runtime_execution_domain_owner_v1(
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs:2089:        let payload = SsRuntimeExecutionDomainExecutedFilePayload::encode_for_runtime_execution_domain_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:5:    runtime_execution_domain_owner: SsRuntimeExecutionDomainOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:37:            runtime_execution_domain_owner: SsRuntimeExecutionDomainOwner::new(),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:86:        admitted: runtime_execution_domain::SsRuntimeExecutionDomainAdmittedPoolWorkerSettlement,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:88:        runtime_execution_domain::commit_admitted_pool_worker_settlement_for_execution_graph_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:98:        runtime_execution_domain::settle_pool_worker_loss_for_execution_graph_owner_v1(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs:114:                &mut self.runtime_execution_domain_owner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:10:use super::runtime_execution_domain::{
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:42:    runtime_execution_domain: SsRuntimeExecutionDomainState,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:238:            runtime_execution_domain: SsRuntimeExecutionDomainState::new(),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:249:        self.runtime_execution_domain
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:259:        self.runtime_execution_domain.require_empty_for_projection()
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:273:        self.runtime_execution_domain.project_settled_outcomes(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:386:        .runtime_execution_domain
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:731:fn shutdown_runtime_execution_domain_owner(
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:732:    runtime_execution_domain_owner: &mut SsRuntimeExecutionDomainOwner,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_worker_execution.rs:735:    runtime_execution_domain_owner.shutdown(session)
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss/src/product.rs:61:            libbun_external_capability_provider_enabled,
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss/src/product.rs:62:        } => run_providers_operation(libbun_external_capability_provider_enabled),
 95323ff17cb29928e31467f651ef03bae2099c14:crates/ss/src/product.rs:122:    let working_directory = std::env::current_dir().map_err(|error| {

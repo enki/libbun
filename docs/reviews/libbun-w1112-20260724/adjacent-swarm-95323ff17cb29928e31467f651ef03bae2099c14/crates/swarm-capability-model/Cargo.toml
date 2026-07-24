@@ -1,0 +1,17 @@
+[package]
+name = "swarm-capability-model"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+swarm-capability-linker-core = { path = "../swarm-capability-linker-core" }
+swarm-runtime-authority.workspace = true
+swarm-substrate-invariant.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
