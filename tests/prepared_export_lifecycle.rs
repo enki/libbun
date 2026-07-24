@@ -1,6 +1,6 @@
 use libbun::{
-    BackendShutdownTerminal, BunProviderBackend, DriveControl, DriveInterrupt,
-    MechanicalTerminal, PreparedExport, ShutdownControl,
+    BackendShutdownTerminal, BunProviderBackend, DriveControl, DriveInterrupt, MechanicalTerminal,
+    PreparedExport, ShutdownControl,
 };
 
 fn consume_one_prepared_export(

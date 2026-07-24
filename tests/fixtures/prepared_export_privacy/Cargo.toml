@@ -1,0 +1,26 @@
+[workspace]
+
+[package]
+name = "libbun-prepared-export-privacy-fixture"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+libbun = { path = "../../.." }
+
+[[bin]]
+name = "construct_selected_work"
+path = "src/bin/construct_selected_work.rs"
+
+[[bin]]
+name = "clone_selected_work"
+path = "src/bin/clone_selected_work.rs"
+
+[[bin]]
+name = "clone_prepared_export"
+path = "src/bin/clone_prepared_export.rs"
+
+[[bin]]
+name = "import_old_lease_family"
+path = "src/bin/import_old_lease_family.rs"

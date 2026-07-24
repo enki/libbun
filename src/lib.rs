@@ -30,10 +30,9 @@ pub mod release;
 mod retained_backend;
 
 pub use retained_backend::{
-    BackendPoisonDiagnostic, BackendState, BunProviderBackend, FinishedInvocation,
-    InvocationDiagnosticsPolicy, InvocationOutputLedger, InvocationOutputPolicy,
-    InvocationProfileLedger, InvocationProfileSpan, LateOutputPolicy, ProviderInvocationDescriptor,
-    ProviderInvocationLease, SettledInvocationOutcome,
+    AuthoredSettlementCargo, AuthoredSettlementKind, BackendShutdownTerminal, BunProviderBackend,
+    DriveControl, DriveInterrupt, MechanicalFault, MechanicalFaultKind, MechanicalTerminal,
+    PreparedExport, ProviderInvocation, SelectedProviderPackage, ShutdownControl,
 };
 
 pub type LibbunResult<T> = Result<T, LibbunError>;
@@ -1280,7 +1279,7 @@ pub trait BunEmbeddingRuntime {
         request: ProviderRequest,
         options: ProviderSettleOptions,
     ) -> LibbunResult<SettledProviderReceipt> {
-        call_provider_until_settled_observed(self, request, options, None)
+        call_provider_until_settled_observed(self, request, options, None, None)
     }
 
     fn captured_output(&self) -> &[OutputRecord];
@@ -1295,6 +1294,7 @@ fn call_provider_until_settled_observed<R: BunEmbeddingRuntime + ?Sized>(
     request: ProviderRequest,
     options: ProviderSettleOptions,
     diagnostics: Option<&ProviderDiagnosticsHandle>,
+    interrupt: Option<&std::sync::atomic::AtomicBool>,
 ) -> LibbunResult<SettledProviderReceipt> {
     let options = ensure_provider_call_id(options);
     let started_at = Instant::now();
@@ -1516,6 +1516,14 @@ fn call_provider_until_settled_observed<R: BunEmbeddingRuntime + ?Sized>(
                     .with_trace(trace),
                 );
                 break receipt;
+            }
+
+            if interrupt.is_some_and(|interrupt| interrupt.load(Ordering::Acquire)) {
+                output.extend(runtime.drain_captured_output());
+                return Err(LibbunError::backend_state(
+                    "retained_prepared_export_interrupt_observed",
+                    "the retained prepared-export owner observed its typed interrupt while the invocation was pending",
+                ));
             }
 
             push_settlement_trace(
@@ -1877,6 +1885,7 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
             request,
             options,
             Some(&self.diagnostics),
+            None,
         );
         match result {
             Ok(receipt) => {
@@ -1903,10 +1912,11 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
         }
     }
 
-    pub(crate) fn call_provider_until_settled_for_invocation_ledger(
+    pub(crate) fn call_provider_until_settled_for_prepared_export(
         &mut self,
         request: ProviderRequest,
         options: ProviderSettleOptions,
+        interrupt: &std::sync::atomic::AtomicBool,
     ) -> LibbunResult<SettledProviderReceipt> {
         self.ensure_live()?;
         let result = call_provider_until_settled_observed(
@@ -1914,6 +1924,7 @@ impl<R: BunEmbeddingRuntime> BunHost<R> {
             request,
             options,
             Some(&self.diagnostics),
+            Some(interrupt),
         );
         self.collect_output();
         result
@@ -2091,6 +2102,7 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
             request,
             options,
             Some(&self.diagnostics),
+            None,
         );
         match result {
             Ok(receipt) => {
