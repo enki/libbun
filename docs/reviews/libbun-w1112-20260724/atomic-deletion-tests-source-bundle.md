@@ -1,4 +1,4 @@
-# Adjacent Swarm retained-runtime final close, atomic deletion, and hostile-test owner source bundle (correction 5)
+# Adjacent Swarm retained-runtime final close, atomic deletion, and hostile-test owner source bundle (correction 6)
 
 Exact source SHA: 95323ff17cb29928e31467f651ef03bae2099c14
 

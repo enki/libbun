@@ -1,4 +1,4 @@
-# libbun W1-11/W1-12 exact-source search report (correction 5)
+# libbun W1-11/W1-12 exact-source search report (correction 6)
 
 Libbun product SHA: 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb
 
@@ -6481,7 +6481,7 @@ Output:
 
 Meaning: Discovers the complete final correspondence join, typed ingress/drive faults, selected execution-session owner lifecycle, constructor-side callers, and capability-model hostile evidence.
 
-Expected result: Exit 0; every active owning path is either in the compact owner bundle or an exact adjacent snapshot.
+Expected result: Exit 0 with exactly the 27 ordered active owning paths bound in the compact owner bundle and exact adjacent snapshots.
 
 Command: git -C "$SWARM_REPO" grep -n -E 'ProviderBoundaryOutputCorrespondenceFault|consume_corresponded_ready_output_for_provider_boundary_owner_v1|ProviderBoundaryIngressFault|DirectRunProcessChildProviderFaultV1|DirectRunProcessSessionDriveFaultV1|ProviderDriveSessionExecutionCommitFault|ProviderHostExecutionSession|begin_provider_execution_session_v1|cross_boundary_swap_is_a_typed_fault|nominal_join_preserves_both_halves_on_mismatch' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates
 
@@ -6699,6 +6699,82 @@ Output:
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs:444:            .consume_corresponded_ready_output_for_provider_boundary_owner_v1(ready)
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs:473:            .consume_corresponded_ready_output_for_provider_boundary_owner_v1(ready)
 95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs:506:            .consume_corresponded_ready_output_for_provider_boundary_owner_v1(ready)
+
+## Adjacent ProviderHostExecutionSession producer, carrier, and consumer closure
+
+Meaning: Discovers both source-entrypoint execution-session mints, every by-value and borrowed carrier, the finite host-set owner, exact release consumer, and public reexport.
+
+Expected result: Exit 0 with exactly the 16 ordered active paths bound as complete owning source items and exact adjacent snapshots.
+
+Command: git -C "$SWARM_REPO" grep -n -E 'ProviderHostExecutionSession|begin_provider_execution_session_v1' 95323ff17cb29928e31467f651ef03bae2099c14 -- crates
+
+Pattern: ProviderHostExecutionSession|begin_provider_execution_session_v1
+
+Pathspecs: crates
+
+Exit: 0
+
+Output:
+
+95323ff17cb29928e31467f651ef03bae2099c14:crates/durable-native-provider-loader/src/lib.rs:15:use swarm_provider_host_set::{ProviderHostExecutionSession, ProviderHostSet};
+95323ff17cb29928e31467f651ef03bae2099c14:crates/durable-native-provider-loader/src/lib.rs:372:    pub fn begin_provider_execution_session_v1(&self) -> ProviderHostExecutionSession {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/durable-native-provider-loader/src/lib.rs:373:        self.provider_hosts.begin_provider_execution_session_v1()
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs:969:    provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs:975:    provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs:981:    host_refusal: swarm_provider_host_set::ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs:1137:        provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/public_aperture_entrypoint/trusted_step.rs:3:    provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs:1125:        provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture.rs:37:use swarm_provider_host_set::ProviderHostExecutionSession;
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:1589:    provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:1944:    provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:2707:    provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:2799:    provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:2886:    provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:36:        provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:97:        provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:131:        provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:142:        provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:158:        provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:174:        provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs:539:    provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs:559:    provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs:579:    provider_execution_session: &mut ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs:400:        provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs:433:        provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs:576:        provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs:1241:            provider_host_set.begin_provider_execution_session_v1(),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs:1492:            provider_host_set.begin_provider_execution_session_v1(),
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/host_resources.rs:980:        provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/final_observation/host_resource_finalization.rs:434:        provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/final_observation/host_resource_finalization.rs:706:        let mut provider_execution_session = provider_hosts.begin_provider_execution_session_v1();
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs:546:        provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs:412:        provider_execution_session: &swarm_provider_host_set::ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/lib.rs:19:    ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/lib.rs:20:    ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1, ProviderHostSet,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:42:pub struct ProviderHostExecutionSession {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:49:// compiler-custody: symbol=ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 disposition=migrating reviewer=package-root-compiler-kernel-hardcut-20260722 justification="retaining refusal crosses into compiler process-start admission; exact first consumer edit: prepared_runtime.rs::DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1::admit_for_direct_run_public_aperture_owner_v1"
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:51:pub struct ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:52:    session: ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:160:/// (surfaced through [`ProviderHostExecutionSession`]); the classification fact
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:267:    pub fn begin_provider_execution_session_v1(&self) -> ProviderHostExecutionSession {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:268:        ProviderHostExecutionSession {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:804:impl std::fmt::Debug for ProviderHostExecutionSession {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:806:        f.debug_struct("ProviderHostExecutionSession")
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:813:    for ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:816:        f.debug_struct("ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1")
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:825:    for ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:835:    for ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:839:impl ProviderHostExecutionSession {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:843:    ) -> Result<Self, ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1>
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:847:                ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1032:impl Drop for ProviderHostExecutionSession {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1050:        let _ = <ProviderHostExecutionSession as AmbiguousIfClone<_>>::probe;
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1051:        let _ = <ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 as AmbiguousIfClone<_>>::probe;
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1057:            session: ProviderHostExecutionSession,
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1067:                    let ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1082:            let ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 {
+95323ff17cb29928e31467f651ef03bae2099c14:crates/swarm-provider-host-set/src/provider_host_set.rs:1090:            ProviderHostExecutionSession,
 
 ## Adjacent W1-10 ProviderValue input and governing law
 

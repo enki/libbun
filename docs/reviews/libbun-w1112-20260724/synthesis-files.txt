@@ -13,10 +13,8 @@ docs/reviews/libbun-w1112-20260724/containment-release-prompt.md
 docs/reviews/libbun-w1112-20260724/containment-release-oracle-dry-run.txt
 docs/reviews/libbun-w1112-20260724/containment-release-fable-plan.md
 docs/reviews/libbun-w1112-20260724/containment-release-files.txt
-docs/reviews/libbun-w1112-20260724/correction5-index.md
-docs/reviews/libbun-w1112-20260724/owner-generative-correction4-independent-verdict.md
-docs/reviews/libbun-w1112-20260724/lifecycle-correction4-independent-verdict.md
-docs/reviews/libbun-w1112-20260724/containment-release-correction4-independent-verdict.md
+docs/reviews/libbun-w1112-20260724/correction6-index.md
+docs/reviews/libbun-w1112-20260724/correction5-independent-full-family-verdict.md
 docs/LIBBUN-LIFECYCLE-CONTRACT.md
 docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md
 docs/LIBBUN-WORKER-RELEASE-CONTRACT.md
@@ -32,4 +30,3 @@ docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03
 scripts/package-prepared-export-worker-release.sh
 scripts/prepare-native-bun-link.sh
 scripts/verify-vendored-bun-reproducible.sh
-scripts/verify-vendored-bun.sh

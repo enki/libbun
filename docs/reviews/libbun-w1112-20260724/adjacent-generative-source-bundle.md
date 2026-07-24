@@ -1,10 +1,10 @@
-# Adjacent Swarm owner, correspondence, drive, final-output, fault, and test source bundle (correction 5)
+# Adjacent Swarm owner, correspondence, drive, final-output, fault, and test source bundle (correction 6)
 
 Exact source SHA: 95323ff17cb29928e31467f651ef03bae2099c14
 
 Exact source tree: 43b47bbd49a6053d270b3e15cc141cb1b1bb86da
 
-This bundle preserves the exact repository-wide 24-path lexical hit set as a regression gate and then binds the complete semantic supplements omitted by correction 4. It exposes the existing one-occurrence output seal, the complete final correspondence join and ingress wrapper, drive-to-final-output carriers and typed fault algebras, both direct-run consumers, the ProviderHostExecutionSession fields/mint/reexport/selected branch/Drop, its durable-loader caller and dependency direction, capability-model mismatch/custody-preservation tests, and static-host nominal accepted/rejected/authored correspondence tests. No static-host mismatch or replay test exists at the bound SHA; new static-host mismatch and retained-libbun replay tests remain mandatory implementation output. A new package/invocation brand must extend or atomically replace the existing seal; a parallel seal is forbidden.
+This bundle preserves the exact repository-wide 24-path lexical hit set and independently binds the exact ordered 27-path semantic owner closure plus the 16-path ProviderHostExecutionSession producer/carrier/consumer closure. It exposes both real session mints, by-value admission and terminal-drive custody, every borrowed route carrier, the exact host-resource release selection/commit and final publication path, complete Drop/reissue/refusal/retry/unwind tests, the existing one-occurrence output seal, final correspondence join and ingress wrapper, typed mechanical drive/fault carriers, capability-model mismatch/custody-preservation tests, and static-host nominal accepted/rejected/authored correspondence tests. No static-host mismatch or replay test exists at the bound SHA; new static-host mismatch and retained-libbun replay tests remain mandatory implementation output. A new package/invocation brand must extend or atomically replace the existing seal; a parallel seal is forbidden.
 
 Every compact excerpt names the complete owning item span selected from the exact file, plus the full-file blob/SHA-256/byte identity and an excerpt SHA-256. Small bounded files are included completely. The repository-wide discovery gate runs before this fixed closure is rendered.
 
@@ -41,6 +41,16 @@ Every compact excerpt names the complete owning item span selected from the exac
 | crates/swarm-provider-host-set/src/lib.rs | f7c9ebc958f73ca04f0393c6f51136474a167593 | 31a2d3108dfdb7c96f4407023d91f34ef4449891a7eed0e2d40245b78650e0f7 | 865 | complete owning items |
 | crates/durable-native-provider-loader/src/lib.rs | d8e4be25ef804fbd2810f82dec5eeb1795d9142a | 5c47f1e31bc66173f62021caad4e090814a8a63c964434a5b9e48b09b41bd84d | 17447 | complete owning items |
 | crates/durable-native-provider-loader/Cargo.toml | a0a507d42e2f1cfb8d9c9a890cd3934e81331bb5 | 8d3a24b795494aee5d8ccc2a44478df8f73987fc0b02697bb477d4d537f3bc8d | 913 | complete file |
+| crates/ss-runtime-source-compiler-owner/src/direct_run.rs | f04f1572df245310ede7be0680a51d5f16391f16 | 2c37cd0f4f370c81d1ef15fdaf0eda7bdc600dd392a2f728d3c73e2140e02a3f | 14797 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs | 2ac1ed57214f84a3bf8b73cd65526b5689996ab5 | eeb208de5fc6ae38ed33cb213b565ec495642a178fec1b6b20f485f05d2c03b8 | 74805 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/direct_run/public_aperture_entrypoint/trusted_step.rs | e798a5fdfb33a0845e4127210b1ccf3f7d0dceff | 06c7bccd38a735f492bf6961e66ed9e8c52299bb72ddbabb13357f83f533ed36 | 1410 | complete file |
+| crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs | 99169c5f4b8ca8d828668f65eb5e861f897ba387 | 43f12ae9cafdb1e018f37d3d8284f1efe8cb5031e136738ceb0a2d1f60f85b2c | 44948 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs | d0213d805e3233721a4f0c39f1b7ba47be5fa337 | bc11e6f50cc75700d6163c057f4338e2e2b78d93c5932c2f2e109f7fd8ea2162 | 37008 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/lib.rs | e352905cb0bc7baca5ffbcb7b8deb0dbdc2c7047 | d3411819e0d84dbd8ab3e9437a8c797612d9a5a29c0a519b15975e453f98290c | 8793 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs | f05296366429152feec1373697acb29ef71467da | d22b68fdf785146bab7f01759c75500d505adbf0629e9cc037003865141d39cf | 95971 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/host_resources.rs | ffdddb310bc7ccfadc3bc0d1027a39bf505879b0 | 5f22fe4c301a89176d23fcfe87e168122ab695bf4b4ebe78d7f18da0aea8f13a | 71130 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/final_observation/host_resource_finalization.rs | c96b9442acfe1484b349cd9ee672c5edeb180aea | 8dd6e64ea9592f8b9f6a89c7e0d509684e2994b5af45aa61ea2a8b801be72ff2 | 37588 | complete file |
+| crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine.rs | 4c629526e2d17ba1d965d068e839fd0a46a9023a | 32c3fb47321281cfd48a3ea4ee4539fbfddc1eae8a3eb640b8b3a5066ae6603d | 21062 | complete owning items |
 
 ## crates/ss-runtime-external-capability-provider-owner/src/lib.rs: complete file
 
@@ -1045,6 +1055,41 @@ Every compact excerpt names the complete owning item span selected from the exac
    900              ))
    901          })
    902      }
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs:1122-1147
+
+- Full-file Git blob: 384f1dabdaeca305d68e791a66de498dd53176e9
+- Full-file SHA-256: 90d72026dc888b6cd8d20aecfaa301f4eedd3c5d8f129977d963ae5d1867d80b
+- Full-file bytes: 52830
+- Excerpt line span: 1122-1147
+- Excerpt SHA-256: 29f2c45dd3f1580f99b04909d4284bb2f8fb6df23c3fbd5f957775abfcf733de
+
+  1122      pub(in crate::direct_run) fn commit_selected_host_resource_finalization_for_live_process_session(
+  1123          session_id: &str,
+  1124          root_scope_id: &str,
+  1125          provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+  1126          selected_boundary: SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+  1127      ) -> Result<EngineProcessSessionRunResultV1, String> {
+  1128          with_live_process_session_mut(session_id, root_scope_id, |live_session| {
+  1129              let outcome = live_session
+  1130                  .commit_selected_host_resource_finalization_and_drive_for_direct_run_owner_v1(
+  1131                      provider_execution_session,
+  1132                      selected_boundary,
+  1133                  )
+  1134                  .map_err(|fault| fault.to_string())?;
+  1135              let process_creation_export_readiness =
+  1136                  process_creation_export_readiness_for_live_process_session_owner_v1(
+  1137                      live_session,
+  1138                      "direct_host_resource_finalization_commit",
+  1139                  );
+  1140              Ok(EngineProcessSessionRunResultV1::admitted(
+  1141                  outcome,
+  1142                  None,
+  1143                  process_creation_export_readiness,
+  1144                  "direct_host_resource_finalization_commit",
+  1145              ))
+  1146          })
+  1147      }
 
 ## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture.rs: complete file
 
@@ -3417,6 +3462,72 @@ Every compact excerpt names the complete owning item span selected from the exac
    303  pub(crate) use swarmvm_runtime_types::{
    304      vm_runtime_logical_materialization_fact_enabled_v1, vm_runtime_logical_materialization_fact_v1,
    305      vm_runtime_memory_materialization_fact_v1, vm_runtime_profile_span_v1,
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs:544-600
+
+- Full-file Git blob: 378a8360757c6061b8131cccd94d77e186cdeb19
+- Full-file SHA-256: 19e766290748b1a2af1de6f8a9dbf2e1b5ded9877aadd734ced691b71de20884
+- Full-file bytes: 37055
+- Excerpt line span: 544-600
+- Excerpt SHA-256: 098505e24c863906d1e67e66155c340c70dec1a8d844f8c298ed316fc17ce167
+
+   544      pub fn commit_selected_host_resource_finalization_and_drive_for_direct_run_owner_v1(
+   545          &mut self,
+   546          provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+   547          selected_boundary: crate::SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   548      ) -> Result<DirectRunProcessSessionRunResultProductV1, ProcessSessionRunError> {
+   549          // Pending custody stays installed while the provider runs. The matched
+   550          // proof borrows it, so an unwind can cancel and later reissue the exact
+   551          // obligation instead of dropping moved provider authority.
+   552          let pending = self
+   553              .pending_selected_host_resource_finalization
+   554              .as_mut()
+   555              .ok_or(crate::HostResourceFinalizationBoundaryFaultV1::CommitWithoutPendingSelection)?;
+   556          let matched =
+   557              match pending.consume_exact_selection_for_session_runtime_owner_v1(selected_boundary) {
+   558                  Ok(matched) => matched,
+   559                  Err(crate::session::SelectedHostResourceFinalizationConsumptionRefusalV1::Correspondence {
+   560                      selected,
+   561                      fault,
+   562                  }) => {
+   563                      drop(selected);
+   564                      return Err(fault.into());
+   565                  }
+   566                  Err(crate::session::SelectedHostResourceFinalizationConsumptionRefusalV1::Invariant {
+   567                      fault,
+   568                  }) => {
+   569                      return Err(fault.into());
+   570                  }
+   571              };
+   572          let _receipt = match matched
+   573              .commit_exact_provider_release_for_session_execution_kernel_owner_v1(
+   574                  provider_execution_session,
+   575              ) {
+   576              Ok(receipt) => receipt,
+   577              Err(fault) => {
+   578                  return Err(
+   579                      crate::HostResourceFinalizationDriveFaultV1::ProviderRelease { source: fault }
+   580                          .into(),
+   581                  );
+   582              }
+   583          };
+   584          let consumed_pending = self
+   585              .pending_selected_host_resource_finalization
+   586              .take()
+   587              .ok_or(crate::HostResourceFinalizationBoundaryFaultV1::CommitWithoutPendingSelection)?;
+   588
+   589          let continuation_receipt = self.drive_one_owned_runtime_turn_for_session_runtime_owner_v1();
+   590          let publication = self
+   591              .admit_continuation_receipt_into_direct_run_result_product_for_session_runtime_owner_v1(
+   592                  continuation_receipt,
+   593                  "direct_host_resource_finalization_commit",
+   594              );
+   595          // Keep the consumed obligation alive through continuation admission.
+   596          // This makes provider Consumed visible before publication while the
+   597          // exact session-owned custody cannot drop prematurely.
+   598          drop(consumed_pending);
+   599          publication
+   600      }
 
 ## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs:710-760
 
@@ -6451,3 +6562,2066 @@ Every compact excerpt names the complete owning item span selected from the exac
     28  libswarm-package-graph-executable-program-receipt-owner.workspace = true
     29  swarm-contract-tson.workspace = true
     30  swarm-rust-sdk-static-provider-host.workspace = true
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run.rs:362-399
+
+- Full-file Git blob: f04f1572df245310ede7be0680a51d5f16391f16
+- Full-file SHA-256: 2c37cd0f4f370c81d1ef15fdaf0eda7bdc600dd392a2f728d3c73e2140e02a3f
+- Full-file bytes: 14797
+- Excerpt line span: 362-399
+- Excerpt SHA-256: 3c344e7c7e764feb7fd12c6664dc5e5af719acac701ca3617ec33c779238b86a
+
+   362  include!("direct_run/part_000_diagnostics_core.rs");
+   363  include!("direct_run/part_000_diagnostic_repro_conformance.rs");
+   364  include!("direct_run/part_000_diagnostic_exports.rs");
+   365  include!("direct_run/part_000_observable_effect_expectations.rs");
+   366  include!("direct_run/part_000_rust_profile_runtime.rs");
+   367  include!("direct_run/part_001_memory_materialization_facts.rs");
+   368  #[path = "direct_run/capability_admission.rs"]
+   369  mod capability_admission;
+   370  #[path = "direct_run/capability_binding_surface.rs"]
+   371  mod capability_binding_surface;
+   372  pub(in crate::direct_run) use capability_binding_surface::DirectRunCapabilityIdentityLookupKey;
+   373
+   374  #[path = "direct_run/runtime_authority/mod.rs"]
+   375  pub(in crate::direct_run) mod direct_run_runtime_authority_refs;
+   376  pub(crate) use self::direct_run_runtime_authority_refs::DirectRunProcessSessionDriveFaultV1;
+   377  #[cfg(test)]
+   378  use self::direct_run_runtime_authority_refs::*;
+   379  pub use self::direct_run_runtime_authority_refs::{
+   380      DirectRunProcessSessionPublicApertureDriveOutputV1,
+   381      DirectRunProcessSessionPublicApertureOutputEmissionProductV1,
+   382      DirectRunSsTestBodyWorkMaterializationAuthority,
+   383      DirectRunSsTestBodyWorkMaterializationRootAuthority,
+   384      DirectRunSsTestCaseTerminalObservationAuthority, DirectRunSsTestExecutedFileResultAuthority,
+   385      DirectRunSsTestExecutedFileTerminalObservationCursor,
+   386      DirectRunSsTestExecutedFileTerminalObservationProductAuthority,
+   387      DirectRunSsTestTerminalObservationFaultV1, enter_direct_run_public_abi_boundary,
+   388  };
+   389  use self::direct_run_runtime_authority_refs::{
+   390      DirectRunProcessSessionTerminalFinalizationProductV1, DirectRunRuntimeAuthorityOwner,
+   391      EngineProcessSessionTerminalResultProductV1,
+   392      known_rust_internal_provider_target_for_authored_facade_binding,
+   393      known_rust_internal_provider_target_for_selected_operation,
+   394  };
+   395
+   396  include!("direct_run/part_001.rs");
+   397  include!("direct_run/part_002.rs");
+   398  include!("direct_run/part_003.rs");
+   399  include!("direct_run/run/mod.rs");
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs:961-982
+
+- Full-file Git blob: 2ac1ed57214f84a3bf8b73cd65526b5689996ab5
+- Full-file SHA-256: eeb208de5fc6ae38ed33cb213b565ec495642a178fec1b6b20f485f05d2c03b8
+- Full-file bytes: 74805
+- Excerpt line span: 961-982
+- Excerpt SHA-256: beda623e2d00bb3351a770ec7bdc0b5ee4673ea3ec8d3ee5214daca5ce31e984
+
+   961  pub(crate) struct DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartCommand {
+   962      process_start_drive: DirectSwarmScriptRunPublicApertureProcessStartDrive,
+   963      launch_values: DirectRunProcessStartLaunchValuesForCompilerOwnerV1,
+   964  }
+   965
+   966  #[must_use = "prepared-runtime process-start admission input must be atomically admitted or retained by its typed refusal"]
+   967  pub(crate) struct DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1 {
+   968      command: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartCommand,
+   969      provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession,
+   970  }
+   971
+   972  #[must_use = "an admitted prepared-runtime process start must be driven by the public-aperture runtime owner"]
+   973  pub(crate) struct AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1 {
+   974      command: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartCommand,
+   975      provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession,
+   976  }
+   977
+   978  #[must_use = "a refused prepared-runtime process-start admission retains the complete start command custody beside the host-set refusal"]
+   979  pub(crate) struct DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1 {
+   980      command: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartCommand,
+   981      host_refusal: swarm_provider_host_set::ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1,
+   982  }
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs:1134-1234
+
+- Full-file Git blob: 2ac1ed57214f84a3bf8b73cd65526b5689996ab5
+- Full-file SHA-256: eeb208de5fc6ae38ed33cb213b565ec495642a178fec1b6b20f485f05d2c03b8
+- Full-file bytes: 74805
+- Excerpt line span: 1134-1234
+- Excerpt SHA-256: a1c6d65c16ef82b3f463736179b06e2ba60f71f6549d8b41f49f71287840e11a
+
+  1134  impl DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1 {
+  1135      pub(in crate::direct_run) fn new_for_direct_run_public_aperture_owner_v1(
+  1136          command: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartCommand,
+  1137          provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession,
+  1138      ) -> Self {
+  1139          Self {
+  1140              command,
+  1141              provider_execution_session,
+  1142          }
+  1143      }
+  1144
+  1145      pub(in crate::direct_run) fn admit_for_direct_run_public_aperture_owner_v1(
+  1146          self,
+  1147      ) -> Result<
+  1148          AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1,
+  1149          DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1,
+  1150      > {
+  1151          let Self {
+  1152              mut command,
+  1153              provider_execution_session,
+  1154          } = self;
+  1155          let Some(provider_imports) = command
+  1156              .process_start_drive
+  1157              .inner
+  1158              .capability_provider_import_identities
+  1159              .take()
+  1160          else {
+  1161              return Ok(
+  1162                  AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1 {
+  1163                      command,
+  1164                      provider_execution_session,
+  1165                  },
+  1166              );
+  1167          };
+  1168          match provider_execution_session
+  1169              .admit_prepared_runtime_provider_import_execution_start_for_direct_run_owner_v1(
+  1170                  provider_imports,
+  1171              ) {
+  1172              Ok(provider_execution_session) => Ok(
+  1173                  AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1 {
+  1174                      command,
+  1175                      provider_execution_session,
+  1176                  },
+  1177              ),
+  1178              Err(host_refusal) => Err(
+  1179                  DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1 {
+  1180                      command,
+  1181                      host_refusal,
+  1182                  },
+  1183              ),
+  1184          }
+  1185      }
+  1186  }
+  1187
+  1188  impl std::fmt::Debug
+  1189      for DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1
+  1190  {
+  1191      fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  1192          f.debug_struct(
+  1193              "DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1",
+  1194          )
+  1195          .field("host_refusal", &self.host_refusal)
+  1196          .field("hidden_process_start_command", &"redacted")
+  1197          .finish()
+  1198      }
+  1199  }
+  1200
+  1201  impl std::fmt::Display
+  1202      for DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1
+  1203  {
+  1204      fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  1205          write!(
+  1206              f,
+  1207              "prepared-runtime process-start admission refused: {}",
+  1208              self.host_refusal
+  1209          )
+  1210      }
+  1211  }
+  1212
+  1213  impl std::error::Error
+  1214      for DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1
+  1215  {
+  1216  }
+  1217
+  1218  impl AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1 {
+  1219      pub(in crate::direct_run) fn drive_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1(
+  1220          self,
+  1221      ) -> Result<
+  1222          DirectRunProcessSessionPublicApertureOutputEmissionProductV1,
+  1223          DirectRunProcessSessionDriveFaultV1,
+  1224      > {
+  1225          let Self {
+  1226              command,
+  1227              mut provider_execution_session,
+  1228          } = self;
+  1229          direct_run_runtime_authority_refs::DirectRunRuntimeAuthorityOwner::drive_prepared_runtime_process_start_command_public_aperture_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1(
+  1230              command,
+  1231              &mut provider_execution_session,
+  1232          )
+  1233      }
+  1234  }
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs:1655-1676
+
+- Full-file Git blob: 2ac1ed57214f84a3bf8b73cd65526b5689996ab5
+- Full-file SHA-256: eeb208de5fc6ae38ed33cb213b565ec495642a178fec1b6b20f485f05d2c03b8
+- Full-file bytes: 74805
+- Excerpt line span: 1655-1676
+- Excerpt SHA-256: 5c4e533da5ae3b647d2021fe52901a61a1db0a20e414f2447043c0e93c228600
+
+  1655          let _ = <DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1 as AmbiguousIfClone<_>>::probe;
+  1656          let _ = <AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1 as AmbiguousIfClone<_>>::probe;
+  1657          let _ = <DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1 as AmbiguousIfClone<_>>::probe;
+  1658      };
+  1659
+  1660      #[test]
+  1661      fn durable_refusal_keeps_command_beside_the_typed_host_refusal() {
+  1662          fn retain_complete_refusal(
+  1663              refusal: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1,
+  1664          ) {
+  1665              let DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1 {
+  1666                  command,
+  1667                  host_refusal,
+  1668              } = refusal;
+  1669              let _retained_custody = (command, host_refusal);
+  1670          }
+  1671
+  1672          let _typed_contract: fn(
+  1673              DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1,
+  1674          ) = retain_complete_refusal;
+  1675      }
+  1676  }
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/public_aperture_entrypoint/trusted_step.rs: complete file
+
+- Full-file Git blob: e798a5fdfb33a0845e4127210b1ccf3f7d0dceff
+- Full-file SHA-256: 06c7bccd38a735f492bf6961e66ed9e8c52299bb72ddbabb13357f83f533ed36
+- Full-file bytes: 1410
+- Complete file line span: 1-27
+
+     1  pub(crate) fn direct_run_public_aperture_prepared_runtime_process_start_admission_input_v1(
+     2      command: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartCommand,
+     3      provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession,
+     4  ) -> DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1 {
+     5      DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1::new_for_direct_run_public_aperture_owner_v1(
+     6          command,
+     7          provider_execution_session,
+     8      )
+     9  }
+    10
+    11  pub(crate) fn admit_direct_run_public_aperture_prepared_runtime_process_start_v1(
+    12      input: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1,
+    13  ) -> Result<
+    14      AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1,
+    15      DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1,
+    16  > {
+    17      input.admit_for_direct_run_public_aperture_owner_v1()
+    18  }
+    19
+    20  pub(crate) fn drive_direct_run_public_aperture_prepared_runtime_process_start_command_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1(
+    21      admitted: AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1,
+    22  ) -> Result<
+    23      DirectRunProcessSessionPublicApertureOutputEmissionProductV1,
+    24      DirectRunProcessSessionDriveFaultV1,
+    25  > {
+    26      admitted.drive_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1()
+    27  }
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs:535-593
+
+- Full-file Git blob: 99169c5f4b8ca8d828668f65eb5e861f897ba387
+- Full-file SHA-256: 43f12ae9cafdb1e018f37d3d8284f1efe8cb5031e136738ceb0a2d1f60f85b2c
+- Full-file bytes: 44948
+- Excerpt line span: 535-593
+- Excerpt SHA-256: a820a765201007d04d8c254b9e89041e867aa4bc09edebf266377ff7839b6145
+
+   535  pub(in crate::direct_run::direct_run_runtime_authority_refs) fn drive_start_route_host_resource_finalization_for_owner_v1(
+   536      process_session_start_token: DirectRunProcessSessionStartContinuationToken,
+   537      execution_substrate: DirectRunProcessSessionOwnerExecutionSubstrate,
+   538      selected_boundary: crate::SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   539      provider_execution_session: &mut ProviderHostExecutionSession,
+   540  ) -> Result<DirectRunProcessSessionPublicApertureRouteOutput, String> {
+   541      let engine_result =
+   542          DirectRunRuntimeAuthorityOwner::commit_selected_host_resource_finalization_for_live_process_session(
+   543              process_session_start_token.live_process_session_id(),
+   544              process_session_start_token.root_scope_id(),
+   545              provider_execution_session,
+   546              selected_boundary,
+   547          )?;
+   548      route_engine_process_session_result_for_public_aperture_start_owner(
+   549          process_session_start_token,
+   550          execution_substrate,
+   551          engine_result,
+   552      )
+   553  }
+   554
+   555  pub(in crate::direct_run::direct_run_runtime_authority_refs) fn drive_reawaken_route_host_resource_finalization_for_owner_v1(
+   556      process_session_reawaken_token: DirectRunProcessSessionReawakenContinuationToken,
+   557      execution_substrate: DirectRunProcessSessionOwnerExecutionSubstrate,
+   558      selected_boundary: crate::SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   559      provider_execution_session: &mut ProviderHostExecutionSession,
+   560  ) -> Result<DirectRunProcessSessionPublicApertureRouteOutput, String> {
+   561      let engine_result =
+   562          DirectRunRuntimeAuthorityOwner::commit_selected_host_resource_finalization_for_live_process_session(
+   563              process_session_reawaken_token.live_process_session_id(),
+   564              process_session_reawaken_token.root_scope_id(),
+   565              provider_execution_session,
+   566              selected_boundary,
+   567          )?;
+   568      route_engine_process_session_result_for_public_aperture_reawaken_owner(
+   569          process_session_reawaken_token,
+   570          execution_substrate,
+   571          engine_result,
+   572      )
+   573  }
+   574
+   575  pub(in crate::direct_run::direct_run_runtime_authority_refs) fn drive_provider_resume_route_host_resource_finalization_for_owner_v1(
+   576      provider_resume_token: DirectRunProviderResumeContinuationToken,
+   577      provider_resume_private_storage: DirectRunProviderResumeHostBoundaryPrivateExecutionStorage,
+   578      selected_boundary: crate::SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   579      provider_execution_session: &mut ProviderHostExecutionSession,
+   580  ) -> Result<DirectRunProcessSessionPublicApertureRouteOutput, String> {
+   581      let engine_result =
+   582          DirectRunRuntimeAuthorityOwner::commit_selected_host_resource_finalization_for_live_process_session(
+   583              provider_resume_token.live_process_session_id(),
+   584              provider_resume_token.root_scope_id(),
+   585              provider_execution_session,
+   586              selected_boundary,
+   587          )?;
+   588      route_engine_process_session_result_for_public_aperture_provider_resume_owner(
+   589          provider_resume_token,
+   590          provider_resume_private_storage,
+   591          engine_result,
+   592      )
+   593  }
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs:397-608
+
+- Full-file Git blob: d0213d805e3233721a4f0c39f1b7ba47be5fa337
+- Full-file SHA-256: bc11e6f50cc75700d6163c057f4338e2e2b78d93c5932c2f2e109f7fd8ea2162
+- Full-file bytes: 37008
+- Excerpt line span: 397-608
+- Excerpt SHA-256: e9106a56bccd9ddf6abe20bb51fbe7c6b5772124596b8df9771378f0ad3033e8
+
+   397  impl DirectRunProcessInvokeChildDriveStageV1 {
+   398      pub(in crate::direct_run) fn drive_matching_child_for_process_kernel_owner_v1(
+   399          self,
+   400          provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+   401      ) -> Result<
+   402          DirectRunProcessInvokeParentResumeStageV1,
+   403          crate::direct_run::DirectRunProcessSessionDriveFaultV1,
+   404      > {
+   405          let Self {
+   406              parent_route,
+   407              selected_boundary,
+   408          } = self;
+   409          let driven_child = match super::super::process_session_public_aperture::process_child_lifecycle::drive_selected_process_invoke_child_to_matching_resume_for_process_kernel_owner_v1(
+   410              selected_boundary,
+   411              provider_execution_session,
+   412          ) {
+   413              Ok(driven_child) => driven_child,
+   414              Err(failure) => {
+   415                  return Err(crate::direct_run::DirectRunProcessSessionDriveFaultV1::ProcessChildStage(
+   416                      DirectRunProcessChildStageFaultV1::from_child_drive_for_process_kernel_owner_v1(
+   417                          parent_route,
+   418                          failure,
+   419                      ),
+   420                  ));
+   421              }
+   422          };
+   423          Ok(DirectRunProcessInvokeParentResumeStageV1 {
+   424              parent_route,
+   425              driven_child,
+   426          })
+   427      }
+   428  }
+   429
+   430  impl DirectRunProcessRunChildDriveStageV1 {
+   431      pub(in crate::direct_run) fn drive_matching_child_for_process_kernel_owner_v1(
+   432          self,
+   433          provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+   434      ) -> Result<
+   435          DirectRunProcessRunParentResumeStageV1,
+   436          crate::direct_run::DirectRunProcessSessionDriveFaultV1,
+   437      > {
+   438          let Self {
+   439              parent_route,
+   440              selected_boundary,
+   441          } = self;
+   442          let driven_child = match super::super::process_session_public_aperture::process_child_lifecycle::drive_selected_process_run_child_to_matching_resume_for_process_kernel_owner_v1(
+   443              selected_boundary,
+   444              provider_execution_session,
+   445          ) {
+   446              Ok(driven_child) => driven_child,
+   447              Err(failure) => {
+   448                  return Err(crate::direct_run::DirectRunProcessSessionDriveFaultV1::ProcessChildStage(
+   449                      DirectRunProcessChildStageFaultV1::from_child_drive_for_process_kernel_owner_v1(
+   450                          parent_route,
+   451                          failure,
+   452                      ),
+   453                  ));
+   454              }
+   455          };
+   456          Ok(DirectRunProcessRunParentResumeStageV1 {
+   457              parent_route,
+   458              driven_child,
+   459          })
+   460      }
+   461  }
+   462
+   463  impl DirectRunProcessInvokeParentResumeStageV1 {
+   464      pub(in crate::direct_run::direct_run_runtime_authority_refs) fn commit_and_route_parent_for_process_kernel_owner_v1(
+   465          self,
+   466      ) -> Result<
+   467          DirectRunProcessSessionPublicApertureRouteOutput,
+   468          crate::direct_run::DirectRunProcessSessionDriveFaultV1,
+   469      > {
+   470          let DirectRunDrivenProcessInvokeChildProductV1 {
+   471              resume,
+   472              event_publication_backend_output_drain_observations,
+   473              process_output_records,
+   474          } = self.driven_child;
+   475          super::super::process_session_public_aperture::process_child_lifecycle::commit_process_invoke_resume_and_route_parent_for_process_kernel_owner_v1(
+   476              self.parent_route,
+   477              resume,
+   478              event_publication_backend_output_drain_observations,
+   479              process_output_records,
+   480          )
+   481      }
+   482  }
+   483
+   484  impl DirectRunProcessRunParentResumeStageV1 {
+   485      pub(in crate::direct_run::direct_run_runtime_authority_refs) fn commit_and_route_parent_for_process_kernel_owner_v1(
+   486          self,
+   487      ) -> Result<
+   488          DirectRunProcessSessionPublicApertureRouteOutput,
+   489          crate::direct_run::DirectRunProcessSessionDriveFaultV1,
+   490      > {
+   491          let DirectRunDrivenProcessRunChildProductV1 {
+   492              resume,
+   493              process_output_records,
+   494          } = self.driven_child;
+   495          super::super::process_session_public_aperture::process_child_lifecycle::commit_process_run_resume_and_route_parent_for_process_kernel_owner_v1(
+   496              self.parent_route,
+   497              resume,
+   498              process_output_records,
+   499          )
+   500      }
+   501  }
+   502  process_kernel_boundary_next_step_constructors!(
+   503      DirectRunProcessRunDriveTerminalNextStepV1,
+   504      crate::SelectedProcessRunDriveTerminalBoundaryForDirectRunOwnerV1
+   505  );
+   506  process_kernel_boundary_next_step_constructors!(
+   507      DirectRunProcessControlNextStepV1,
+   508      crate::SelectedProcessControlBoundaryForDirectRunOwnerV1
+   509  );
+   510
+   511  pub(in crate::direct_run) struct DirectRunHostResourceFinalizationNextStepV1 {
+   512      route: DirectRunHostResourceFinalizationRouteV1,
+   513      selected_boundary: crate::SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   514  }
+   515
+   516  enum DirectRunHostResourceFinalizationRouteV1 {
+   517      Start {
+   518          process_session_start_token: DirectRunProcessSessionStartContinuationToken,
+   519          execution_substrate: DirectRunProcessSessionOwnerExecutionSubstrate,
+   520      },
+   521      Reawaken {
+   522          process_session_reawaken_token: DirectRunProcessSessionReawakenContinuationToken,
+   523          execution_substrate: DirectRunProcessSessionOwnerExecutionSubstrate,
+   524      },
+   525      ProviderResume {
+   526          provider_resume_token: super::typed_continuation::DirectRunProviderResumeContinuationToken,
+   527          provider_resume_private_storage: super::process_session_owner_execution_substrate::DirectRunProviderResumeHostBoundaryPrivateExecutionStorage,
+   528      },
+   529  }
+   530
+   531  impl DirectRunHostResourceFinalizationNextStepV1 {
+   532      pub(in crate::direct_run::direct_run_runtime_authority_refs) fn from_start_owner_v1(
+   533          process_session_start_token: DirectRunProcessSessionStartContinuationToken,
+   534          execution_substrate: DirectRunProcessSessionOwnerExecutionSubstrate,
+   535          selected_boundary: crate::SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   536      ) -> Self {
+   537          Self {
+   538              route: DirectRunHostResourceFinalizationRouteV1::Start {
+   539                  process_session_start_token,
+   540                  execution_substrate,
+   541              },
+   542              selected_boundary,
+   543          }
+   544      }
+   545
+   546      pub(in crate::direct_run::direct_run_runtime_authority_refs) fn from_reawaken_owner_v1(
+   547          process_session_reawaken_token: DirectRunProcessSessionReawakenContinuationToken,
+   548          execution_substrate: DirectRunProcessSessionOwnerExecutionSubstrate,
+   549          selected_boundary: crate::SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   550      ) -> Self {
+   551          Self {
+   552              route: DirectRunHostResourceFinalizationRouteV1::Reawaken {
+   553                  process_session_reawaken_token,
+   554                  execution_substrate,
+   555              },
+   556              selected_boundary,
+   557          }
+   558      }
+   559
+   560      pub(in crate::direct_run::direct_run_runtime_authority_refs) fn from_provider_resume_owner_v1(
+   561          provider_resume_token: super::typed_continuation::DirectRunProviderResumeContinuationToken,
+   562          provider_resume_private_storage: super::process_session_owner_execution_substrate::DirectRunProviderResumeHostBoundaryPrivateExecutionStorage,
+   563          selected_boundary: crate::SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   564      ) -> Self {
+   565          Self {
+   566              route: DirectRunHostResourceFinalizationRouteV1::ProviderResume {
+   567                  provider_resume_token,
+   568                  provider_resume_private_storage,
+   569              },
+   570              selected_boundary,
+   571          }
+   572      }
+   573
+   574      pub(in crate::direct_run::direct_run_runtime_authority_refs) fn drive_for_direct_run_owner_v1(
+   575          self,
+   576          provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+   577      ) -> Result<DirectRunProcessSessionPublicApertureRouteOutput, String> {
+   578          match self.route {
+   579              DirectRunHostResourceFinalizationRouteV1::Start {
+   580                  process_session_start_token,
+   581                  execution_substrate,
+   582              } => super::super::process_session_public_aperture::session_route_lifecycle::drive_start_route_host_resource_finalization_for_owner_v1(
+   583                  process_session_start_token,
+   584                  execution_substrate,
+   585                  self.selected_boundary,
+   586                  provider_execution_session,
+   587              ),
+   588              DirectRunHostResourceFinalizationRouteV1::Reawaken {
+   589                  process_session_reawaken_token,
+   590                  execution_substrate,
+   591              } => super::super::process_session_public_aperture::session_route_lifecycle::drive_reawaken_route_host_resource_finalization_for_owner_v1(
+   592                  process_session_reawaken_token,
+   593                  execution_substrate,
+   594                  self.selected_boundary,
+   595                  provider_execution_session,
+   596              ),
+   597              DirectRunHostResourceFinalizationRouteV1::ProviderResume {
+   598                  provider_resume_token,
+   599                  provider_resume_private_storage,
+   600              } => super::super::process_session_public_aperture::session_route_lifecycle::drive_provider_resume_route_host_resource_finalization_for_owner_v1(
+   601                  provider_resume_token,
+   602                  provider_resume_private_storage,
+   603                  self.selected_boundary,
+   604                  provider_execution_session,
+   605              ),
+   606          }
+   607      }
+   608  }
+
+## crates/ss-runtime-source-compiler-owner/src/lib.rs:1-66
+
+- Full-file Git blob: e352905cb0bc7baca5ffbcb7b8deb0dbdc2c7047
+- Full-file SHA-256: d3411819e0d84dbd8ab3e9437a8c797612d9a5a29c0a519b15975e453f98290c
+- Full-file bytes: 8793
+- Excerpt line span: 1-66
+- Excerpt SHA-256: 4ac3a39dd91b1e3fc55399acf4788981945b2e42391e7006758ce0dffe252e5a
+
+     1  #![forbid(unsafe_code)]
+     2  #![allow(unused)]
+     3  #![allow(private_interfaces)]
+     4
+     5  pub(crate) use swarm_capability_model::{
+     6      CapabilityContractFingerprint, CapabilityContractIdentity, CapabilityContractProjection,
+     7      CapabilitySdkError, CapabilitySdkResult,
+     8  };
+     9  pub(crate) use swarm_rust_sdk_capability::RustSdkProviderBinding;
+    10  use thiserror::Error;
+    11
+    12  mod admitted_runner_config;
+    13  mod compiler_owned_callable_authority;
+    14  mod compiler_owned_graph_authority;
+    15  mod compiler_owned_prepared_target_correlation;
+    16  mod compiler_owned_process_replan_authority;
+    17  pub(crate) use compiler_owned_callable_authority::*;
+    18  pub(crate) use compiler_owned_graph_authority::*;
+    19  pub(crate) use compiler_owned_process_replan_authority::{
+    20      GraphReconcileObservationCarrierForSessionRuntimeOwnerV1,
+    21      GraphReconcileObservationSnapshotJoinForSessionRuntimeOwnerV1,
+    22      JoinedGraphReconcileObservationSnapshotForSessionRuntimeOwnerV1,
+    23      ProcessReconcilePlanCarrierForSessionRuntimeOwnerV1,
+    24  };
+    25  mod direct_run;
+    26  mod prepared_source_program_image_owner;
+    27  mod program_assembly;
+    28  mod protocol_declaration_authority;
+    29  mod provider_drive_result;
+    30  mod provider_messages;
+    31  mod runtime_binding_owner;
+    32  pub(crate) use runtime_binding_owner::*;
+    33  mod typed_module_summary_owner;
+    34  pub(crate) use typed_module_summary_owner::*;
+    35  mod installed_capability_implementation_owner;
+    36  #[path = "source_entrypoint_executable_runtime.rs"]
+    37  mod session;
+    38  mod source_entrypoint_cold_plan;
+    39  mod source_entrypoint_compiler_admission_session;
+    40  mod source_entrypoint_direct_run_prepared_runtime;
+    41  #[path = "source_entrypoint_compiler_admission_session/test_declaration.rs"]
+    42  pub mod test_declaration;
+    43  pub use admitted_runner_config::{
+    44      SsAdmittedRunnerConfig, SsAdmittedRunnerConfigAdmissionFault,
+    45      SsAdmittedRunnerConfigSourceExecutionModeMismatchForSourceEntrypointColdMaterializationOwnerV1,
+    46  };
+    47  pub use prepared_source_program_image_owner::{
+    48      SsTestPreselectedRuntimeImageAdmissionCancellationForCompilerOwnerV1,
+    49      SsTestPreselectedRuntimeImageAdmissionRefusalForCompilerOwnerV1,
+    50      SsTestPreselectedRuntimeImageCancellationForCompilerOwnerV1,
+    51      SsTestPreselectedRuntimeImageForCompilerOwnerV1,
+    52  };
+    53  pub(crate) use program_assembly::*;
+    54  pub use provider_drive_result::{
+    55      ProviderDriveOutputEffectDrainReceiptBundleForProviderHostOwner,
+    56      ProviderDriveParkedContinuationForDirectRunLiveOperationOwnerV1,
+    57      ProviderDriveProcessOutputRecordProductForProviderHostOwner, ProviderDriveResult,
+    58      ProviderDriveSessionExecutionCommitFault,
+    59  };
+    60  pub use provider_messages::ProviderParkReceipt;
+    61  pub use source_entrypoint_cold_plan::{
+    62      SourceEntrypointColdPlan, SourceEntrypointColdPlanAdmissionFault, SourceEntrypointColdReason,
+    63      SourceEntrypointColdReasonSet, SourceEntrypointExecutionAdmission,
+    64      cold_required_for_source_entrypoint_execution_owner_v1,
+    65  };
+    66  pub use source_entrypoint_compiler_admission_session::source_work_set::ss_source_work_set_consume_executable_front_pass_admission_into_preselected_runtime_image_for_ss_test_execution_owner_v1;
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs:1168-1310
+
+- Full-file Git blob: f05296366429152feec1373697acb29ef71467da
+- Full-file SHA-256: d22b68fdf785146bab7f01759c75500d505adbf0629e9cc037003865141d39cf
+- Full-file bytes: 95971
+- Excerpt line span: 1168-1310
+- Excerpt SHA-256: 763898f978b5be6a1006129d8e7d9e1e774139bdb96015067df597b73420dd88
+
+  1168  pub(crate) fn direct_run_ss_test_body_work_materialization_from_process_dispatch_product_for_compiler_owner_v1(
+  1169      dispatch_product: SsTestSelectedBodyProcessDispatchProductForCompilerOwnerV1,
+  1170      run_namespace: String,
+  1171      run_suffix: String,
+  1172      started_at: String,
+  1173      program_args: Vec<String>,
+  1174      launch_cwd: Option<String>,
+  1175      provider_host_set: swarm_provider_host_set::ProviderHostSet,
+  1176      selected_body_launch: crate::source_entrypoint_compiler_admission_session::source_work_set::SsSelectedTestBodyLaunchAuthority,
+  1177  ) -> Result<
+  1178      SsTestDirectRunBodyWorkMaterializationForCompilerOwnerV1,
+  1179      SsTestDirectRunBodyWorkMaterializationRefusalForCompilerOwnerV1,
+  1180  > {
+  1181      let launch_values = match crate::direct_run::DirectRunPreparedRuntimeAuthorityOwner::admit_process_start_launch_values_for_compiler_owner_v1(
+  1182          crate::direct_run::DirectRunProcessStartLaunchValuesForCompilerOwnerV1::new(
+  1183              run_namespace,
+  1184              run_suffix,
+  1185              started_at,
+  1186              program_args,
+  1187              launch_cwd,
+  1188          ),
+  1189      ) {
+  1190          Ok(launch_values) => launch_values,
+  1191          Err(source) => {
+  1192              return Err(SsTestDirectRunBodyWorkMaterializationRefusalForCompilerOwnerV1 {
+  1193                  custody: SsTestDirectRunBodyWorkMaterializationRefusalCustodyForCompilerOwnerV1::LaunchValues {
+  1194                      dispatch_product,
+  1195                      provider_host_set,
+  1196                      selected_body_launch,
+  1197                      source,
+  1198                  },
+  1199              });
+  1200          }
+  1201      };
+  1202      let SsTestSelectedBodyProcessDispatchProductForCompilerOwnerV1 {
+  1203          prepared_source_program_image_authority,
+  1204          module_interface_runtime_custodies,
+  1205          runtime_artifact_observations,
+  1206      } = dispatch_product;
+  1207      let execution_authority = match crate::direct_run::DirectRunPreparedRuntimeAuthorityOwner::execution_authority_from_prepared_source_program_image_authority(
+  1208          prepared_source_program_image_authority,
+  1209      ) {
+  1210          Ok(execution_authority) => execution_authority,
+  1211          Err((prepared_source_program_image_authority, fault)) => {
+  1212              return Err(SsTestDirectRunBodyWorkMaterializationRefusalForCompilerOwnerV1 {
+  1213                  custody: SsTestDirectRunBodyWorkMaterializationRefusalCustodyForCompilerOwnerV1::PreparedRuntimeStart {
+  1214                      dispatch_product: SsTestSelectedBodyProcessDispatchProductForCompilerOwnerV1 {
+  1215                          prepared_source_program_image_authority,
+  1216                          module_interface_runtime_custodies,
+  1217                          runtime_artifact_observations,
+  1218                      },
+  1219                      launch_values,
+  1220                      provider_host_set,
+  1221                      selected_body_launch,
+  1222                      fault,
+  1223                  },
+  1224              });
+  1225          }
+  1226      };
+  1227      let selected_callable_body_result_binding_handoff = selected_body_launch
+  1228          .consume_into_callable_body_result_binding_handoff_for_direct_run_ss_test_body_launch_owner_v1();
+  1229      let (process_start_drive, registered_case_launch_demand_set) =
+  1230          crate::direct_run::DirectRunPreparedRuntimeAuthorityOwner::ss_test_public_aperture_process_start_drive_from_execution_authority_and_callable_body_result_binding_handoff(
+  1231              execution_authority,
+  1232              selected_callable_body_result_binding_handoff,
+  1233          );
+  1234      let command = crate::direct_run::DirectRunPreparedRuntimeAuthorityOwner::public_aperture_prepared_runtime_process_start_command(
+  1235          process_start_drive,
+  1236          launch_values,
+  1237      );
+  1238      let admission_input =
+  1239          crate::direct_run::direct_run_public_aperture_prepared_runtime_process_start_admission_input_v1(
+  1240              command,
+  1241              provider_host_set.begin_provider_execution_session_v1(),
+  1242          );
+  1243      let admitted =
+  1244          match crate::direct_run::admit_direct_run_public_aperture_prepared_runtime_process_start_v1(
+  1245              admission_input,
+  1246          ) {
+  1247              Ok(admitted) => admitted,
+  1248              Err(refusal) => {
+  1249                  return Err(SsTestDirectRunBodyWorkMaterializationRefusalForCompilerOwnerV1 {
+  1250                  custody: SsTestDirectRunBodyWorkMaterializationRefusalCustodyForCompilerOwnerV1::ProviderAdmission {
+  1251                      refusal,
+  1252                      registered_case_launch_demand_set,
+  1253                      module_interface_runtime_custodies,
+  1254                      runtime_artifact_observations,
+  1255                  },
+  1256              });
+  1257              }
+  1258          };
+  1259      let root = match crate::direct_run::drive_direct_run_public_aperture_prepared_runtime_process_start_command_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1(
+  1260          admitted,
+  1261      ) {
+  1262          Ok(terminal) => terminal
+  1263              .into_ss_test_body_work_materialization_root_authority_for_direct_run_ss_test_body_work_owner_v1(),
+  1264          Err(crate::direct_run::DirectRunProcessSessionDriveFaultV1::RuntimeTerminal {
+  1265              observation,
+  1266              context,
+  1267          }) => crate::direct_run::DirectRunSsTestBodyWorkMaterializationRootAuthority::from_runtime_terminal_observation_for_direct_run_ss_test_body_work_owner_v1(
+  1268              observation,
+  1269              context,
+  1270          ),
+  1271          Err(crate::direct_run::DirectRunProcessSessionDriveFaultV1::Generic(message)) => {
+  1272              crate::direct_run::DirectRunSsTestBodyWorkMaterializationRootAuthority::from_runtime_projection_fault_for_direct_run_ss_test_body_work_owner_v1(
+  1273                  crate::DurableExecutionProjectionJsonBoundaryFault::Projection {
+  1274                      operation: "direct_run_ss_test_body_work_materialization_from_process_dispatch_product_for_compiler_owner_v1",
+  1275                      message,
+  1276                  },
+  1277              )
+  1278          }
+  1279          Err(fault) => {
+  1280              let message = match fault
+  1281                  .cancel_into_generic_message_for_direct_run_boundary_owner_v1()
+  1282              {
+  1283                  Ok(message) => message,
+  1284                  Err(fault) => {
+  1285                      return Err(SsTestDirectRunBodyWorkMaterializationRefusalForCompilerOwnerV1 {
+  1286                          custody: SsTestDirectRunBodyWorkMaterializationRefusalCustodyForCompilerOwnerV1::ProcessSessionDriveCleanup {
+  1287                              fault,
+  1288                              registered_case_launch_demand_set,
+  1289                              module_interface_runtime_custodies,
+  1290                              runtime_artifact_observations,
+  1291                          },
+  1292                      });
+  1293                  }
+  1294              };
+  1295              crate::direct_run::DirectRunSsTestBodyWorkMaterializationRootAuthority::from_runtime_projection_fault_for_direct_run_ss_test_body_work_owner_v1(
+  1296                  crate::DurableExecutionProjectionJsonBoundaryFault::Projection {
+  1297                      operation: "direct_run_ss_test_body_work_materialization_from_process_dispatch_product_for_compiler_owner_v1",
+  1298                      message,
+  1299                  },
+  1300              )
+  1301          }
+  1302      };
+  1303      let body_work = crate::direct_run::DirectRunSsTestBodyWorkMaterializationAuthority::from_root_authority_and_registered_case_launch_demands_for_direct_run_ss_test_body_work_owner_v1(
+  1304          root,
+  1305          registered_case_launch_demand_set,
+  1306      );
+  1307      Ok(SsTestDirectRunBodyWorkMaterializationForCompilerOwnerV1 {
+  1308          _body_work: body_work,
+  1309          _module_interface_runtime_custodies: module_interface_runtime_custodies,
+  1310          _runtime_artifact_observations: runtime_artifact_observations,
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs:1426-1540
+
+- Full-file Git blob: f05296366429152feec1373697acb29ef71467da
+- Full-file SHA-256: d22b68fdf785146bab7f01759c75500d505adbf0629e9cc037003865141d39cf
+- Full-file bytes: 95971
+- Excerpt line span: 1426-1540
+- Excerpt SHA-256: 1912c3952cee5c9a4afb751c99ffaad80895f4660e79e476671702c5e4dffe59
+
+  1426  pub fn admit_source_entrypoint_direct_run_prepared_runtime_process_start_for_compiler_owner_v1(
+  1427      prepared_runtime: SourceEntrypointDirectRunPreparedRuntime,
+  1428      run_namespace: String,
+  1429      run_suffix: String,
+  1430      started_at: String,
+  1431      program_args: Vec<String>,
+  1432      launch_cwd: Option<String>,
+  1433      provider_host_set: swarm_provider_host_set::ProviderHostSet,
+  1434  ) -> Result<
+  1435      SourceEntrypointDirectRunPreparedRuntimeProcessStart,
+  1436      SourceEntrypointDirectRunPreparedRuntimeProcessStartAdmissionRefusal,
+  1437  > {
+  1438      let launch_values = match crate::direct_run::DirectRunPreparedRuntimeAuthorityOwner::admit_process_start_launch_values_for_compiler_owner_v1(
+  1439          crate::direct_run::DirectRunProcessStartLaunchValuesForCompilerOwnerV1::new(
+  1440              run_namespace,
+  1441              run_suffix,
+  1442              started_at,
+  1443              program_args,
+  1444              launch_cwd,
+  1445          ),
+  1446      ) {
+  1447          Ok(launch_values) => launch_values,
+  1448          Err(source) => {
+  1449              return Err(SourceEntrypointDirectRunPreparedRuntimeProcessStartAdmissionRefusal {
+  1450                  custody: SourceEntrypointDirectRunPreparedRuntimeProcessStartAdmissionRefusalCustody::LaunchValues {
+  1451                      prepared_runtime,
+  1452                      provider_host_set,
+  1453                      source,
+  1454                  },
+  1455              });
+  1456          }
+  1457      };
+  1458      let SourceEntrypointDirectRunPreparedRuntime {
+  1459          prepared_source_program_image_authority,
+  1460          _module_interface_runtime_custodies: module_interface_runtime_custodies,
+  1461          _runtime_artifact_observations: runtime_artifact_observations,
+  1462      } = prepared_runtime;
+  1463      let execution_authority = match crate::direct_run::DirectRunPreparedRuntimeAuthorityOwner::execution_authority_from_prepared_source_program_image_authority(
+  1464          prepared_source_program_image_authority,
+  1465      ) {
+  1466          Ok(execution_authority) => execution_authority,
+  1467          Err((prepared_source_program_image_authority, cause)) => {
+  1468              return Err(SourceEntrypointDirectRunPreparedRuntimeProcessStartAdmissionRefusal {
+  1469                  custody: SourceEntrypointDirectRunPreparedRuntimeProcessStartAdmissionRefusalCustody::PreparedImage {
+  1470                      prepared_runtime: SourceEntrypointDirectRunPreparedRuntime {
+  1471                          prepared_source_program_image_authority,
+  1472                          _module_interface_runtime_custodies: module_interface_runtime_custodies,
+  1473                          _runtime_artifact_observations: runtime_artifact_observations,
+  1474                      },
+  1475                      launch_values,
+  1476                      provider_host_set,
+  1477                      cause,
+  1478                  },
+  1479              });
+  1480          }
+  1481      };
+  1482      let process_start_drive = crate::direct_run::DirectRunPreparedRuntimeAuthorityOwner::public_aperture_process_start_drive_from_execution_authority(
+  1483          execution_authority,
+  1484      );
+  1485      let command = crate::direct_run::DirectRunPreparedRuntimeAuthorityOwner::public_aperture_prepared_runtime_process_start_command(
+  1486          process_start_drive,
+  1487          launch_values,
+  1488      );
+  1489      let admission_input =
+  1490          crate::direct_run::direct_run_public_aperture_prepared_runtime_process_start_admission_input_v1(
+  1491              command,
+  1492              provider_host_set.begin_provider_execution_session_v1(),
+  1493          );
+  1494      match crate::direct_run::admit_direct_run_public_aperture_prepared_runtime_process_start_v1(
+  1495          admission_input,
+  1496      ) {
+  1497          Ok(admitted) => Ok(SourceEntrypointDirectRunPreparedRuntimeProcessStart {
+  1498              admitted,
+  1499              module_interface_runtime_custodies,
+  1500              runtime_artifact_observations,
+  1501          }),
+  1502          Err(refusal) => Err(
+  1503              SourceEntrypointDirectRunPreparedRuntimeProcessStartAdmissionRefusal {
+  1504                  custody: SourceEntrypointDirectRunPreparedRuntimeProcessStartAdmissionRefusalCustody::ProviderAdmission {
+  1505                      refusal,
+  1506                      module_interface_runtime_custodies,
+  1507                      runtime_artifact_observations,
+  1508                  },
+  1509              },
+  1510          ),
+  1511      }
+  1512  }
+  1513
+  1514  pub fn drive_source_entrypoint_direct_run_prepared_runtime_process_start_until_terminal_for_compiler_owner_v1(
+  1515      start: SourceEntrypointDirectRunPreparedRuntimeProcessStart,
+  1516  ) -> Result<
+  1517      SourceEntrypointDirectRunTerminalForCompilerOwnerV1,
+  1518      SourceEntrypointDirectRunTerminalFaultForCompilerOwnerV1,
+  1519  > {
+  1520      let SourceEntrypointDirectRunPreparedRuntimeProcessStart {
+  1521          admitted,
+  1522          module_interface_runtime_custodies,
+  1523          runtime_artifact_observations,
+  1524      } = start;
+  1525      match crate::direct_run::drive_direct_run_public_aperture_prepared_runtime_process_start_command_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1(
+  1526          admitted,
+  1527      ) {
+  1528          Ok(output) => Ok(SourceEntrypointDirectRunTerminalForCompilerOwnerV1 {
+  1529              output,
+  1530              module_interface_runtime_custodies,
+  1531              runtime_artifact_observations,
+  1532          }),
+  1533          Err(fault) => Err(SourceEntrypointDirectRunTerminalFaultForCompilerOwnerV1 {
+  1534              fault,
+  1535              module_interface_runtime_custodies,
+  1536              runtime_artifact_observations,
+  1537          }),
+  1538      }
+  1539  }
+  1540
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/host_resources.rs:769-840
+
+- Full-file Git blob: ffdddb310bc7ccfadc3bc0d1027a39bf505879b0
+- Full-file SHA-256: 5f22fe4c301a89176d23fcfe87e168122ab695bf4b4ebe78d7f18da0aea8f13a
+- Full-file bytes: 71130
+- Excerpt line span: 769-840
+- Excerpt SHA-256: 33520874f83d53120dc844890812dde817a3c3b30819ca477fd6c3a8a6fb2ec1
+
+   769  pub struct HostResourceBindingValue {
+   770      kind: HostResourceBindingKind,
+   771      handle: HostResourceHandleValue,
+   772      release_obligation: HostResourceReleaseObligationValue,
+   773      value: Box<RuntimeValue>,
+   774      // Row #153 CARRIED-SYNCHRONOUS: the resource's AUTHORED payload, consumed
+   775      // into the binding by the rung-3 merge from the runtime identity carrier.
+   776      // `Some` for a scoped resource (`Resource<T>`); `None` for a host-resource
+   777      // binding with no authored value. PRIVATE OBS data — projected ONLY by the
+   778      // finite binding-materialization owner as the final `.value` observation; it
+   779      // never mints, routes, resumes, settles, or executes authority.
+   780      authored_resource_value: Option<AuthoredResourceValue>,
+   781      selected_provider_release: SelectedProviderHostResourceReleaseV1,
+   782  }
+   783
+   784  #[must_use = "runtime-family host-resource lifecycle entries carry handle/release/value authority"]
+   785  pub struct RuntimeFamilyHostResourceLifecycleEntryForOneShotOwnerV1 {
+   786      _handle: HostResourceHandleValue,
+   787      _release_obligation: HostResourceReleaseObligationValue,
+   788      _release_value: Box<RuntimeValue>,
+   789      _selected_provider_release: SelectedProviderHostResourceReleaseV1,
+   790  }
+   791
+   792  impl RuntimeFamilyHostResourceLifecycleEntryForOneShotOwnerV1 {
+   793      pub(crate) fn into_finalization_parts_for_one_shot_lifecycle_owner_v1(
+   794          self,
+   795      ) -> (
+   796          HostResourceHandleValue,
+   797          HostResourceReleaseObligationValue,
+   798          String,
+   799          HostResourceAuthorityScope,
+   800          String,
+   801          RuntimeValue,
+   802          SelectedProviderHostResourceReleaseV1,
+   803      ) {
+   804          let Self {
+   805              _handle,
+   806              _release_obligation,
+   807              _release_value,
+   808              _selected_provider_release,
+   809          } = self;
+   810          let obligation_id = _release_obligation.obligation_id.clone();
+   811          let owner_authority_scope = _release_obligation
+   812              .owner_authority_scope
+   813              .duplicate_for_one_shot_lifecycle_owner_v1();
+   814          let idempotency_key = _release_obligation.idempotency_key.clone();
+   815          (
+   816              _handle,
+   817              _release_obligation,
+   818              obligation_id,
+   819              owner_authority_scope,
+   820              idempotency_key,
+   821              *_release_value,
+   822              _selected_provider_release,
+   823          )
+   824      }
+   825  }
+   826
+   827  pub struct OneShotHostResourceFinalizationObligation {
+   828      schema: OneShotHostResourceFinalizationObligationSchema,
+   829      release_obligation: HostResourceReleaseObligationValue,
+   830      obligation_id: String,
+   831      reason: OneShotHostResourceFinalizationReason,
+   832      completion: ManagedRegionExitCompletion,
+   833      owner_authority_scope: HostResourceAuthorityScope,
+   834      idempotency_key: String,
+   835      handle: HostResourceHandleValue,
+   836      release_value: Box<RuntimeValue>,
+   837      selected_provider_release: SelectedProviderHostResourceReleaseV1,
+   838      #[cfg(test)]
+   839      _drop_probe_for_crate_unit_tests_v1:
+   840          Option<OneShotHostResourceFinalizationObligationDropProbeForCrateUnitTestsV1>,
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/host_resources.rs:882-990
+
+- Full-file Git blob: ffdddb310bc7ccfadc3bc0d1027a39bf505879b0
+- Full-file SHA-256: 5f22fe4c301a89176d23fcfe87e168122ab695bf4b4ebe78d7f18da0aea8f13a
+- Full-file bytes: 71130
+- Excerpt line span: 882-990
+- Excerpt SHA-256: 81ad35556a06de397ec2d84eeff80fab76fd597854c8ae80989645869115a6a3
+
+   882  impl OneShotHostResourceFinalizationObligation {
+   883      #[cfg(test)]
+   884      pub(in crate::session) fn from_selected_provider_release_for_crate_unit_tests_v1(
+   885          selected_provider_release: SelectedProviderHostResourceReleaseV1,
+   886          drops: Arc<std::sync::atomic::AtomicUsize>,
+   887      ) -> Self {
+   888          let owner_authority_scope =
+   889              HostResourceAuthorityScope::for_with_region_lexical_identity_for_swarmvm_image_owner_v1(
+   890                  "test.module",
+   891                  "test.body",
+   892                  "resource",
+   893              );
+   894          let provider_id =
+   895              HostResourceProviderId::try_new_for_provider_output_swarmvm_session_runtime_owner_v1(
+   896                  "static-test-body-local-scope",
+   897              )
+   898              .expect("test provider identity is valid");
+   899          let resource_binding_id =
+   900              ResourceBindingId::compose_for_provider_output_binding_for_swarmvm_session_runtime_owner_v1(
+   901                  &provider_id,
+   902                  &owner_authority_scope,
+   903              );
+   904          let release_obligation =
+   905              HostResourceReleaseObligationValue::required_provider_binding_authority_id(
+   906                  &resource_binding_id,
+   907                  owner_authority_scope.duplicate_for_runtime_types_owner_v1(),
+   908                  provider_id.as_str(),
+   909              );
+   910          let obligation_id = release_obligation.obligation_id.clone();
+   911          let idempotency_key = release_obligation.idempotency_key.clone();
+   912          Self {
+   913              schema: OneShotHostResourceFinalizationObligationSchema::V1,
+   914              release_obligation,
+   915              obligation_id,
+   916              reason: OneShotHostResourceFinalizationReason::ScopeReleased,
+   917              completion: ManagedRegionExitCompletion::BODY_RETURN,
+   918              owner_authority_scope: owner_authority_scope
+   919                  .duplicate_for_runtime_types_owner_v1(),
+   920              idempotency_key,
+   921              handle: HostResourceHandleValue {
+   922                  kind: HostResourceHandleKind::HostResourceHandle,
+   923                  resource_binding_id,
+   924                  handle_id:
+   925                      HostResourceHandleId::try_new_for_provider_output_swarmvm_session_runtime_owner_v1(
+   926                          "scoped-resource-test-support",
+   927                      )
+   928                      .expect("test handle identity is valid"),
+   929                  provider_id,
+   930                  resource_kind:
+   931                      HostResourceKind::try_new_for_provider_output_swarmvm_session_runtime_owner_v1(
+   932                          "ss-test-scoped-resource",
+   933                      )
+   934                      .expect("test resource kind is valid"),
+   935                  operation_id:
+   936                      InstructionOpId::make_host_resource_binding_operation_id_for_swarmvm_image_owner_v1(),
+   937                  authority_scope: owner_authority_scope,
+   938                  liveness_owner: None,
+   939                  lifetime: HostResourceLifetime::Turn,
+   940                  resume_policy: HostResourceResumePolicy::HostRebindRequired,
+   941                  execution: None,
+   942                  contract_hash: None,
+   943              },
+   944              release_value: Box::new(RuntimeValue::string_for_runtime_activity_input_owner_v1(
+   945                  "test-support-release-value".to_owned(),
+   946              )),
+   947              selected_provider_release,
+   948              _drop_probe_for_crate_unit_tests_v1: Some(
+   949                  OneShotHostResourceFinalizationObligationDropProbeForCrateUnitTestsV1 { drops },
+   950              ),
+   951          }
+   952      }
+   953
+   954      #[cfg(test)]
+   955      pub(in crate::session) fn selected_provider_release_address_for_crate_unit_tests_v1(
+   956          &self,
+   957      ) -> *const SelectedProviderHostResourceReleaseV1 {
+   958          &self.selected_provider_release
+   959      }
+   960
+   961      #[cfg(test)]
+   962      pub(in crate::session) fn selected_provider_release_state_for_crate_unit_tests_v1(
+   963          &self,
+   964      ) -> &'static str {
+   965          self.selected_provider_release
+   966              .authority_state_for_test_support_v1()
+   967      }
+   968
+   969      /// Contribute the exact release payload retained solely by this live
+   970      /// obligation to a scheduler-safe-point root closure.
+   971      pub(in crate::session) fn record_live_heap_roots_for_checkpoint_owner_v1<'a>(
+   972          &'a self,
+   973          roots: &mut Vec<&'a RuntimeValue>,
+   974      ) {
+   975          record_finalization_release_value_root(&self.release_value, roots);
+   976      }
+   977
+   978      pub(in crate::session) fn commit_exact_provider_release_for_session_execution_kernel_owner_v1(
+   979          &mut self,
+   980          provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+   981      ) -> Result<
+   982          swarm_rust_sdk_static_provider_host::ProviderHostResourceReleaseReceiptV1,
+   983          ProviderHostResourceReleaseFaultV1,
+   984      > {
+   985          provider_execution_session
+   986              .commit_selected_host_resource_release_borrowed_for_session_execution_kernel_owner_v1(
+   987                  &mut self.selected_provider_release,
+   988              )
+   989      }
+   990
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/final_observation/host_resource_finalization.rs: complete file
+
+- Full-file Git blob: c96b9442acfe1484b349cd9ee672c5edeb180aea
+- Full-file SHA-256: 8dd6e64ea9592f8b9f6a89c7e0d509684e2994b5af45aa61ea2a8b801be72ff2
+- Full-file bytes: 37588
+- Complete file line span: 1-840
+
+     1  #[derive(Debug, PartialEq, Eq, Serialize)]
+     2  #[serde(deny_unknown_fields)]
+     3  // compiler-custody: symbol=ProcessSessionActorResourceCleanupAuthorityV0 disposition=runtime-only reviewer=package-root-compiler-kernel-hardcut-20260722 justification="post-close-mint=SessionExecutionKernel::drive; consumer=state::ProcessSessionV0; publication=SourceEntrypointDirectRunPreparedRuntime; compiler-product-or-ticket-crossing=none"
+     4  pub(crate) struct ProcessSessionActorResourceCleanupAuthorityV0 {
+     5      handle_id: String,
+     6      resource_kind: String,
+     7      cleanup_authority: String,
+     8      #[serde(skip_serializing_if = "Option::is_none")]
+     9      resource_binding_id: Option<String>,
+    10      #[serde(skip_serializing_if = "Option::is_none")]
+    11      resource_entry_id: Option<String>,
+    12      #[serde(skip_serializing_if = "Option::is_none")]
+    13      release_outcome: Option<String>,
+    14  }
+    15
+    16  #[derive(Debug, PartialEq, Serialize)]
+    17  #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    18  pub enum ProcessSessionActivityResultBodyForbiddenV0 {}
+    19
+    20  pub(crate) enum ProcessSessionActivityEffectResultPayloadRefV0 {
+    21      Ready {
+    22          payload_handle: PayloadHandle,
+    23          payload_shape: String,
+    24          actor_resource_cleanup_authorities: Vec<ProcessSessionActorResourceCleanupAuthorityV0>,
+    25      },
+    26      Error {
+    27          code: String,
+    28          message: String,
+    29          details_payload_handle: Option<PayloadHandle>,
+    30          details_payload_shape: Option<String>,
+    31          actor_resource_cleanup_authorities: Vec<ProcessSessionActorResourceCleanupAuthorityV0>,
+    32      },
+    33  }
+    34
+    35  pub(in crate::session) enum ProcessSessionRunOutcomeV0 {
+    36      NeedsHostActivityEffect {
+    37          pending_effect: PendingActivityEffectFrame,
+    38      },
+    39      NeedsHostResourceFinalization {
+    40          obligation: Box<OneShotHostResourceFinalizationObligation>,
+    41      },
+    42      WaitingOnLiveness {
+    43          entry_outcome: Box<ProcessSessionEntryOutcomeV0>,
+    44          live_blockers: crate::ProcessLivenessLiveBlockersV1,
+    45          readiness_certificate: ProcessBoundaryReadinessCertificateV1,
+    46          diagnostics: ProcessSessionPublicDiagnosticProjectionValueForbiddenRequireDiagnosticProjectionAuthority,
+    47      },
+    48      Completed {
+    49          terminal_authority: ProcessCompletedTerminalOutcomeAuthorityV1,
+    50          public_output: ProcessSessionCompletedTerminalPublicOutputProductV1,
+    51          readiness_certificate: ProcessBoundaryReadinessCertificateV1,
+    52      },
+    53      Failed {
+    54          terminal_authority: ProcessFailedTerminalOutcomeAuthorityV1,
+    55          code: String,
+    56          message: String,
+    57          classified_cause: ProcessSessionClassifiedFailureCauseV0,
+    58          readiness_certificate: ProcessBoundaryReadinessCertificateV1,
+    59          diagnostics:
+    60              Option<ProcessSessionPublicDiagnosticProjectionValueForbiddenRequireDiagnosticProjectionAuthority>,
+    61      },
+    62  }
+    63
+    64  impl std::fmt::Debug for ProcessSessionRunOutcomeV0 {
+    65      fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    66          formatter
+    67              .debug_struct("ProcessSessionRunOutcomeV0")
+    68              .field("kind", &process_session_run_outcome_kind(self))
+    69              .field("authority", &"session_runtime_owned")
+    70              .finish()
+    71      }
+    72  }
+    73
+    74  pub struct DirectRunProcessSessionRunResultProductV1 {
+    75      inner: DirectRunProcessSessionRunResultInnerV1,
+    76  }
+    77
+    78  const HOST_RESOURCE_FINALIZATION_SELECTION_ISSUED_V1: u8 = 0;
+    79  const HOST_RESOURCE_FINALIZATION_SELECTION_PRESENTED_V1: u8 = 1;
+    80  const HOST_RESOURCE_FINALIZATION_SELECTION_CANCELLED_V1: u8 = 2;
+    81  const HOST_RESOURCE_FINALIZATION_SELECTION_CONSUMED_V1: u8 = 3;
+    82
+    83  /// Private generative correspondence shared only by the installed session
+    84  /// half and its one opaque selected half. The state transition, rather than a
+    85  /// scalar or pointer comparison, proves that the selected half came from this
+    86  /// exact pending custody.
+    87  struct HostResourceFinalizationSelectionSealV1 {
+    88      state: std::sync::atomic::AtomicU8,
+    89  }
+    90
+    91  // compiler-custody: symbol=SelectedHostResourceFinalizationSelectionDropGuardV1 disposition=runtime-only reviewer=package-root-compiler-kernel-hardcut-20260722 justification="post-close-mint=SessionExecutionKernel::drive; consumer=state::ProcessSessionV0; publication=SourceEntrypointDirectRunPreparedRuntime; compiler-product-or-ticket-crossing=none"
+    92  struct SelectedHostResourceFinalizationSelectionDropGuardV1 {
+    93      seal: Option<Arc<HostResourceFinalizationSelectionSealV1>>,
+    94  }
+    95
+    96  struct PresentedHostResourceFinalizationSelectionV1 {
+    97      seal: Arc<HostResourceFinalizationSelectionSealV1>,
+    98      cancel_on_drop: bool,
+    99  }
+   100
+   101  /// Session-private custody of the exact obligation represented by one
+   102  /// externally selected finalization boundary. The obligation never crosses
+   103  /// the session-kernel crate boundary; only the matching opaque selection does.
+   104  // compiler-custody: symbol=PendingHostResourceFinalizationSelectionCustodyV1 disposition=runtime-only reviewer=package-root-compiler-kernel-hardcut-20260722 justification="post-close-mint=SessionExecutionKernel::drive; consumer=state::ProcessSessionV0; publication=SourceEntrypointDirectRunPreparedRuntime; compiler-product-or-ticket-crossing=none"
+   105  struct PendingHostResourceFinalizationSelectionCustodyV1<Obligation> {
+   106      seal: Arc<HostResourceFinalizationSelectionSealV1>,
+   107      obligation: Obligation,
+   108  }
+   109
+   110  /// Exact correspondence proof that borrows installed session custody. Keeping
+   111  /// the obligation behind this borrow is what makes provider unwinds retryable:
+   112  /// the armed presented guard cancels while the session-owned value cannot move.
+   113  // compiler-custody: symbol=MatchedHostResourceFinalizationSelectionCustodyV1 disposition=runtime-only reviewer=package-root-compiler-kernel-hardcut-20260722 justification="post-close-mint=SessionExecutionKernel::drive; consumer=state::ProcessSessionV0; publication=SourceEntrypointDirectRunPreparedRuntime; compiler-product-or-ticket-crossing=none"
+   114  struct MatchedHostResourceFinalizationSelectionCustodyV1<'pending, Obligation> {
+   115      pending: &'pending mut PendingHostResourceFinalizationSelectionCustodyV1<Obligation>,
+   116      presented: PresentedHostResourceFinalizationSelectionV1,
+   117  }
+   118
+   119  enum HostResourceFinalizationSelectionConsumptionRefusalV1 {
+   120      Correspondence {
+   121          selected: SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   122          fault: HostResourceFinalizationBoundaryFaultV1,
+   123      },
+   124      Invariant {
+   125          fault: HostResourceFinalizationBoundaryFaultV1,
+   126      },
+   127  }
+   128
+   129  pub(in crate::session) type PendingSelectedHostResourceFinalizationBoundaryV1 =
+   130      PendingHostResourceFinalizationSelectionCustodyV1<
+   131          Box<OneShotHostResourceFinalizationObligation>,
+   132      >;
+   133
+   134  pub(in crate::session) type MatchedSelectedHostResourceFinalizationBoundaryV1<'pending> =
+   135      MatchedHostResourceFinalizationSelectionCustodyV1<
+   136          'pending,
+   137          Box<OneShotHostResourceFinalizationObligation>,
+   138      >;
+   139
+   140  // compiler-custody: symbol=SelectedHostResourceFinalizationConsumptionRefusalV1 disposition=runtime-only reviewer=package-root-compiler-kernel-hardcut-20260722 justification="post-close-mint=SessionExecutionKernel::drive; consumer=state::ProcessSessionV0; publication=SourceEntrypointDirectRunPreparedRuntime; compiler-product-or-ticket-crossing=none"
+   141  pub(in crate::session) type SelectedHostResourceFinalizationConsumptionRefusalV1 =
+   142      HostResourceFinalizationSelectionConsumptionRefusalV1;
+   143
+   144  pub(in crate::session) enum HostResourceFinalizationSelectionReissueV1 {
+   145      Reissued(SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1),
+   146      Outstanding,
+   147  }
+   148
+   149  /// Linear authority to commit the exact host-resource finalization boundary
+   150  /// selected by a live process session. Private fields and the absence of
+   151  /// `Clone`, `Copy`, serde, or raw getters prevent reconstruction and replay.
+   152  #[must_use = "a selected host-resource finalization boundary must be consumed by its originating process session"]
+   153  // compiler-custody: symbol=SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1 disposition=runtime-only reviewer=package-root-compiler-kernel-hardcut-20260722 justification="post-close-mint=SessionExecutionKernel::drive; consumer=state::ProcessSessionV0; publication=SourceEntrypointDirectRunPreparedRuntime; compiler-product-or-ticket-crossing=none"
+   154  pub struct SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1 {
+   155      guard: SelectedHostResourceFinalizationSelectionDropGuardV1,
+   156  }
+   157
+   158  impl std::fmt::Debug for SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1 {
+   159      fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+   160          formatter
+   161              .debug_struct("SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1")
+   162              .field("authority", &"sealed")
+   163              .finish()
+   164      }
+   165  }
+   166
+   167  impl<Obligation> PendingHostResourceFinalizationSelectionCustodyV1<Obligation> {
+   168      pub(in crate::session) fn select_for_session_runtime_owner_v1(
+   169          obligation: Obligation,
+   170      ) -> (
+   171          Self,
+   172          SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   173      ) {
+   174          let seal = Arc::new(HostResourceFinalizationSelectionSealV1 {
+   175              state: std::sync::atomic::AtomicU8::new(HOST_RESOURCE_FINALIZATION_SELECTION_ISSUED_V1),
+   176          });
+   177          (
+   178              Self {
+   179                  seal: Arc::clone(&seal),
+   180                  obligation,
+   181              },
+   182              SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1 {
+   183                  guard: SelectedHostResourceFinalizationSelectionDropGuardV1 { seal: Some(seal) },
+   184              },
+   185          )
+   186      }
+   187
+   188      pub(in crate::session) fn try_reissue_cancelled_selection_for_session_runtime_owner_v1(
+   189          &self,
+   190      ) -> Result<HostResourceFinalizationSelectionReissueV1, HostResourceFinalizationBoundaryFaultV1>
+   191      {
+   192          match self.seal.state.load(std::sync::atomic::Ordering::Acquire) {
+   193              HOST_RESOURCE_FINALIZATION_SELECTION_ISSUED_V1 => {
+   194                  Ok(HostResourceFinalizationSelectionReissueV1::Outstanding)
+   195              }
+   196              HOST_RESOURCE_FINALIZATION_SELECTION_CANCELLED_V1 => {
+   197                  self.seal
+   198                      .state
+   199                      .compare_exchange(
+   200                          HOST_RESOURCE_FINALIZATION_SELECTION_CANCELLED_V1,
+   201                          HOST_RESOURCE_FINALIZATION_SELECTION_ISSUED_V1,
+   202                          std::sync::atomic::Ordering::AcqRel,
+   203                          std::sync::atomic::Ordering::Acquire,
+   204                      )
+   205                      .map_err(|observed| {
+   206                          HostResourceFinalizationBoundaryFaultV1::SelectionStateInvariant {
+   207                              expected: "cancelled",
+   208                              observed: host_resource_finalization_selection_state_name_v1(observed),
+   209                          }
+   210                      })?;
+   211                  Ok(HostResourceFinalizationSelectionReissueV1::Reissued(
+   212                      SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1 {
+   213                          guard: SelectedHostResourceFinalizationSelectionDropGuardV1 {
+   214                              seal: Some(Arc::clone(&self.seal)),
+   215                          },
+   216                      },
+   217                  ))
+   218              }
+   219              observed => Err(
+   220                  HostResourceFinalizationBoundaryFaultV1::SelectionStateInvariant {
+   221                      expected: "cancelled",
+   222                      observed: host_resource_finalization_selection_state_name_v1(observed),
+   223                  },
+   224              ),
+   225          }
+   226      }
+   227
+   228      pub(in crate::session) fn consume_exact_selection_for_session_runtime_owner_v1(
+   229          &mut self,
+   230          selected: SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   231      ) -> Result<
+   232          MatchedHostResourceFinalizationSelectionCustodyV1<'_, Obligation>,
+   233          HostResourceFinalizationSelectionConsumptionRefusalV1,
+   234      > {
+   235          let presented = match selected.try_present_for_session_runtime_owner_v1() {
+   236              Ok(presented) => presented,
+   237              Err((selected, fault)) => {
+   238                  return Err(
+   239                      HostResourceFinalizationSelectionConsumptionRefusalV1::Correspondence {
+   240                          selected,
+   241                          fault,
+   242                      },
+   243                  );
+   244              }
+   245          };
+   246          let observed = self.seal.state.load(std::sync::atomic::Ordering::Acquire);
+   247          if observed != HOST_RESOURCE_FINALIZATION_SELECTION_PRESENTED_V1 {
+   248              let selected = match presented.restore_selected_for_session_runtime_owner_v1() {
+   249                  Ok(selected) => selected,
+   250                  Err(fault) => {
+   251                      return Err(
+   252                          HostResourceFinalizationSelectionConsumptionRefusalV1::Invariant {
+   253                              fault:
+   254                                  HostResourceFinalizationBoundaryFaultV1::SelectionStateInvariant {
+   255                                      expected: "presented",
+   256                                      observed: fault.observed,
+   257                                  },
+   258                          },
+   259                      );
+   260                  }
+   261              };
+   262              return Err(
+   263                  HostResourceFinalizationSelectionConsumptionRefusalV1::Correspondence {
+   264                      selected,
+   265                      fault: HostResourceFinalizationBoundaryFaultV1::CommitIdentityMismatch,
+   266                  },
+   267              );
+   268          }
+   269          Ok(MatchedHostResourceFinalizationSelectionCustodyV1 {
+   270              pending: self,
+   271              presented,
+   272          })
+   273      }
+   274  }
+   275
+   276  impl PendingSelectedHostResourceFinalizationBoundaryV1 {
+   277      pub(in crate::session) fn record_live_heap_roots_for_checkpoint_owner_v1<'a>(
+   278          &'a self,
+   279          roots: &mut Vec<&'a RuntimeValue>,
+   280      ) {
+   281          self.obligation
+   282              .record_live_heap_roots_for_checkpoint_owner_v1(roots);
+   283      }
+   284
+   285      pub(in crate::session) fn record_runtime_handle_restore_requirements_for_checkpoint_owner_v1(
+   286          &self,
+   287          requirements: &mut Vec<
+   288              crate::VmRuntimeHandleRestoreRequirementsForSwarmvmSessionRuntimeOwnerV1,
+   289          >,
+   290      ) {
+   291          let mut roots = Vec::new();
+   292          self.record_live_heap_roots_for_checkpoint_owner_v1(&mut roots);
+   293          requirements.extend(roots.into_iter().map(|value| {
+   294              value.runtime_handle_restore_requirements_for_swarmvm_session_runtime_owner_v1()
+   295          }));
+   296      }
+   297  }
+   298
+   299  struct HostResourceFinalizationSelectionRestoreFaultV1 {
+   300      observed: &'static str,
+   301  }
+   302
+   303  fn host_resource_finalization_selection_state_name_v1(state: u8) -> &'static str {
+   304      match state {
+   305          HOST_RESOURCE_FINALIZATION_SELECTION_ISSUED_V1 => "issued",
+   306          HOST_RESOURCE_FINALIZATION_SELECTION_PRESENTED_V1 => "presented",
+   307          HOST_RESOURCE_FINALIZATION_SELECTION_CANCELLED_V1 => "cancelled",
+   308          HOST_RESOURCE_FINALIZATION_SELECTION_CONSUMED_V1 => "consumed",
+   309          _ => "invalid",
+   310      }
+   311  }
+   312
+   313  impl SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1 {
+   314      fn try_present_for_session_runtime_owner_v1(
+   315          self,
+   316      ) -> Result<
+   317          PresentedHostResourceFinalizationSelectionV1,
+   318          (Self, HostResourceFinalizationBoundaryFaultV1),
+   319      > {
+   320          let Self { mut guard } = self;
+   321          let Some(seal) = guard.seal.take() else {
+   322              return Err((
+   323                  Self { guard },
+   324                  HostResourceFinalizationBoundaryFaultV1::SelectionStateInvariant {
+   325                      expected: "issued",
+   326                      observed: "missing_selected_custody",
+   327                  },
+   328              ));
+   329          };
+   330          if let Err(observed) = seal.state.compare_exchange(
+   331              HOST_RESOURCE_FINALIZATION_SELECTION_ISSUED_V1,
+   332              HOST_RESOURCE_FINALIZATION_SELECTION_PRESENTED_V1,
+   333              std::sync::atomic::Ordering::AcqRel,
+   334              std::sync::atomic::Ordering::Acquire,
+   335          ) {
+   336              guard.seal = Some(seal);
+   337              return Err((
+   338                  Self { guard },
+   339                  HostResourceFinalizationBoundaryFaultV1::SelectionStateInvariant {
+   340                      expected: "issued",
+   341                      observed: host_resource_finalization_selection_state_name_v1(observed),
+   342                  },
+   343              ));
+   344          }
+   345          Ok(PresentedHostResourceFinalizationSelectionV1 {
+   346              seal,
+   347              cancel_on_drop: true,
+   348          })
+   349      }
+   350  }
+   351
+   352  impl Drop for SelectedHostResourceFinalizationSelectionDropGuardV1 {
+   353      fn drop(&mut self) {
+   354          if let Some(seal) = self.seal.as_ref() {
+   355              let _ = seal.state.compare_exchange(
+   356                  HOST_RESOURCE_FINALIZATION_SELECTION_ISSUED_V1,
+   357                  HOST_RESOURCE_FINALIZATION_SELECTION_CANCELLED_V1,
+   358                  std::sync::atomic::Ordering::AcqRel,
+   359                  std::sync::atomic::Ordering::Acquire,
+   360              );
+   361          }
+   362      }
+   363  }
+   364
+   365  impl PresentedHostResourceFinalizationSelectionV1 {
+   366      fn restore_selected_for_session_runtime_owner_v1(
+   367          mut self,
+   368      ) -> Result<
+   369          SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1,
+   370          HostResourceFinalizationSelectionRestoreFaultV1,
+   371      > {
+   372          if let Err(observed) = self.seal.state.compare_exchange(
+   373              HOST_RESOURCE_FINALIZATION_SELECTION_PRESENTED_V1,
+   374              HOST_RESOURCE_FINALIZATION_SELECTION_ISSUED_V1,
+   375              std::sync::atomic::Ordering::AcqRel,
+   376              std::sync::atomic::Ordering::Acquire,
+   377          ) {
+   378              return Err(HostResourceFinalizationSelectionRestoreFaultV1 {
+   379                  observed: host_resource_finalization_selection_state_name_v1(observed),
+   380              });
+   381          }
+   382          self.cancel_on_drop = false;
+   383          Ok(
+   384              SelectedHostResourceFinalizationBoundaryForDirectRunOwnerV1 {
+   385                  guard: SelectedHostResourceFinalizationSelectionDropGuardV1 {
+   386                      seal: Some(Arc::clone(&self.seal)),
+   387                  },
+   388              },
+   389          )
+   390      }
+   391
+   392      fn commit_consumed_for_session_runtime_owner_v1(mut self) {
+   393          self.seal.state.store(
+   394              HOST_RESOURCE_FINALIZATION_SELECTION_CONSUMED_V1,
+   395              std::sync::atomic::Ordering::Release,
+   396          );
+   397          self.cancel_on_drop = false;
+   398      }
+   399  }
+   400
+   401  impl Drop for PresentedHostResourceFinalizationSelectionV1 {
+   402      fn drop(&mut self) {
+   403          if self.cancel_on_drop {
+   404              let _ = self.seal.state.compare_exchange(
+   405                  HOST_RESOURCE_FINALIZATION_SELECTION_PRESENTED_V1,
+   406                  HOST_RESOURCE_FINALIZATION_SELECTION_CANCELLED_V1,
+   407                  std::sync::atomic::Ordering::AcqRel,
+   408                  std::sync::atomic::Ordering::Acquire,
+   409              );
+   410          }
+   411      }
+   412  }
+   413
+   414  #[cfg(test)]
+   415  impl<Obligation> MatchedHostResourceFinalizationSelectionCustodyV1<'_, Obligation> {
+   416      fn commit_exact_with_for_session_execution_kernel_owner_v1<Receipt, Fault>(
+   417          self,
+   418          commit: impl FnOnce(&mut Obligation) -> Result<Receipt, Fault>,
+   419      ) -> Result<Receipt, Fault> {
+   420          let Self { pending, presented } = self;
+   421          match commit(&mut pending.obligation) {
+   422              Ok(receipt) => {
+   423                  presented.commit_consumed_for_session_runtime_owner_v1();
+   424                  Ok(receipt)
+   425              }
+   426              Err(fault) => Err(fault),
+   427          }
+   428      }
+   429  }
+   430
+   431  impl MatchedSelectedHostResourceFinalizationBoundaryV1<'_> {
+   432      pub(in crate::session) fn commit_exact_provider_release_for_session_execution_kernel_owner_v1(
+   433          self,
+   434          provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession,
+   435      ) -> Result<
+   436          swarm_rust_sdk_static_provider_host::ProviderHostResourceReleaseReceiptV1,
+   437          swarm_rust_sdk_static_provider_host::ProviderHostResourceReleaseFaultV1,
+   438      > {
+   439          let Self { pending, presented } = self;
+   440          match pending
+   441              .obligation
+   442              .commit_exact_provider_release_for_session_execution_kernel_owner_v1(
+   443                  provider_execution_session,
+   444              ) {
+   445              Ok(receipt) => {
+   446                  presented.commit_consumed_for_session_runtime_owner_v1();
+   447                  Ok(receipt)
+   448              }
+   449              Err(fault) => Err(fault),
+   450          }
+   451      }
+   452  }
+   453
+   454  #[cfg(test)]
+   455  mod host_resource_finalization_selection_seal_tests {
+   456      use super::*;
+   457      use std::sync::atomic::{AtomicUsize, Ordering};
+   458
+   459      fn observed_state(seal: &Arc<HostResourceFinalizationSelectionSealV1>) -> &'static str {
+   460          host_resource_finalization_selection_state_name_v1(seal.state.load(Ordering::Acquire))
+   461      }
+   462
+   463      #[test]
+   464      fn same_selection_commits_consumed_before_exactly_one_publication() {
+   465          let (mut pending, selected) =
+   466              PendingHostResourceFinalizationSelectionCustodyV1::select_for_session_runtime_owner_v1(
+   467                  "same-selection-obligation",
+   468              );
+   469          let seal = Arc::clone(&pending.seal);
+   470          let matched = pending
+   471              .consume_exact_selection_for_session_runtime_owner_v1(selected)
+   472              .unwrap_or_else(|_| panic!("the exact selected half must match its session half"));
+   473
+   474          assert_eq!(observed_state(&seal), "presented");
+   475          let publication = matched
+   476              .commit_exact_with_for_session_execution_kernel_owner_v1(|obligation| {
+   477                  assert_eq!(*obligation, "same-selection-obligation");
+   478                  Ok::<_, ()>(())
+   479              })
+   480              .unwrap_or_else(|_| panic!("the exact obligation commit must succeed"));
+   481          assert_eq!(
+   482              observed_state(&seal),
+   483              "consumed",
+   484              "Consumed must be stored before drive/publication receives its permit",
+   485          );
+   486
+   487          let publication_count = AtomicUsize::new(0);
+   488          let () = publication;
+   489          publication_count.fetch_add(1, Ordering::AcqRel);
+   490          assert_eq!(publication_count.load(Ordering::Acquire), 1);
+   491      }
+   492
+   493      #[test]
+   494      fn foreign_cross_splice_returns_both_custodians_without_consuming_either() {
+   495          let (mut pending_a, selected_a) =
+   496              PendingHostResourceFinalizationSelectionCustodyV1::select_for_session_runtime_owner_v1(
+   497                  "obligation-a",
+   498              );
+   499          let (mut pending_b, selected_b) =
+   500              PendingHostResourceFinalizationSelectionCustodyV1::select_for_session_runtime_owner_v1(
+   501                  "obligation-b",
+   502              );
+   503          let seal_a = Arc::clone(&pending_a.seal);
+   504          let seal_b = Arc::clone(&pending_b.seal);
+   505
+   506          let selected_b =
+   507              match pending_a.consume_exact_selection_for_session_runtime_owner_v1(selected_b) {
+   508                  Err(HostResourceFinalizationSelectionConsumptionRefusalV1::Correspondence {
+   509                      selected,
+   510                      fault: HostResourceFinalizationBoundaryFaultV1::CommitIdentityMismatch,
+   511                  }) => selected,
+   512                  _ => panic!("a foreign selected half must refuse with both custodians"),
+   513              };
+   514          assert_eq!(pending_a.obligation, "obligation-a");
+   515          assert_eq!(pending_b.obligation, "obligation-b");
+   516          assert_eq!(observed_state(&seal_a), "issued");
+   517          assert_eq!(observed_state(&seal_b), "issued");
+   518
+   519          let matched_a = pending_a
+   520              .consume_exact_selection_for_session_runtime_owner_v1(selected_a)
+   521              .unwrap_or_else(|_| panic!("session A must retain its exact selection"));
+   522          let matched_b = pending_b
+   523              .consume_exact_selection_for_session_runtime_owner_v1(selected_b)
+   524              .unwrap_or_else(|_| panic!("session B must retain its returned selection"));
+   525          assert_eq!(matched_a.pending.obligation, "obligation-a");
+   526          assert_eq!(matched_b.pending.obligation, "obligation-b");
+   527          matched_a
+   528              .commit_exact_with_for_session_execution_kernel_owner_v1(|obligation| {
+   529                  Ok::<_, ()>(*obligation)
+   530              })
+   531              .unwrap_or_else(|_| panic!("session A must consume only its own obligation"));
+   532          matched_b
+   533              .commit_exact_with_for_session_execution_kernel_owner_v1(|obligation| {
+   534                  Ok::<_, ()>(*obligation)
+   535              })
+   536              .unwrap_or_else(|_| panic!("session B must consume only its own obligation"));
+   537          assert_eq!(observed_state(&seal_a), "consumed");
+   538          assert_eq!(observed_state(&seal_b), "consumed");
+   539      }
+   540
+   541      #[test]
+   542      fn selected_drop_reissues_twenty_thousand_times_with_128_kib_custody() {
+   543          let (mut pending, mut selected) =
+   544              PendingHostResourceFinalizationSelectionCustodyV1::select_for_session_runtime_owner_v1(
+   545                  vec![0x5a_u8; 128 * 1024],
+   546              );
+   547          for _ in 0..20_000 {
+   548              drop(selected);
+   549              selected = match pending
+   550                  .try_reissue_cancelled_selection_for_session_runtime_owner_v1()
+   551                  .unwrap_or_else(|_| panic!("Drop must leave the selection reissuable"))
+   552              {
+   553                  HostResourceFinalizationSelectionReissueV1::Reissued(selected) => selected,
+   554                  HostResourceFinalizationSelectionReissueV1::Outstanding => {
+   555                      panic!("Drop cannot leave an outstanding selected half")
+   556                  }
+   557              };
+   558          }
+   559          let matched = pending
+   560              .consume_exact_selection_for_session_runtime_owner_v1(selected)
+   561              .unwrap_or_else(|_| panic!("the last reissued half must remain exact"));
+   562          assert_eq!(matched.pending.obligation.len(), 128 * 1024);
+   563      }
+   564
+   565      #[test]
+   566      fn presented_guard_cancels_during_unwind_and_reissues() {
+   567          let (mut pending, selected) =
+   568              PendingHostResourceFinalizationSelectionCustodyV1::select_for_session_runtime_owner_v1(
+   569                  "unwind-obligation",
+   570              );
+   571          let seal = Arc::clone(&pending.seal);
+   572          let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+   573              let _presented = selected
+   574                  .try_present_for_session_runtime_owner_v1()
+   575                  .unwrap_or_else(|_| panic!("issued selection must present"));
+   576              panic!("synthetic unwind after Presented");
+   577          }));
+   578          assert!(unwind.is_err());
+   579          assert_eq!(observed_state(&seal), "cancelled");
+   580          assert!(matches!(
+   581              pending
+   582                  .try_reissue_cancelled_selection_for_session_runtime_owner_v1()
+   583                  .unwrap_or_else(|_| panic!("unwind cancellation must be reissuable")),
+   584              HostResourceFinalizationSelectionReissueV1::Reissued(_),
+   585          ));
+   586      }
+   587
+   588      struct ExactObligationProbe {
+   589          identity: u64,
+   590          drops: Arc<AtomicUsize>,
+   591      }
+   592
+   593      impl Drop for ExactObligationProbe {
+   594          fn drop(&mut self) {
+   595              self.drops.fetch_add(1, Ordering::AcqRel);
+   596          }
+   597      }
+   598
+   599      #[test]
+   600      fn provider_refusal_returns_exact_obligation_cancelled_for_rebind_retry() {
+   601          let drops = Arc::new(AtomicUsize::new(0));
+   602          let obligation = Box::new(ExactObligationProbe {
+   603              identity: 73,
+   604              drops: Arc::clone(&drops),
+   605          });
+   606          let obligation_address = (&*obligation) as *const ExactObligationProbe;
+   607          let (mut pending, selected) =
+   608              PendingHostResourceFinalizationSelectionCustodyV1::select_for_session_runtime_owner_v1(
+   609                  obligation,
+   610              );
+   611          let seal = Arc::clone(&pending.seal);
+   612          let matched = pending
+   613              .consume_exact_selection_for_session_runtime_owner_v1(selected)
+   614              .unwrap_or_else(|_| panic!("exact selection must present for provider commit"));
+   615          let fault = matched
+   616              .commit_exact_with_for_session_execution_kernel_owner_v1(|obligation| {
+   617                  let _ = obligation;
+   618                  Err::<(), _>("provider-refused")
+   619              })
+   620              .expect_err("provider refusal must restore pending custody");
+   621
+   622          assert_eq!(fault, "provider-refused");
+   623          assert_eq!((&*pending.obligation) as *const _, obligation_address);
+   624          assert_eq!(pending.obligation.identity, 73);
+   625          assert_eq!(drops.load(Ordering::Acquire), 0);
+   626          assert_eq!(observed_state(&seal), "cancelled");
+   627          let selected = match pending
+   628              .try_reissue_cancelled_selection_for_session_runtime_owner_v1()
+   629              .unwrap_or_else(|_| panic!("cancelled provider custody must rebind to a selection"))
+   630          {
+   631              HostResourceFinalizationSelectionReissueV1::Reissued(selected) => selected,
+   632              HostResourceFinalizationSelectionReissueV1::Outstanding => {
+   633                  panic!("cancelled provider custody cannot be outstanding")
+   634              }
+   635          };
+   636          let matched = pending
+   637              .consume_exact_selection_for_session_runtime_owner_v1(selected)
+   638              .unwrap_or_else(|_| panic!("rebound selection must match exact pending custody"));
+   639          matched
+   640              .commit_exact_with_for_session_execution_kernel_owner_v1(|obligation| {
+   641                  Ok::<_, ()>(obligation.identity)
+   642              })
+   643              .unwrap_or_else(|_| panic!("retry must consume the restored exact obligation"));
+   644          assert_eq!(observed_state(&seal), "consumed");
+   645          drop(pending);
+   646          assert_eq!(drops.load(Ordering::Acquire), 1);
+   647      }
+   648
+   649      fn completed_terminal_evidence_for_direct_finalization_proof() -> TerminalResultEvidence {
+   650          let value = swarmvm_runtime_types::VmBoundaryValue::admit_provider_output_value_for_swarmvm_session_runtime_owner_v1(
+   651              swarm_provider_value_model::ProviderValue::String(
+   652                  "direct-finalization-publication".to_owned(),
+   653              ),
+   654          )
+   655          .expect("the direct-finalization publication value is boundary-admissible");
+   656          TerminalResultEvidence {
+   657              terminal_authority:
+   658                  ProcessCompletedTerminalOutcomeAuthorityV1::from_session_runtime_terminal_owner_v1(
+   659                      "direct_finalization_publication",
+   660                  ),
+   661              public_output: ProcessSessionCompletedTerminalPublicOutputProductV1 {
+   662                  value,
+   663                  return_boundary: None,
+   664                  output_effect_settlement:
+   665                      ProcessSessionCompletedTerminalOutputEffectSettlementProductV1 {
+   666                          inner: ProcessSessionCompletedTerminalOutputEffectSettlementInnerV1::NoObservableEffects {
+   667                              obligation_count: 0,
+   668                              reached_count: 0,
+   669                              deferred_behind_liveness_count: 0,
+   670                              discharged_unreachable_by_sealed_frontier_count: 0,
+   671                              poisoned_count: 0,
+   672                          },
+   673                      },
+   674              },
+   675              readiness_certificate: ProcessBoundaryReadinessCertificateV1 {
+   676                  boundary_kind: "completed",
+   677                  terminal_status: "completed",
+   678                  source_kind: "direct_finalization_publication",
+   679                  admission_mode: "direct_finalization_publication_test",
+   680                  sealed_frontier_kind: None,
+   681                  live_blocker_count: None,
+   682                  live_blockers_count: None,
+   683                  obligation_count: 0,
+   684                  reached_obligation_count: 0,
+   685                  deferred_obligation_count: 0,
+   686                  discharged_unreachable_obligation_count: 0,
+   687                  poisoned_obligation_count: 0,
+   688                  return_boundary: None,
+   689                  observable_effect_obligations: serde_json::json!({}),
+   690                  drive_progress_receipt: serde_json::json!({}),
+   691                  failure_code: None,
+   692                  failure_cause_kind: None,
+   693              },
+   694          }
+   695      }
+   696
+   697      #[test]
+   698      fn process_session_provider_commit_unwind_retains_exact_custody_through_retry_publication() {
+   699          let (static_provider_hosts, selected_provider_release, owner_observation) =
+   700              swarm_rust_sdk_static_provider_host::RustSdkStaticProviderHostSet::host_resource_release_commit_fixture_for_test_support_v1()
+   701                  .expect("static-provider commit fixture must mint real release authority");
+   702          let provider_hosts = swarm_provider_host_set::ProviderHostSet::from_rust_sdk_static_provider_host_set_for_ss_runtime_provider_host_set_owner_v1(
+   703              static_provider_hosts,
+   704          )
+   705          .expect("provider host set must admit the static host");
+   706          let mut provider_execution_session = provider_hosts.begin_provider_execution_session_v1();
+   707          let drops = Arc::new(AtomicUsize::new(0));
+   708          let obligation = Box::new(
+   709              OneShotHostResourceFinalizationObligation::from_selected_provider_release_for_crate_unit_tests_v1(
+   710                  selected_provider_release,
+   711                  Arc::clone(&drops),
+   712              ),
+   713          );
+   714          let obligation_address = (&*obligation) as *const OneShotHostResourceFinalizationObligation;
+   715          let provider_authority_address =
+   716              obligation.selected_provider_release_address_for_crate_unit_tests_v1();
+   717          let (pending, selected) =
+   718              PendingSelectedHostResourceFinalizationBoundaryV1::select_for_session_runtime_owner_v1(
+   719                  obligation,
+   720              );
+   721          let mut session = ProcessSessionV0::direct_finalization_proof_fixture();
+   722          session.pending_selected_host_resource_finalization = Some(pending);
+   723          let seal = Arc::clone(
+   724              &session
+   725                  .pending_selected_host_resource_finalization
+   726                  .as_ref()
+   727                  .expect("real ProcessSession custody must be installed")
+   728                  .seal,
+   729          );
+   730
+   731          swarm_rust_sdk_static_provider_host::arm_next_static_provider_host_resource_release_commit_unwind_for_test_support_v1();
+   732          let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+   733              let _ = session
+   734                  .commit_selected_host_resource_finalization_and_drive_for_direct_run_owner_v1(
+   735                      &mut provider_execution_session,
+   736                      selected,
+   737                  );
+   738          }));
+   739
+   740          assert!(unwind.is_err());
+   741          assert_eq!(observed_state(&seal), "cancelled");
+   742          assert!(
+   743              session
+   744                  .pending_selected_host_resource_finalization
+   745                  .is_some()
+   746          );
+   747          assert_eq!(
+   748              (&*session
+   749                  .pending_selected_host_resource_finalization
+   750                  .as_ref()
+   751                  .expect("unwind must retain real ProcessSession custody")
+   752                  .obligation) as *const OneShotHostResourceFinalizationObligation,
+   753              obligation_address,
+   754          );
+   755          assert_eq!(
+   756              session
+   757                  .pending_selected_host_resource_finalization
+   758                  .as_ref()
+   759                  .expect("unwind must retain real ProcessSession custody")
+   760                  .obligation
+   761                  .selected_provider_release_address_for_crate_unit_tests_v1(),
+   762              provider_authority_address,
+   763          );
+   764          assert_eq!(
+   765              session
+   766                  .pending_selected_host_resource_finalization
+   767                  .as_ref()
+   768                  .expect("unwind must retain real ProcessSession custody")
+   769                  .obligation
+   770                  .selected_provider_release_state_for_crate_unit_tests_v1(),
+   771              "static_test",
+   772          );
+   773          assert_eq!(
+   774              owner_observation.resource_state_for_test_support_v1(),
+   775              "active"
+   776          );
+   777          assert_eq!(drops.load(Ordering::Acquire), 0);
+   778
+   779          let selected = match session
+   780              .try_reissue_cancelled_host_resource_finalization_selection_for_session_runtime_owner_v1()
+   781              .unwrap_or_else(|_| panic!("unwind-retained custody must reissue"))
+   782          {
+   783              HostResourceFinalizationSelectionReissueV1::Reissued(selected) => selected,
+   784              HostResourceFinalizationSelectionReissueV1::Outstanding => {
+   785                  panic!("cancelled unwind custody cannot remain outstanding")
+   786              }
+   787          };
+   788          let publication_count = Arc::new(AtomicUsize::new(0));
+   789          let publication_count_probe = Arc::clone(&publication_count);
+   790          let seal_probe = Arc::clone(&seal);
+   791          let drops_probe = Arc::clone(&drops);
+   792          crate::session::execution_kernel::arm_next_direct_finalization_publication_for_crate_unit_tests_v1(
+   793              move |session| {
+   794                  assert!(
+   795                      session.pending_selected_host_resource_finalization.is_none(),
+   796                      "consumed session custody must leave the pending slot before publication",
+   797                  );
+   798                  assert_eq!(
+   799                      observed_state(&seal_probe),
+   800                      "consumed",
+   801                      "provider success must store Consumed before continuation/publication",
+   802                  );
+   803                  assert_eq!(
+   804                      drops_probe.load(Ordering::Acquire),
+   805                      0,
+   806                      "the exact obligation must remain alive through publication entry",
+   807                  );
+   808                  assert_eq!(
+   809                      publication_count_probe.fetch_add(1, Ordering::AcqRel),
+   810                      0,
+   811                      "the retry may publish exactly once",
+   812                  );
+   813                  completed_terminal_evidence_for_direct_finalization_proof()
+   814              },
+   815          );
+   816          let publication = session
+   817              .commit_selected_host_resource_finalization_and_drive_for_direct_run_owner_v1(
+   818                  &mut provider_execution_session,
+   819                  selected,
+   820              )
+   821              .unwrap_or_else(|fault| {
+   822                  panic!("the exact unwind-retained obligation must publish: {fault}")
+   823              });
+   824
+   825          assert_eq!(
+   826              publication.outcome_kind_for_direct_run_owner_v1(),
+   827              "completed"
+   828          );
+   829          assert_eq!(observed_state(&seal), "consumed");
+   830          assert_eq!(
+   831              owner_observation.resource_state_for_test_support_v1(),
+   832              "released"
+   833          );
+   834          assert!(session
+   835              .try_reissue_cancelled_host_resource_finalization_selection_for_session_runtime_owner_v1()
+   836              .is_err());
+   837          assert_eq!(publication_count.load(Ordering::Acquire), 1);
+   838          assert_eq!(drops.load(Ordering::Acquire), 1);
+   839      }
+   840  }
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine.rs:14-54
+
+- Full-file Git blob: 4c629526e2d17ba1d965d068e839fd0a46a9023a
+- Full-file SHA-256: 32c3fb47321281cfd48a3ea4ee4539fbfddc1eae8a3eb640b8b3a5066ae6603d
+- Full-file bytes: 21062
+- Excerpt line span: 14-54
+- Excerpt SHA-256: 72d02f84c9c96998759d25ee7b6a183563d0951ffddb7a946bb28ab4b831cd5d
+
+    14  use crate::session::{
+    15      CompactActorContinuationDiagnosticSnapshot, CompactActorOwnedAwaiterRestoreOutcomeV0,
+    16      CompactChildDriveOutcome, CompactContinueProof, CurrentHandlerAwaiterNotReadyPolicy,
+    17      DirectRunProcessSessionPublicApertureProgressProductV1,
+    18      DirectRunProcessSessionRunResultProductV1, EventWaitProducerProviderReachabilityReceipt,
+    19      HostBoundaryMismatchEvidenceContext, InstructionIndex, OneShotBoundaryEvent, OneShotHostResult,
+    20      PendingActivityEffectFrame, PrivilegedHostcallInputContractFamily,
+    21      ProcessBoundaryReadinessCertificateV1, ProcessCompletedTerminalBoundaryReadinessOwnerV1,
+    22      ProcessCompletedTerminalOutcomeAuthorityV1, ProcessSessionActiveActorTurnDriveOutcome,
+    23      ProcessSessionActivityEffectDescriptorV0, ProcessSessionActorRequestEffectResultOutcome,
+    24      ProcessSessionActorSchedulerQuiescenceOutcome,
+    25      ProcessSessionCompactExternalActorRequestReadinessStepV0,
+    26      ProcessSessionCompactExternalActorRequestRegionOutcomeV0,
+    27      ProcessSessionCompletedTerminalOutputEffectSettlementProductV1,
+    28      ProcessSessionCompletedTerminalPublicOutputProductV1, ProcessSessionEntryOutcomeV0,
+    29      ProcessSessionEventWaitParkedActivityFrameV0, ProcessSessionEventWaitParkedActivityIdentityV0,
+    30      ProcessSessionEventWaitProducerBoundaryKindV0,
+    31      ProcessSessionEventWaitProducerProgressOutcomeV0,
+    32      ProcessSessionEventWaitProducerPublicApertureInstructionOutcomeV0,
+    33      ProcessSessionEventWaitProducerPublicApertureProgressOutcomeV0,
+    34      ProcessSessionEventWaitProducerReachabilityProofV0,
+    35      ProcessSessionEventWaitProducerSettlementModeV0,
+    36      ProcessSessionExternalActorRequestReadinessOutcomeV0,
+    37      ProcessSessionIntrinsicWaitContinuationAppliedReceiptV1,
+    38      ProcessSessionIntrinsicWaitContinuationSealV1,
+    39      ProcessSessionObservableEffectRuntimeReachabilityV1,
+    40      ProcessSessionPublicDiagnosticProjectionAuthority,
+    41      ProcessSessionResultAdmissionBoundaryContextV0, ProcessSessionRunError,
+    42      ProcessSessionRunOutcomeV0, ProcessSessionSchedulerActorReadinessCounts,
+    43      ProcessSessionSchedulerHostActivityCounts, ProcessSessionTerminalContinuationOutcome,
+    44      ProcessSessionV0, ProcessSessionVmTerminalProductV0,
+    45      ProcessTerminalBoundaryReadinessSourceKindV1, ProcessTerminalBoundaryReadinessSourceV1,
+    46      ProcessWaitingOnLivenessBoundaryReadinessOwnerV1, ProviderBoundaryIngressFault, RegisterIndex,
+    47      RuntimeValue, SchedulerInvariantEvidence, SchedulerInvariantEvidenceContext,
+    48      SealedProcessSessionDriveOutcome, SessionContinuationStepFaultEvidence,
+    49      SessionContinuationStepReceipt, SessionLirRegionId, TerminalResultEvidence, VmBoundaryValue,
+    50      execution_kernel, observable_effect_pending_reachability_for_required_order,
+    51      process_session_public_diagnostic_projection_value, process_session_run_outcome_kind,
+    52      session_lir_observable_effect_kind_as_str, session_lir_observable_effect_owner_kind_as_str,
+    53      session_lir_observable_effect_required_order_as_str, swarmvm_isa,
+    54  };
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine.rs:169-181
+
+- Full-file Git blob: 4c629526e2d17ba1d965d068e839fd0a46a9023a
+- Full-file SHA-256: 32c3fb47321281cfd48a3ea4ee4539fbfddc1eae8a3eb640b8b3a5066ae6603d
+- Full-file bytes: 21062
+- Excerpt line span: 169-181
+- Excerpt SHA-256: 7ab48a7a0911907b1f9b509f2b8c3f3983590e99854f5093c8a60b755f38ffde
+
+   169  fn event_wait_producer_public_aperture_run_outcome_kind(
+   170      outcome: &ProcessSessionRunOutcomeV0,
+   171  ) -> &'static str {
+   172      match outcome {
+   173          ProcessSessionRunOutcomeV0::NeedsHostActivityEffect { .. } => "needs_host_activity_effect",
+   174          ProcessSessionRunOutcomeV0::NeedsHostResourceFinalization { .. } => {
+   175              "needs_host_resource_finalization"
+   176          }
+   177          ProcessSessionRunOutcomeV0::WaitingOnLiveness { .. } => "waiting_on_liveness",
+   178          ProcessSessionRunOutcomeV0::Completed { .. } => "completed",
+   179          ProcessSessionRunOutcomeV0::Failed { .. } => "failed",
+   180      }
+   181  }
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine.rs:402-420
+
+- Full-file Git blob: 4c629526e2d17ba1d965d068e839fd0a46a9023a
+- Full-file SHA-256: 32c3fb47321281cfd48a3ea4ee4539fbfddc1eae8a3eb640b8b3a5066ae6603d
+- Full-file bytes: 21062
+- Excerpt line span: 402-420
+- Excerpt SHA-256: 67825a58cdabd1147d94bc4e9d38cf03084206b8fb71a7aef523e0cec185cd04
+
+   402  #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+   403  pub(in crate::session) enum ProcessSessionSchedulerPhaseOutcomeKind {
+   404      Consumed,
+   405      RootContinuationReady,
+   406      Quiescent,
+   407      Fault,
+   408  }
+   409
+   410  #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+   411  pub(in crate::session) struct ProcessSessionSchedulerPhaseOutcome {
+   412      phase: ProcessSessionSchedulerPhase,
+   413      kind: ProcessSessionSchedulerPhaseOutcomeKind,
+   414      reason: &'static str,
+   415  }
+   416
+   417  #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+   418  pub(in crate::session) struct ProcessSessionSchedulerQuiescenceProof {
+   419      phase_outcome: ProcessSessionSchedulerPhaseOutcome,
+   420  }
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine.rs:474-486
+
+- Full-file Git blob: 4c629526e2d17ba1d965d068e839fd0a46a9023a
+- Full-file SHA-256: 32c3fb47321281cfd48a3ea4ee4539fbfddc1eae8a3eb640b8b3a5066ae6603d
+- Full-file bytes: 21062
+- Excerpt line span: 474-486
+- Excerpt SHA-256: 4eb30ffa1571728c88b716c54b90fdd4f92c0f9f43b51e10b528bf1166c64fd9
+
+   474  impl ProcessSessionSchedulerQuiescenceProof {
+   475      fn new(phase_outcome: ProcessSessionSchedulerPhaseOutcome) -> Self {
+   476          debug_assert_eq!(
+   477              phase_outcome.kind(),
+   478              ProcessSessionSchedulerPhaseOutcomeKind::Quiescent
+   479          );
+   480          Self { phase_outcome }
+   481      }
+   482
+   483      pub(super) fn phase_outcome(self) -> ProcessSessionSchedulerPhaseOutcome {
+   484          self.phase_outcome
+   485      }
+   486  }

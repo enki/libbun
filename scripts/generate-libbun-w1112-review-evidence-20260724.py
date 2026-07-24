@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministically generate correction-5 exact-source evidence for W1-11/W1-12."""
+"""Deterministically generate correction-6 exact-source evidence for W1-11/W1-12."""
 
 from __future__ import annotations
 
@@ -78,6 +78,72 @@ GENERATIVE_PATHS = (
     "crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs",
 )
 
+SEMANTIC_OWNER_SEARCH_PATTERN = (
+    "ProviderBoundaryOutputCorrespondenceFault|"
+    "consume_corresponded_ready_output_for_provider_boundary_owner_v1|"
+    "ProviderBoundaryIngressFault|DirectRunProcessChildProviderFaultV1|"
+    "DirectRunProcessSessionDriveFaultV1|ProviderDriveSessionExecutionCommitFault|"
+    "ProviderHostExecutionSession|begin_provider_execution_session_v1|"
+    "cross_boundary_swap_is_a_typed_fault|nominal_join_preserves_both_halves_on_mismatch"
+)
+
+# Exact ordered repository-wide semantic owner/correspondence result at
+# SWARM_SHA.  Unlike the older 24-path lexical regression set, this gate binds
+# every active execution-session producer/carrier/consumer and final release
+# path named by the correction-5 independent verdict.
+SEMANTIC_OWNER_PATHS = (
+    "crates/durable-native-provider-loader/src/lib.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/public_aperture_entrypoint/trusted_step.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/mod.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs",
+    "crates/ss-runtime-source-compiler-owner/src/lib.rs",
+    "crates/ss-runtime-source-compiler-owner/src/provider_drive_result.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/errors.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_image/plan/operation_algebra/boundary_and_work_selection.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/host_resources.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/final_observation/host_resource_finalization.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/root.inc.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs",
+    "crates/swarm-capability-model/src/lib.rs",
+    "crates/swarm-capability-model/src/provider_boundary_correspondence.rs",
+    "crates/swarm-provider-host-set/src/lib.rs",
+    "crates/swarm-provider-host-set/src/provider_host_set.rs",
+    "crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs",
+)
+
+PROVIDER_EXECUTION_SESSION_SEARCH_PATTERN = (
+    "ProviderHostExecutionSession|begin_provider_execution_session_v1"
+)
+
+PROVIDER_EXECUTION_SESSION_PATHS = (
+    "crates/durable-native-provider-loader/src/lib.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/public_aperture_entrypoint/trusted_step.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs",
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/host_resources.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/final_observation/host_resource_finalization.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs",
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs",
+    "crates/swarm-provider-host-set/src/lib.rs",
+    "crates/swarm-provider-host-set/src/provider_host_set.rs",
+)
+
 # The lexical 24-path hit set is a regression gate, not the complete semantic
 # SCC.  These exact-source supplements bind the final correspondence join,
 # typed drive/fault carriers, selected finite owner, its public boundary and
@@ -90,7 +156,9 @@ OWNER_SUPPLEMENTAL_PATHS = (
     "crates/durable-native-provider-loader/Cargo.toml",
 )
 
-OWNER_SOURCE_PATHS = tuple(dict.fromkeys(GENERATIVE_PATHS + OWNER_SUPPLEMENTAL_PATHS))
+OWNER_SOURCE_PATHS = tuple(
+    dict.fromkeys(GENERATIVE_PATHS + OWNER_SUPPLEMENTAL_PATHS + SEMANTIC_OWNER_PATHS)
+)
 
 FINAL_CLOSE_SEARCH_PATTERN = (
     "close_for_execution_graph_owner|shutdown_runtime_execution_domain_owner|"
@@ -230,25 +298,36 @@ PART_TITLES = {
 }
 PRIOR_VERDICTS = {
     "owner-generative": (
-        "d7292c2c3beaabb807efc5b551f4beaae1d70a3c",
-        "owner-generative-correction4-independent-verdict.md",
+        "5e74c14a0125c1670be7e37cc31675ebedcd538d",
+        "correction5-independent-full-family-verdict.md",
+        "PART BUNDLE REVISE",
     ),
     "lifecycle": (
-        "d6f9ae079eea0d635115fabae13526b29266b491",
-        "lifecycle-correction4-independent-verdict.md",
+        "5e74c14a0125c1670be7e37cc31675ebedcd538d",
+        "correction5-independent-full-family-verdict.md",
+        "PART BUNDLE PASS",
     ),
     "containment-release": (
-        "d6f9ae079eea0d635115fabae13526b29266b491",
-        "containment-release-correction4-independent-verdict.md",
+        "5e74c14a0125c1670be7e37cc31675ebedcd538d",
+        "correction5-independent-full-family-verdict.md",
+        "PART BUNDLE PASS",
     ),
 }
-REVIEW_BASE = "4dd3395129a221d8c1fb2d1dbbdae509b2331f0e"
-VERDICT_CONTRACT = "b046f85a3dd41ac86cabed2de6391876ea77c0f4"
+REVIEW_BASE = "5e74c14a0125c1670be7e37cc31675ebedcd538d"
+VERDICT_CONTRACT = "5e74c14a0125c1670be7e37cc31675ebedcd538d"
 VERIFIER = Path("scripts/verify-libbun-w1112-review-bundle-20260724.py")
 
 GENERATIVE_EXCERPT_SPANS = {
+    "crates/ss-runtime-source-compiler-owner/src/direct_run.rs": ((362, 399),),
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs": ((961, 982), (1134, 1234), (1655, 1676)),
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs": ((535, 593),),
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs": ((397, 608),),
+    "crates/ss-runtime-source-compiler-owner/src/lib.rs": ((1, 66),),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs": ((1168, 1310), (1426, 1540)),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/host_resources.rs": ((769, 840), (882, 990)),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine.rs": ((14, 54), (169, 181), (402, 420), (474, 486)),
     "crates/ss-runtime-source-compiler-owner/src/direct_run/event/mod.rs": ((1, 30), (225, 679)),
-    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs": ((1, 30), (822, 902)),
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs": ((1, 30), (822, 902), (1122, 1147)),
     "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/mod.rs": ((1, 123),),
     "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs": ((1, 35), (85, 445), (1387, 1410), (1586, 1940)),
     "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/provider_resume_lifecycle.rs": ((1, 35), (140, 336)),
@@ -259,7 +338,7 @@ GENERATIVE_EXCERPT_SPANS = {
     "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_image/plan/operation_algebra/boundary_and_work_selection.rs": ((1, 40), (148, 197)),
     "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/process_carriers.rs": ((1, 20), (130, 174), (582, 678)),
     "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/root.inc.rs": ((260, 305),),
-    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs": ((710, 760),),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs": ((544, 600), (710, 760)),
     "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_runtime_stores_impl.rs": ((1, 30), (560, 618), (1332, 1437)),
     "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store.rs": ((1, 75),),
     "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/work_runtime/work_store/types.rs": ((1, 30), (250, 423), (860, 904), (1674, 1695)),
@@ -273,6 +352,67 @@ GENERATIVE_EXCERPT_SPANS = {
 }
 
 GENERATIVE_REQUIRED_ITEMS = {
+    "crates/ss-runtime-source-compiler-owner/src/direct_run.rs": (
+        "pub(crate) use self::direct_run_runtime_authority_refs::DirectRunProcessSessionDriveFaultV1",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/authority_kernel/prepared_runtime.rs": (
+        "DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1",
+        "AdmittedDirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartV1",
+        "DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionRefusalV1",
+        "provider_execution_session: swarm_provider_host_set::ProviderHostExecutionSession",
+        "drive_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1",
+        "durable_refusal_keeps_command_beside_the_typed_host_refusal",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/public_aperture_entrypoint/trusted_step.rs": (
+        "direct_run_public_aperture_prepared_runtime_process_start_admission_input_v1",
+        "admit_direct_run_public_aperture_prepared_runtime_process_start_v1",
+        "drive_direct_run_public_aperture_prepared_runtime_process_start_command_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/session_route_lifecycle.rs": (
+        "drive_start_route_host_resource_finalization_for_owner_v1",
+        "drive_reawaken_route_host_resource_finalization_for_owner_v1",
+        "drive_provider_resume_route_host_resource_finalization_for_owner_v1",
+        "provider_execution_session: &mut ProviderHostExecutionSession",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_result_route.rs": (
+        "drive_matching_child_for_process_kernel_owner_v1",
+        "DirectRunHostResourceFinalizationNextStepV1",
+        "provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession",
+        "drive_for_direct_run_owner_v1",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/lib.rs": (
+        "mod source_entrypoint_direct_run_prepared_runtime",
+        "ProviderDriveSessionExecutionCommitFault",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_direct_run_prepared_runtime.rs": (
+        "direct_run_ss_test_body_work_materialization_from_process_dispatch_product_for_compiler_owner_v1",
+        "admit_source_entrypoint_direct_run_prepared_runtime_process_start_for_compiler_owner_v1",
+        "provider_host_set.begin_provider_execution_session_v1()",
+        "cancel_into_generic_message_for_direct_run_boundary_owner_v1",
+        "drive_source_entrypoint_direct_run_prepared_runtime_process_start_until_terminal_for_compiler_owner_v1",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/host_resources.rs": (
+        "OneShotHostResourceFinalizationObligation",
+        "SelectedProviderHostResourceReleaseV1",
+        "commit_exact_provider_release_for_session_execution_kernel_owner_v1",
+        "commit_selected_host_resource_release_borrowed_for_session_execution_kernel_owner_v1",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/final_observation/host_resource_finalization.rs": (
+        "SelectedHostResourceFinalizationSelectionDropGuardV1",
+        "PresentedHostResourceFinalizationSelectionV1",
+        "try_reissue_cancelled_selection_for_session_runtime_owner_v1",
+        "commit_exact_provider_release_for_session_execution_kernel_owner_v1",
+        "selected_drop_reissues_twenty_thousand_times_with_128_kib_custody",
+        "presented_guard_cancels_during_unwind_and_reissues",
+        "provider_refusal_returns_exact_obligation_cancelled_for_rebind_retry",
+        "process_session_provider_commit_unwind_retains_exact_custody_through_retry_publication",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine.rs": (
+        "ProviderBoundaryIngressFault",
+        "NeedsHostResourceFinalization",
+        "ProcessSessionSchedulerQuiescenceProof",
+        "ProcessSessionSchedulerPhaseOutcomeKind::Quiescent",
+    ),
     "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_image/plan/operation_algebra/boundary_and_work_selection.rs": (
         "consume_corresponded_ready_output_for_provider_boundary_owner_v1",
         "ProviderBoundaryIngressFault::from",
@@ -298,6 +438,15 @@ GENERATIVE_REQUIRED_ITEMS = {
     ),
     "crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs": (
         "apply_provider_drive_ready_result_for_live_process_session",
+        "commit_selected_host_resource_finalization_for_live_process_session",
+        "provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession",
+    ),
+    "crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/scheduler/phase_machine_drive_entrypoints.inc.rs": (
+        "commit_selected_host_resource_finalization_and_drive_for_direct_run_owner_v1",
+        "provider_execution_session: &mut swarm_provider_host_set::ProviderHostExecutionSession",
+        "consume_exact_selection_for_session_runtime_owner_v1",
+        "commit_exact_provider_release_for_session_execution_kernel_owner_v1",
+        "drop(consumed_pending)",
     ),
     "crates/swarm-capability-model/src/lib.rs": (
         "pub enum CapabilitySdkError",
@@ -672,15 +821,19 @@ def exact_source_search_report() -> str:
             "Adjacent final correspondence, typed-fault, finite-owner, and caller closure",
             SWARM_ROOT,
             SWARM_SHA,
-            "ProviderBoundaryOutputCorrespondenceFault|"
-            "consume_corresponded_ready_output_for_provider_boundary_owner_v1|"
-            "ProviderBoundaryIngressFault|DirectRunProcessChildProviderFaultV1|"
-            "DirectRunProcessSessionDriveFaultV1|ProviderDriveSessionExecutionCommitFault|"
-            "ProviderHostExecutionSession|begin_provider_execution_session_v1|"
-            "cross_boundary_swap_is_a_typed_fault|nominal_join_preserves_both_halves_on_mismatch",
+            SEMANTIC_OWNER_SEARCH_PATTERN,
             ("crates",),
             "Discovers the complete final correspondence join, typed ingress/drive faults, selected execution-session owner lifecycle, constructor-side callers, and capability-model hostile evidence.",
-            "Exit 0; every active owning path is either in the compact owner bundle or an exact adjacent snapshot.",
+            "Exit 0 with exactly the 27 ordered active owning paths bound in the compact owner bundle and exact adjacent snapshots.",
+        ),
+        search_section(
+            "Adjacent ProviderHostExecutionSession producer, carrier, and consumer closure",
+            SWARM_ROOT,
+            SWARM_SHA,
+            PROVIDER_EXECUTION_SESSION_SEARCH_PATTERN,
+            ("crates",),
+            "Discovers both source-entrypoint execution-session mints, every by-value and borrowed carrier, the finite host-set owner, exact release consumer, and public reexport.",
+            "Exit 0 with exactly the 16 ordered active paths bound as complete owning source items and exact adjacent snapshots.",
         ),
         search_section(
             "Adjacent W1-10 ProviderValue input and governing law",
@@ -765,7 +918,7 @@ def exact_source_search_report() -> str:
         ),
     ]
     return clean(
-        "# libbun W1-11/W1-12 exact-source search report (correction 5)\n\n"
+        "# libbun W1-11/W1-12 exact-source search report (correction 6)\n\n"
         f"Libbun product SHA: {LIBBUN_SHA}\n\n"
         f"Libbun product tree: {LIBBUN_TREE}\n\n"
         f"Adjacent swarm SHA: {SWARM_SHA}\n\n"
@@ -829,6 +982,82 @@ def discovered_generative_paths() -> tuple[str, ...]:
             + repr(paths)
         )
     return paths
+
+
+def discovered_semantic_owner_paths() -> tuple[str, ...]:
+    args = ["grep", "-l", "-E", SEMANTIC_OWNER_SEARCH_PATTERN, SWARM_SHA, "--", "crates"]
+    exit_code, output = run(["git", *args], SWARM_ROOT)
+    if exit_code != 0:
+        raise RuntimeError("repository-wide adjacent semantic owner discovery failed")
+    prefix = f"{SWARM_SHA}:"
+    paths = tuple(
+        line[len(prefix):] if line.startswith(prefix) else line
+        for line in output.splitlines()
+        if line
+    )
+    if paths != SEMANTIC_OWNER_PATHS:
+        raise RuntimeError(
+            "adjacent semantic owner closure drift; expected="
+            + repr(SEMANTIC_OWNER_PATHS)
+            + " observed="
+            + repr(paths)
+        )
+    return paths
+
+
+def discovered_provider_execution_session_paths() -> tuple[str, ...]:
+    args = [
+        "grep", "-l", "-E", PROVIDER_EXECUTION_SESSION_SEARCH_PATTERN,
+        SWARM_SHA, "--", "crates",
+    ]
+    exit_code, output = run(["git", *args], SWARM_ROOT)
+    if exit_code != 0:
+        raise RuntimeError("repository-wide ProviderHostExecutionSession discovery failed")
+    prefix = f"{SWARM_SHA}:"
+    paths = tuple(
+        line[len(prefix):] if line.startswith(prefix) else line
+        for line in output.splitlines()
+        if line
+    )
+    if paths != PROVIDER_EXECUTION_SESSION_PATHS:
+        raise RuntimeError(
+            "ProviderHostExecutionSession closure drift; expected="
+            + repr(PROVIDER_EXECUTION_SESSION_PATHS)
+            + " observed="
+            + repr(paths)
+        )
+    return paths
+
+
+def owner_semantic_search_report() -> str:
+    semantic_paths = discovered_semantic_owner_paths()
+    session_paths = discovered_provider_execution_session_paths()
+    semantic_args = [
+        "grep", "-l", "-E", SEMANTIC_OWNER_SEARCH_PATTERN, SWARM_SHA, "--", "crates",
+    ]
+    session_args = [
+        "grep", "-l", "-E", PROVIDER_EXECUTION_SESSION_SEARCH_PATTERN,
+        SWARM_SHA, "--", "crates",
+    ]
+    semantic_rows = "\n".join(f"{index:02d}. `{path}`" for index, path in enumerate(semantic_paths, 1))
+    session_rows = "\n".join(f"{index:02d}. `{path}`" for index, path in enumerate(session_paths, 1))
+    return clean(
+        "# W1-11/W1-12 correction-6 compact semantic owner discovery\n\n"
+        f"Adjacent Swarm SHA: `{SWARM_SHA}`  \n"
+        f"Adjacent Swarm tree: `{SWARM_TREE}`\n\n"
+        + repository_prologue()
+        + "\n## Exact semantic owner/correspondence discovery\n\n"
+        f"Command: {command_text(SWARM_ROOT, semantic_args)}\n\n"
+        f"Pattern: `{SEMANTIC_OWNER_SEARCH_PATTERN}`\n\n"
+        f"Observed ordered count: {len(semantic_paths)}\n\n"
+        f"{semantic_rows}\n\n"
+        "## Exact ProviderHostExecutionSession producer/carrier/consumer discovery\n\n"
+        f"Command: {command_text(SWARM_ROOT, session_args)}\n\n"
+        f"Pattern: `{PROVIDER_EXECUTION_SESSION_SEARCH_PATTERN}`\n\n"
+        f"Observed ordered count: {len(session_paths)}\n\n"
+        f"{session_rows}\n\n"
+        "Both ordered results are executable fail-closed generator inputs. Every listed path has an exact-SHA snapshot and a complete owning-source binding in `adjacent-generative-source-bundle.md`; these path-only results are discovery evidence and never substitute for owning source.\n"
+    )
 
 
 def discovered_final_close_paths() -> tuple[str, ...]:
@@ -909,23 +1138,24 @@ def source_bundle(
 
 
 def adjacent_generative_source_bundle() -> str:
-    lexical_paths = discovered_generative_paths()
-    paths = tuple(dict.fromkeys(lexical_paths + OWNER_SUPPLEMENTAL_PATHS))
+    discovered_generative_paths()
+    discovered_semantic_owner_paths()
+    discovered_provider_execution_session_paths()
     return source_bundle(
-        "Adjacent Swarm owner, correspondence, drive, final-output, fault, and test source bundle (correction 5)",
+        "Adjacent Swarm owner, correspondence, drive, final-output, fault, and test source bundle (correction 6)",
         SWARM_ROOT,
         SWARM_SHA,
         SWARM_TREE,
-        paths,
+        OWNER_SOURCE_PATHS,
         GENERATIVE_EXCERPT_SPANS,
         GENERATIVE_REQUIRED_ITEMS,
-        "This bundle preserves the exact repository-wide 24-path lexical hit set as a regression gate and then binds the complete semantic supplements omitted by correction 4. It exposes the existing one-occurrence output seal, the complete final correspondence join and ingress wrapper, drive-to-final-output carriers and typed fault algebras, both direct-run consumers, the ProviderHostExecutionSession fields/mint/reexport/selected branch/Drop, its durable-loader caller and dependency direction, capability-model mismatch/custody-preservation tests, and static-host nominal accepted/rejected/authored correspondence tests. No static-host mismatch or replay test exists at the bound SHA; new static-host mismatch and retained-libbun replay tests remain mandatory implementation output. A new package/invocation brand must extend or atomically replace the existing seal; a parallel seal is forbidden.",
+        "This bundle preserves the exact repository-wide 24-path lexical hit set and independently binds the exact ordered 27-path semantic owner closure plus the 16-path ProviderHostExecutionSession producer/carrier/consumer closure. It exposes both real session mints, by-value admission and terminal-drive custody, every borrowed route carrier, the exact host-resource release selection/commit and final publication path, complete Drop/reissue/refusal/retry/unwind tests, the existing one-occurrence output seal, final correspondence join and ingress wrapper, typed mechanical drive/fault carriers, capability-model mismatch/custody-preservation tests, and static-host nominal accepted/rejected/authored correspondence tests. No static-host mismatch or replay test exists at the bound SHA; new static-host mismatch and retained-libbun replay tests remain mandatory implementation output. A new package/invocation brand must extend or atomically replace the existing seal; a parallel seal is forbidden.",
     )
 
 
 def lifecycle_process_worker_source_bundle() -> str:
     return source_bundle(
-        "Vendored Bun process-exit, VM interruption/reset, WebWorker quiescence, and ordered shutdown source bundle (correction 5)",
+        "Vendored Bun process-exit, VM interruption/reset, WebWorker quiescence, and ordered shutdown source bundle (correction 6)",
         ROOT,
         LIBBUN_SHA,
         LIBBUN_TREE,
@@ -939,7 +1169,7 @@ def lifecycle_process_worker_source_bundle() -> str:
 def atomic_deletion_tests_source_bundle() -> str:
     paths = discovered_final_close_paths()
     return source_bundle(
-        "Adjacent Swarm retained-runtime final close, atomic deletion, and hostile-test owner source bundle (correction 5)",
+        "Adjacent Swarm retained-runtime final close, atomic deletion, and hostile-test owner source bundle (correction 6)",
         SWARM_ROOT,
         SWARM_SHA,
         SWARM_TREE,
@@ -971,7 +1201,7 @@ def vendored_boundary_report() -> str:
             + git_blob(ROOT, LIBBUN_SHA, path).decode(errors="replace")
         )
     return clean(
-        "# libbun W1-11/W1-12 vendored Bun boundary report (correction 5)\n\n"
+        "# libbun W1-11/W1-12 vendored Bun boundary report (correction 6)\n\n"
         f"Generated from exact product SHA {LIBBUN_SHA}, tree {LIBBUN_TREE}.\n\n"
         "Generator command: python3 scripts/generate-libbun-w1112-review-evidence-20260724.py --emit vendored-bun-boundary-report.md\n\n"
         "No shell pipeline or awk transformation participates in identity generation.\n\n"
@@ -1041,7 +1271,7 @@ def lifecycle_jsc_bundle() -> str:
         ("vendor/bun/src/jsc/VirtualMachine.zig", 2095, 2135),
     )
     return clean(
-        "# Vendored JSC lifecycle supplemental source bundle (correction 5)\n\n"
+        "# Vendored JSC lifecycle supplemental source bundle (correction 6)\n\n"
         f"Exact product SHA: {LIBBUN_SHA}\n\n"
         f"Exact product tree: {LIBBUN_TREE}\n\n"
         "The ordered lifecycle plan directly attaches complete `VirtualMachine.rs`, `JSGlobalObject.rs`, `VM.rs`, and `virtual_machine_exports.rs` bytes. "
@@ -1225,6 +1455,7 @@ def lock_privacy_compliance_index() -> str:
 
 REPORTS = {
     "exact-source-search-report.md": exact_source_search_report,
+    "owner-semantic-search-report.md": owner_semantic_search_report,
     "vendored-bun-boundary-report.md": vendored_boundary_report,
     "adjacent-swarm-source-index.md": adjacent_source_index,
     "lifecycle-vendored-jsc-source-bundle.md": lifecycle_jsc_bundle,
@@ -1306,16 +1537,16 @@ def fable_plan(part: str, attachments: list[dict[str, object]]) -> str:
     prompt_path = BASE / f"{part}-prompt.md"
     plan_path = BASE / f"{part}-files.txt"
     if part == "synthesis":
-        prior_line = "- Prior independent verdicts: all three correction-4 parts are PART BUNDLE REVISE; correction-5 synthesis is blocked pending fresh passes"
+        prior_line = "- Prior independent verdicts at 5e74c14a0125c1670be7e37cc31675ebedcd538d: owner/correspondence PART BUNDLE REVISE; lifecycle and containment/release PART BUNDLE PASS; correction-6 synthesis is blocked pending only the corrected owner pass"
     else:
-        commit, _ = PRIOR_VERDICTS[part]
-        prior_line = f"- Prior independent verdict: PART BUNDLE REVISE at {commit}"
+        commit, _, verdict = PRIOR_VERDICTS[part]
+        prior_line = f"- Prior independent verdict: {verdict} at {commit}"
     rows = "\n".join(
         f"| {index} | {item['path']} | {item['sha256']} | {item['bytes']} |"
         for index, item in enumerate(attachments, 1)
     )
     return clean(
-        f"# Correction-5 Fable file plan: {PART_TITLES[part]}\n\n"
+        f"# Correction-6 Fable file plan: {PART_TITLES[part]}\n\n"
         f"{prior_line}\n"
         "- State: NOT LAUNCHED\n"
         "- Engine: local Fable wrapper\n"
@@ -1332,7 +1563,7 @@ def fable_plan(part: str, attachments: list[dict[str, object]]) -> str:
         "| ---: | --- | --- | ---: |\n"
         f"{rows}\n\n"
         "No Fable session, request, response, or output exists. Fresh literal independent "
-        "PART BUNDLE PASS verdicts for correction 5 remain required before launch. Synthesis remains blocked until all three part verdicts pass.\n"
+        "The correction-5 lifecycle and containment/release PART BUNDLE PASS verdicts remain controlling. A fresh literal owner/correspondence PART BUNDLE PASS for correction 6 remains required before launch, and synthesis stays blocked until that owner verdict passes.\n"
     )
 
 
@@ -1343,8 +1574,8 @@ def manifest(part: str, attachments: list[dict[str, object]]) -> dict[str, objec
     fable_path = BASE / f"{part}-fable-plan.md"
     total_tokens, call_tokens = dry_run_counts(part)
     result: dict[str, object] = {
-        "schema": "libbun.w1112.external-review-manifest.v5",
-        "correction": 5,
+        "schema": "libbun.w1112.external-review-manifest.v6",
+        "correction": 6,
         "part": part,
         "title": PART_TITLES[part],
         "exact_source_sha": LIBBUN_SHA,
@@ -1408,23 +1639,23 @@ def manifest(part: str, attachments: list[dict[str, object]]) -> dict[str, objec
             "response_id": None,
             "output_paths": [],
         },
-        "correction_evidence_state": "CORRECTION 5 COMPLETE; FRESH LITERAL INDEPENDENT REVIEW PENDING",
+        "correction_evidence_state": "CORRECTION 6 OWNER CLOSURE COMPLETE; FRESH LITERAL OWNER REVIEW PENDING",
         "independent_bundle_review": {
-            "reviewer": "PENDING correction-5 source-aware independent reviewer",
+            "reviewer": "PENDING correction-6 source-aware owner/correspondence reviewer",
             "verdict": "PENDING; literal PART BUNDLE PASS required before launch",
         },
         "omissions": [
             "Oracle and Fable response artifacts are intentionally absent because model launch is out of scope.",
-            "Fresh literal independent PART BUNDLE PASS at the correction-5 commit is pending and this manifest does not authorize launch.",
+            "Fresh literal independent owner/correspondence PART BUNDLE PASS at the correction-6 commit is pending and this manifest does not authorize launch.",
         ],
         "launch_state": "NOT LAUNCHED",
     }
     if part == "synthesis":
         result["correction_evidence_state"] = (
-            "CORRECTION 5 SYNTHESIS BLOCKED; THREE FRESH LITERAL PART BUNDLE PASS VERDICTS PENDING"
+            "CORRECTION 6 SYNTHESIS BLOCKED; FRESH LITERAL OWNER/CORRESPONDENCE PART BUNDLE PASS PENDING"
         )
         result["prior_independent_verdicts"] = [
-            {"part": name, "commit": PRIOR_VERDICTS[name][0], "verdict": "PART BUNDLE REVISE"}
+            {"part": name, "commit": PRIOR_VERDICTS[name][0], "verdict": PRIOR_VERDICTS[name][2]}
             for name in PARTS[:3]
         ]
         result["synthesis_inputs"] = [
@@ -1432,18 +1663,30 @@ def manifest(part: str, attachments: list[dict[str, object]]) -> dict[str, objec
                 "part": name,
                 "manifest_path": str(BASE / f"{name}-manifest.json"),
                 "manifest_sha256": file_digest(BASE / f"{name}-manifest.json"),
-                "state": "FRESH LITERAL PART BUNDLE PASS PENDING",
+                "state": (
+                    "FRESH LITERAL OWNER PART BUNDLE PASS PENDING"
+                    if name == "owner-generative"
+                    else "CORRECTION-5 LITERAL PART BUNDLE PASS PRESERVED"
+                ),
             }
             for name in PARTS[:3]
         ]
     else:
-        commit, record = PRIOR_VERDICTS[part]
+        commit, record, verdict = PRIOR_VERDICTS[part]
         record_path = BASE / record
         result["prior_independent_verdict"] = {
             "commit": commit,
-            "verdict": "PART BUNDLE REVISE",
+            "verdict": verdict,
             "records": [{"path": str(record_path), "sha256": file_digest(record_path)}],
         }
+        if verdict == "PART BUNDLE PASS":
+            result["correction_evidence_state"] = (
+                "CORRECTION 6 UNION CLOSURE ONLY; CORRECTION-5 LITERAL PART BUNDLE PASS PRESERVED"
+            )
+            result["independent_bundle_review"] = {
+                "reviewer": "correction-5 source-aware independent full-family reviewer",
+                "verdict": "PART BUNDLE PASS preserved; family not reopened",
+            }
     return result
 
 

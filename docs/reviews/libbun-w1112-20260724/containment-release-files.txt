@@ -1,5 +1,5 @@
-docs/reviews/libbun-w1112-20260724/correction5-index.md
-docs/reviews/libbun-w1112-20260724/containment-release-correction4-independent-verdict.md
+docs/reviews/libbun-w1112-20260724/correction6-index.md
+docs/reviews/libbun-w1112-20260724/correction5-independent-full-family-verdict.md
 docs/reviews/libbun-w1112-20260724/atomic-deletion-tests-source-bundle.md
 docs/reviews/libbun-w1112-20260724/lock-privacy-compliance-index.md
 docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md

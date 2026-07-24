@@ -1,6 +1,6 @@
 [oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
-🧿 oracle 0.16.0 — Lint for large language models.
-[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~252,881 tokens and 56 files.
+🧿 oracle 0.16.0 — Ship-ready answers, minus the AI improv.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~253,640 tokens and 56 files.
 File Token Usage
     41,656    15.31%  vendor/bun/Cargo.lock
     39,009    14.34%  native/Cargo.lock
@@ -14,8 +14,8 @@ File Token Usage
      4,687     1.72%  vendor/bun/Cargo.toml
      4,554     1.67%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/tests/external_capability_provider.rs
      4,283     1.57%  docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md
+     3,385     1.24%  docs/reviews/libbun-w1112-20260724/correction5-independent-full-family-verdict.md
      2,820     1.04%  LICENSE
-     2,726     1.00%  docs/reviews/libbun-w1112-20260724/containment-release-correction4-independent-verdict.md
      2,444     0.90%  docs/LIBBUN-WORKER-RELEASE-CONTRACT.md
      2,119     0.78%  patches/vendored-bun/0001-add-libbun-native-plugin-pic-build-mode.patch
      1,961     0.72%  wire/src/lib.rs
@@ -35,8 +35,8 @@ File Token Usage
        675     0.25%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs
        630     0.23%  scripts/verify-vendored-bun.sh
        542     0.20%  tests/public_api_boundary.rs
+       495     0.18%  docs/reviews/libbun-w1112-20260724/correction6-index.md
        484     0.18%  tests/fixtures/public_api_boundary/Cargo.lock
-       429     0.16%  docs/reviews/libbun-w1112-20260724/correction5-index.md
        394     0.14%  Cargo.toml
        382     0.14%  vendor/bun/src/unicode/uucode_lib/LICENSE.md
        378     0.14%  vendor/bun/vendor/lolhtml/LICENSE
@@ -58,4 +58,4 @@ File Token Usage
         75     0.03%  tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs
         65     0.02%  tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs
         47     0.02%  BUN_SOURCE_COMMIT
-Total: 251,954 tokens (92.63% of 272,000)
+Total: 252,679 tokens (92.90% of 272,000)

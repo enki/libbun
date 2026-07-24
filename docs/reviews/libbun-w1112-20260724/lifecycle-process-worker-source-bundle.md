@@ -1,4 +1,4 @@
-# Vendored Bun process-exit, VM interruption/reset, WebWorker quiescence, and ordered shutdown source bundle (correction 5)
+# Vendored Bun process-exit, VM interruption/reset, WebWorker quiescence, and ordered shutdown source bundle (correction 6)
 
 Exact source SHA: 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb
 

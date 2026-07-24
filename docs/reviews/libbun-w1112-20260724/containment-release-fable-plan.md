@@ -1,13 +1,13 @@
-# Correction-5 Fable file plan: Containment/persistent output/locks/packaging/release
+# Correction-6 Fable file plan: Containment/persistent output/locks/packaging/release
 
-- Prior independent verdict: PART BUNDLE REVISE at d6f9ae079eea0d635115fabae13526b29266b491
+- Prior independent verdict: PART BUNDLE PASS at 5e74c14a0125c1670be7e37cc31675ebedcd538d
 - State: NOT LAUNCHED
 - Engine: local Fable wrapper
 - Model: claude-fable-5
 - Effort: max
 - Deliverable: CONCRETE IMPLEMENTATION
 - Prompt: docs/reviews/libbun-w1112-20260724/containment-release-prompt.md
-- Prompt SHA-256: 974c690f71b27910d70c37a8321b0e97890c7b93b37bbdc102e2360ae533d625
+- Prompt SHA-256: edbe3c77c64eb344dfd3cab79d837a36032f53aaf5791ab5bf0ebe7fca700e4d
 - Ordered file plan: docs/reviews/libbun-w1112-20260724/containment-release-files.txt
 - Ordered file count: 56
 - Identical to Oracle ordered attachments: yes
@@ -16,9 +16,9 @@
 
 | # | Path | SHA-256 | Bytes |
 | ---: | --- | --- | ---: |
-| 1 | docs/reviews/libbun-w1112-20260724/correction5-index.md | 08fd92e21a78e05b1e48dd2ee7e754b69ac4731cde9a11e409a5b5560dd0e7dd | 1161 |
-| 2 | docs/reviews/libbun-w1112-20260724/containment-release-correction4-independent-verdict.md | c751b5d48a8331062e7ad23a02f29234bc63d05dc31c810c2df1705787c2973f | 9027 |
-| 3 | docs/reviews/libbun-w1112-20260724/atomic-deletion-tests-source-bundle.md | 30e620ee8efd602632a7a70a64a8536e21200d31fc8d94bc8df5c31edf32788f | 37849 |
+| 1 | docs/reviews/libbun-w1112-20260724/correction6-index.md | cf6eaa0e692748b347b43dd5542520327aab3c9653af475af3821005884b1151 | 1549 |
+| 2 | docs/reviews/libbun-w1112-20260724/correction5-independent-full-family-verdict.md | ee9ca3d178532849f5a670a0b4208ab24f11f95f78d7db9da7d30ef6105d0321 | 11863 |
+| 3 | docs/reviews/libbun-w1112-20260724/atomic-deletion-tests-source-bundle.md | e3cacc0117670744ae690bda45be5b6e4d59ca974652a322c38b5cca51c35568 | 37849 |
 | 4 | docs/reviews/libbun-w1112-20260724/lock-privacy-compliance-index.md | 3ea128354cf3b85710c4aa89abd8549a57e340155aaac27a451d3bd65fde3dd1 | 35205 |
 | 5 | docs/LIBBUN-WORKER-CONTAINMENT-CONTRACT.md | 7c8f9d64d9fc4d05f5581097f651af28f92f221a81852d81d0a420770420bc08 | 16493 |
 | 6 | docs/LIBBUN-WORKER-RELEASE-CONTRACT.md | 030f64ecfbdcc046dec66d4c767333d50ed21471c084c885e2576c770f1d394c | 8765 |
@@ -73,4 +73,4 @@
 | 55 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/imported_helper_external_result_payload.test.ss | 9a26ebc4737439e4ae0e8342a3b19a357d2a8008d2d09330cc92fcae924dae43 | 771 |
 | 56 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/negative/ss/provider/external_provider_json_nfc_duplicate_keys.test.ss | 5d238da6cfd9e1f46a46fc243409d62c3940964cb084343adae08b9079d6c99d | 493 |
 
-No Fable session, request, response, or output exists. Fresh literal independent PART BUNDLE PASS verdicts for correction 5 remain required before launch. Synthesis remains blocked until all three part verdicts pass.
+No Fable session, request, response, or output exists. Fresh literal independent The correction-5 lifecycle and containment/release PART BUNDLE PASS verdicts remain controlling. A fresh literal owner/correspondence PART BUNDLE PASS for correction 6 remains required before launch, and synthesis stays blocked until that owner verdict passes.
