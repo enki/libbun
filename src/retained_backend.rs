@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use std::fmt;
 use std::io::{self, Read};
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -5,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
 #[cfg(test)]
 use std::sync::atomic::AtomicU64;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender, TryRecvError};
 use std::sync::{Arc, OnceLock};
 use std::thread::{self, JoinHandle};
@@ -28,7 +29,16 @@ use crate::{
 
 #[cfg(test)]
 static NEXT_SELECTION_BRAND: AtomicU64 = AtomicU64::new(1);
-static DURABLE_REAPER: OnceLock<Result<Sender<WorkerCustody>, String>> = OnceLock::new();
+static DURABLE_REAPER: OnceLock<Result<Arc<DurableReaper>, String>> = OnceLock::new();
+#[cfg(test)]
+thread_local! {
+    static FAIL_REAPER_NODE_ALLOCATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static PANIC_CALLER_AFTER_DISPATCH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+#[cfg(test)]
+static DURABLE_PUBLISHED: AtomicU64 = AtomicU64::new(0);
+#[cfg(test)]
+static DURABLE_COMPLETED: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthoredSettlementKind {
@@ -299,10 +309,37 @@ enum WorkerFactory {
 }
 
 struct WorkerCustody {
-    commands: Sender<WorkerCommand>,
+    commands: Option<Sender<WorkerCommand>>,
     join: Option<JoinHandle<()>>,
-    factory: WorkerFactory,
+    factory: Option<WorkerFactory>,
+    retirement_requested: Arc<AtomicBool>,
+    reaper_node: Option<Box<DurableReaperNode>>,
 }
+
+struct RetirementCustody {
+    commands: Option<Sender<WorkerCommand>>,
+    join: Option<JoinHandle<()>>,
+    factory: Option<WorkerFactory>,
+    retirement_requested: Arc<AtomicBool>,
+    first_fault: Option<MechanicalFault>,
+    shutdown_requested: bool,
+}
+
+struct DurableReaperNode {
+    next: AtomicPtr<DurableReaperNode>,
+    custody: UnsafeCell<Option<RetirementCustody>>,
+    queue: Arc<DurableReaper>,
+    #[cfg(test)]
+    publication_counted: bool,
+}
+
+struct DurableReaper {
+    head: AtomicPtr<DurableReaperNode>,
+    worker: OnceLock<thread::Thread>,
+}
+
+unsafe impl Send for DurableReaperNode {}
+unsafe impl Sync for DurableReaperNode {}
 
 enum WorkerCommand {
     Drive {
@@ -353,6 +390,187 @@ impl WorkerFactory {
     fn has_forced_retirement(&self) -> bool {
         matches!(self, Self::Contained { .. })
     }
+}
+
+impl WorkerCustody {
+    fn new(
+        commands: Sender<WorkerCommand>,
+        join: JoinHandle<()>,
+        factory: WorkerFactory,
+        retirement_requested: Arc<AtomicBool>,
+        reaper_node: Box<DurableReaperNode>,
+    ) -> Self {
+        Self {
+            commands: Some(commands),
+            join: Some(join),
+            factory: Some(factory),
+            retirement_requested,
+            reaper_node: Some(reaper_node),
+        }
+    }
+
+    fn commands(&self) -> &Sender<WorkerCommand> {
+        self.commands
+            .as_ref()
+            .expect("live worker retains its private command sender")
+    }
+
+    fn factory(&self) -> &WorkerFactory {
+        self.factory
+            .as_ref()
+            .expect("live worker retains its private restart factory")
+    }
+
+    fn publish_retirement(mut self) {
+        let Some(node) = self.reaper_node.take() else {
+            return;
+        };
+        let custody = RetirementCustody {
+            commands: self.commands.take(),
+            join: self.join.take(),
+            factory: self.factory.take(),
+            retirement_requested: Arc::clone(&self.retirement_requested),
+            first_fault: None,
+            shutdown_requested: false,
+        };
+        node.publish(custody);
+    }
+
+    fn disarm_completed(&mut self) {
+        self.commands.take();
+        self.factory.take();
+        self.reaper_node.take();
+    }
+}
+
+impl Drop for WorkerCustody {
+    fn drop(&mut self) {
+        let Some(node) = self.reaper_node.take() else {
+            return;
+        };
+        let custody = RetirementCustody {
+            commands: self.commands.take(),
+            join: self.join.take(),
+            factory: self.factory.take(),
+            retirement_requested: Arc::clone(&self.retirement_requested),
+            first_fault: None,
+            shutdown_requested: false,
+        };
+        node.publish(custody);
+    }
+}
+
+impl RetirementCustody {
+    fn poll(&mut self) -> bool {
+        self.retirement_requested.store(true, Ordering::Release);
+        if !self.shutdown_requested {
+            if let Some(commands) = self.commands.take() {
+                let _ = commands.send(WorkerCommand::Shutdown { response: None });
+            }
+            self.shutdown_requested = true;
+        }
+        let Some(join) = self.join.as_ref() else {
+            self.factory.take();
+            return true;
+        };
+        if !join.is_finished() {
+            return false;
+        }
+        let join = self.join.take().expect("finished join remains in custody");
+        if join.join().is_err() && self.first_fault.is_none() {
+            self.first_fault = Some(MechanicalFault::new(
+                MechanicalFaultKind::SupervisorUnwind,
+                "retained_backend_reaper_worker_unwound",
+                "retained runtime worker unwound while held by retirement custody",
+            ));
+        }
+        self.factory.take();
+        true
+    }
+}
+
+impl DurableReaperNode {
+    #[allow(unused_mut)]
+    fn publish(mut self: Box<Self>, custody: RetirementCustody) {
+        unsafe {
+            *self.custody.get() = Some(custody);
+        }
+        let queue = Arc::clone(&self.queue);
+        self.next.store(std::ptr::null_mut(), Ordering::Relaxed);
+        #[cfg(test)]
+        if !self.publication_counted {
+            DURABLE_PUBLISHED.fetch_add(1, Ordering::Relaxed);
+            self.publication_counted = true;
+        }
+        let node = Box::into_raw(self);
+        let mut head = queue.head.load(Ordering::Acquire);
+        loop {
+            unsafe {
+                (*node).next.store(head, Ordering::Relaxed);
+            }
+            match queue
+                .head
+                .compare_exchange_weak(head, node, Ordering::Release, Ordering::Acquire)
+            {
+                Ok(_) => break,
+                Err(current) => head = current,
+            }
+        }
+        if let Some(worker) = queue.worker.get() {
+            worker.unpark();
+        }
+    }
+}
+
+impl DurableReaper {
+    fn drain_snapshot(&self) {
+        let mut node = self.head.swap(std::ptr::null_mut(), Ordering::AcqRel);
+        while !node.is_null() {
+            let owned = unsafe { Box::from_raw(node) };
+            node = owned.next.load(Ordering::Relaxed);
+            let complete = unsafe {
+                (*owned.custody.get())
+                    .as_mut()
+                    .map(RetirementCustody::poll)
+                    .unwrap_or(true)
+            };
+            if complete {
+                unsafe {
+                    (*owned.custody.get()).take();
+                }
+                #[cfg(test)]
+                DURABLE_COMPLETED.fetch_add(1, Ordering::Relaxed);
+            } else {
+                unsafe {
+                    let custody = (*owned.custody.get())
+                        .take()
+                        .expect("pending durable node retains retirement custody");
+                    owned.publish(custody);
+                }
+            }
+        }
+    }
+}
+
+fn preallocate_reaper_node() -> LibbunResult<Box<DurableReaperNode>> {
+    #[cfg(test)]
+    if FAIL_REAPER_NODE_ALLOCATION.with(|failure| failure.replace(false)) {
+        return Err(LibbunError::initialize(
+            "retained worker durable reaper node allocation was refused before admission",
+        ));
+    }
+    let queue = ensure_durable_reaper().map_err(|message| {
+        LibbunError::initialize(format!(
+            "retained prepared-export durable reaper initialization failed: {message}"
+        ))
+    })?;
+    Ok(Box::new(DurableReaperNode {
+        next: AtomicPtr::new(std::ptr::null_mut()),
+        custody: UnsafeCell::new(None),
+        queue,
+        #[cfg(test)]
+        publication_counted: false,
+    }))
 }
 
 impl BunProviderBackend {
@@ -638,11 +856,18 @@ fn drive_worker(
         interrupt: Arc::clone(&control.interrupt.requested),
         response,
     };
-    if worker.commands.send(command).is_err() {
+    if worker.commands().send(command).is_err() {
         return terminal_after_worker_disconnect(worker);
     }
+    #[cfg(test)]
+    PANIC_CALLER_AFTER_DISPATCH.with(|panic_after_dispatch| {
+        assert!(
+            !panic_after_dispatch.replace(false),
+            "injected caller-side drive unwind after dispatch publication"
+        );
+    });
 
-    let has_forced_retirement = worker.factory.has_forced_retirement();
+    let has_forced_retirement = worker.factory().has_forced_retirement();
     let response = match receive.recv_timeout(control.remaining()) {
         Ok(response) => response,
         Err(RecvTimeoutError::Timeout) => {
@@ -683,7 +908,7 @@ fn drive_worker(
 
     let selected = control.selection();
     if !response.unowned_output.is_empty() {
-        let factory = worker.factory.clone();
+        let factory = worker.factory().clone();
         let retirement = retire_worker(worker, control.retirement_timeout());
         return fault_after_retirement(
             MechanicalFault::new(
@@ -699,9 +924,23 @@ fn drive_worker(
         );
     }
 
+    if !matches!(selected, ControlSelection::Continue)
+        && let Err(error) = &response.result
+        && !is_typed_interrupt(error)
+    {
+        let factory = worker.factory().clone();
+        let fault = MechanicalFault::new(
+            MechanicalFaultKind::WorkerTermination,
+            "retained_prepared_export_forced_retirement_failed",
+            error.to_string(),
+        );
+        let retirement = retire_worker(worker, control.retirement_timeout());
+        return fault_after_retirement(fault, factory, retirement);
+    }
+
     match selected {
         ControlSelection::Deadline => {
-            let factory = worker.factory.clone();
+            let factory = worker.factory().clone();
             match retire_worker(worker, control.retirement_timeout()) {
                 RetirementOutcome::Complete => {
                     MechanicalTerminal::DeadlineElapsed(DeadlineElapsedTerminal {
@@ -720,7 +959,7 @@ fn drive_worker(
             }
         }
         ControlSelection::Cancelled => {
-            let factory = worker.factory.clone();
+            let factory = worker.factory().clone();
             match retire_worker(worker, control.retirement_timeout()) {
                 RetirementOutcome::Complete => MechanicalTerminal::Cancelled(CancelledTerminal {
                     continuation: Some(Continuation::Restartable(factory)),
@@ -744,7 +983,7 @@ fn drive_worker(
                         continuation: Some(Continuation::Ready(Some(worker))),
                     }),
                     Err(fault) => {
-                        let factory = worker.factory.clone();
+                        let factory = worker.factory().clone();
                         let retirement = retire_worker(worker, control.retirement_timeout());
                         fault_after_retirement(fault, factory, retirement)
                     }
@@ -754,7 +993,7 @@ fn drive_worker(
                 if failure.operation
                     == crate::ProviderExecutionOperation::ProviderDeadlineElapsed =>
             {
-                let factory = worker.factory.clone();
+                let factory = worker.factory().clone();
                 match retire_worker(worker, control.retirement_timeout()) {
                     RetirementOutcome::Complete => {
                         MechanicalTerminal::DeadlineElapsed(DeadlineElapsedTerminal {
@@ -773,7 +1012,7 @@ fn drive_worker(
                 }
             }
             Ok(SettledProviderReceipt::Failed(failure)) => {
-                let factory = worker.factory.clone();
+                let factory = worker.factory().clone();
                 let fault = MechanicalFault::new(
                     MechanicalFaultKind::ProviderPreparation,
                     "retained_prepared_export_provider_preparation_failed",
@@ -785,7 +1024,7 @@ fn drive_worker(
                 fault_after_retirement(fault, factory, retirement)
             }
             Err(error) if is_typed_interrupt(&error) => {
-                let factory = worker.factory.clone();
+                let factory = worker.factory().clone();
                 match retire_worker(worker, control.retirement_timeout()) {
                     RetirementOutcome::Complete => {
                         MechanicalTerminal::Cancelled(CancelledTerminal {
@@ -804,7 +1043,7 @@ fn drive_worker(
                 }
             }
             Err(error) => {
-                let factory = worker.factory.clone();
+                let factory = worker.factory().clone();
                 let fault = MechanicalFault::new(
                     MechanicalFaultKind::Dispatch,
                     "retained_prepared_export_dispatch_failed",
@@ -865,8 +1104,11 @@ fn fault_after_retirement(
 ) -> MechanicalTerminal {
     let continuation = match retirement {
         RetirementOutcome::Complete => Some(Continuation::Restartable(factory)),
-        RetirementOutcome::Fault(retirement_fault)
-        | RetirementOutcome::Adopted(retirement_fault) => {
+        RetirementOutcome::Fault(retirement_fault) => {
+            fault = retirement_fault;
+            Some(Continuation::Restartable(factory))
+        }
+        RetirementOutcome::Adopted(retirement_fault) => {
             fault = retirement_fault;
             None
         }
@@ -877,43 +1119,42 @@ fn fault_after_retirement(
     })
 }
 
-fn terminal_after_worker_disconnect(mut worker: WorkerCustody) -> MechanicalTerminal {
-    let factory = worker.factory.clone();
-    let join = worker.join.take();
-    drop(worker.commands);
-    let fault = match join.and_then(|join| join.join().err()) {
-        Some(_) => MechanicalFault::new(
-            MechanicalFaultKind::SupervisorUnwind,
-            "retained_prepared_export_worker_unwound",
-            "the retained runtime worker unwound while it owned the invocation",
+fn terminal_after_worker_disconnect(worker: WorkerCustody) -> MechanicalTerminal {
+    let factory = worker.factory().clone();
+    let retirement = finish_worker_join(worker, Duration::from_secs(1));
+    let (fault, continuation) = match retirement {
+        RetirementOutcome::Complete => (
+            MechanicalFault::new(
+                MechanicalFaultKind::WorkerTermination,
+                "retained_prepared_export_worker_disconnected",
+                "the retained runtime worker disconnected before publishing a terminal",
+            ),
+            Some(Continuation::Restartable(factory)),
         ),
-        None => MechanicalFault::new(
-            MechanicalFaultKind::WorkerTermination,
-            "retained_prepared_export_worker_disconnected",
-            "the retained runtime worker disconnected before publishing a terminal",
-        ),
+        RetirementOutcome::Fault(fault) => (fault, Some(Continuation::Restartable(factory))),
+        RetirementOutcome::Adopted(fault) => (fault, None),
     };
     MechanicalTerminal::MechanicalFault(MechanicalFaultTerminal {
         fault,
-        continuation: Some(Continuation::Restartable(factory)),
+        continuation,
     })
 }
 
 fn retire_worker(worker: WorkerCustody, timeout: Duration) -> RetirementOutcome {
     let (response, receive) = mpsc::sync_channel(1);
     if worker
-        .commands
+        .commands()
         .send(WorkerCommand::Shutdown {
             response: Some(response),
         })
         .is_err()
     {
-        return join_disconnected_worker(worker);
+        return finish_worker_join(worker, timeout);
     }
     match receive.recv_timeout(timeout) {
-        Ok(Ok(())) => join_shutdown_worker(worker),
+        Ok(Ok(())) => finish_worker_join(worker, timeout),
         Ok(Err(error)) => {
-            let join_outcome = join_shutdown_worker(worker);
+            let join_outcome = finish_worker_join(worker, timeout);
             match join_outcome {
                 RetirementOutcome::Complete => RetirementOutcome::Fault(MechanicalFault::new(
                     MechanicalFaultKind::Shutdown,
@@ -923,7 +1164,7 @@ fn retire_worker(worker: WorkerCustody, timeout: Duration) -> RetirementOutcome 
                 other => other,
             }
         }
-        Err(RecvTimeoutError::Disconnected) => join_disconnected_worker(worker),
+        Err(RecvTimeoutError::Disconnected) => finish_worker_join(worker, timeout),
         Err(RecvTimeoutError::Timeout) => {
             adopt_for_disposal(worker);
             RetirementOutcome::Adopted(MechanicalFault::new(
@@ -935,41 +1176,45 @@ fn retire_worker(worker: WorkerCustody, timeout: Duration) -> RetirementOutcome 
     }
 }
 
-fn join_shutdown_worker(mut worker: WorkerCustody) -> RetirementOutcome {
+fn finish_worker_join(mut worker: WorkerCustody, timeout: Duration) -> RetirementOutcome {
+    worker.commands.take();
     let Some(join) = worker.join.take() else {
+        worker.disarm_completed();
         return RetirementOutcome::Fault(MechanicalFault::new(
             MechanicalFaultKind::WorkerTermination,
             "retained_backend_worker_join_missing",
             "retained runtime shutdown completed without its affine join custody",
         ));
     };
-    drop(worker.commands);
-    match join.join() {
-        Ok(()) => RetirementOutcome::Complete,
-        Err(_) => RetirementOutcome::Fault(MechanicalFault::new(
-            MechanicalFaultKind::SupervisorUnwind,
-            "retained_backend_worker_unwound_during_shutdown",
-            "retained runtime worker unwound while finalizing shutdown",
-        )),
-    }
-}
-
-fn join_disconnected_worker(mut worker: WorkerCustody) -> RetirementOutcome {
-    let Some(join) = worker.join.take() else {
-        return RetirementOutcome::Fault(MechanicalFault::new(
-            MechanicalFaultKind::WorkerTermination,
-            "retained_backend_disconnected_worker_join_missing",
-            "disconnected retained runtime worker had no join custody",
-        ));
-    };
-    drop(worker.commands);
-    match join.join() {
-        Ok(()) => RetirementOutcome::Complete,
-        Err(_) => RetirementOutcome::Fault(MechanicalFault::new(
-            MechanicalFaultKind::SupervisorUnwind,
-            "retained_backend_disconnected_worker_unwound",
-            "disconnected retained runtime worker ended by unwind",
-        )),
+    worker.join = Some(join);
+    let deadline = Instant::now().checked_add(timeout);
+    loop {
+        if worker.join.as_ref().is_some_and(JoinHandle::is_finished) {
+            let join = worker
+                .join
+                .take()
+                .expect("finished join remains in custody");
+            let outcome = if join.join().is_ok() {
+                RetirementOutcome::Complete
+            } else {
+                RetirementOutcome::Fault(MechanicalFault::new(
+                    MechanicalFaultKind::SupervisorUnwind,
+                    "retained_backend_worker_unwound_during_shutdown",
+                    "retained runtime worker unwound while finalizing shutdown",
+                ))
+            };
+            worker.disarm_completed();
+            return outcome;
+        }
+        if deadline.is_none_or(|deadline| Instant::now() >= deadline) {
+            adopt_for_disposal(worker);
+            return RetirementOutcome::Adopted(MechanicalFault::new(
+                MechanicalFaultKind::WorkerTermination,
+                "retained_backend_join_adopted_after_timeout",
+                "retained runtime worker join remained unfinished and was adopted",
+            ));
+        }
+        thread::yield_now();
     }
 }
 
@@ -990,47 +1235,39 @@ fn is_typed_interrupt(error: &LibbunError) -> bool {
     )
 }
 
-fn ensure_durable_reaper() -> Result<Sender<WorkerCustody>, String> {
+fn ensure_durable_reaper() -> Result<Arc<DurableReaper>, String> {
     DURABLE_REAPER
         .get_or_init(|| {
-            let (sender, receiver) = mpsc::channel();
-            thread::Builder::new()
+            let reaper = Arc::new(DurableReaper {
+                head: AtomicPtr::new(std::ptr::null_mut()),
+                worker: OnceLock::new(),
+            });
+            let owner = Arc::clone(&reaper);
+            let join = thread::Builder::new()
                 .name("libbun-retained-durable-reaper".to_owned())
-                .spawn(move || durable_reaper_loop(receiver))
-                .map(|_| sender)
-                .map_err(|error| error.to_string())
+                .spawn(move || durable_reaper_loop(owner))
+                .map_err(|error| error.to_string())?;
+            reaper
+                .worker
+                .set(join.thread().clone())
+                .map_err(|_| "durable reaper thread identity was already installed".to_owned())?;
+            drop(join);
+            Ok(reaper)
         })
         .as_ref()
-        .map(Sender::clone)
+        .map(Arc::clone)
         .map_err(Clone::clone)
 }
 
-fn durable_reaper_loop(receiver: Receiver<WorkerCustody>) {
-    for mut worker in receiver {
-        let _ = worker
-            .commands
-            .send(WorkerCommand::Shutdown { response: None });
-        drop(worker.commands);
-        if let Some(join) = worker.join.take() {
-            let _ = join.join();
-        }
+fn durable_reaper_loop(reaper: Arc<DurableReaper>) {
+    loop {
+        reaper.drain_snapshot();
+        thread::park_timeout(Duration::from_millis(2));
     }
 }
 
 fn adopt_for_disposal(worker: WorkerCustody) {
-    match ensure_durable_reaper().and_then(|sender| {
-        sender
-            .send(worker)
-            .map_err(|error| format!("durable reaper queue disconnected: {error}"))
-    }) {
-        Ok(()) => {}
-        Err(_) => {
-            // A disconnected durable reaper drops the command sender. The
-            // runtime worker then observes channel closure, shuts down inside
-            // its owning thread, and its detached JoinHandle has no authority
-            // surface back to the caller.
-        }
-    }
+    worker.publish_retirement();
 }
 
 fn spawn_contained_worker(mut config: BunRuntimeConfig) -> LibbunResult<WorkerCustody> {
@@ -1119,36 +1356,51 @@ fn spawn_contained_worker_with_paths(
     helper: PathBuf,
     bubblewrap: PathBuf,
 ) -> LibbunResult<WorkerCustody> {
+    let reaper_node = preallocate_reaper_node()?;
     let factory = WorkerFactory::Contained {
         config: config.clone(),
         helper: helper.clone(),
         bubblewrap: bubblewrap.clone(),
     };
+    let retirement_requested = Arc::new(AtomicBool::new(false));
+    let worker_retirement = Arc::clone(&retirement_requested);
     let (commands, receiver) = mpsc::channel();
     let (initialized, initialization) = mpsc::sync_channel(1);
     let join = thread::Builder::new()
         .name("libbun-contained-runtime-owner".to_owned())
-        .spawn(move || contained_worker_loop(config, helper, bubblewrap, receiver, initialized))
+        .spawn(move || {
+            contained_worker_loop(
+                config,
+                helper,
+                bubblewrap,
+                receiver,
+                initialized,
+                worker_retirement,
+            )
+        })
         .map_err(|error| {
             LibbunError::initialize(format!(
                 "contained runtime owner thread spawn failed: {error}"
             ))
         })?;
-    match initialization.recv() {
-        Ok(Ok(())) => Ok(WorkerCustody {
-            commands,
-            join: Some(join),
-            factory,
-        }),
+    let worker = WorkerCustody::new(commands, join, factory, retirement_requested, reaper_node);
+    match initialization.recv_timeout(Duration::from_secs(6)) {
+        Ok(Ok(())) => Ok(worker),
         Ok(Err(error)) => {
-            let _ = join.join();
+            adopt_for_disposal(worker);
             Err(error)
         }
-        Err(error) => {
-            let _ = join.join();
-            Err(LibbunError::initialize(format!(
-                "contained runtime owner disconnected during initialization: {error}"
-            )))
+        Err(RecvTimeoutError::Timeout) => {
+            adopt_for_disposal(worker);
+            Err(LibbunError::initialize(
+                "contained runtime owner admission exceeded its foreground deadline",
+            ))
+        }
+        Err(RecvTimeoutError::Disconnected) => {
+            adopt_for_disposal(worker);
+            Err(LibbunError::initialize(
+                "contained runtime owner disconnected during initialization",
+            ))
         }
     }
 }
@@ -1161,6 +1413,8 @@ struct ContainedProcess {
     stderr_reader: Option<JoinHandle<io::Result<Vec<u8>>>>,
     next_id: u64,
     finished: bool,
+    exit_status: Option<ExitStatus>,
+    retirement_fault: Option<LibbunError>,
 }
 
 impl ContainedProcess {
@@ -1196,28 +1450,28 @@ impl ContainedProcess {
             })?;
 
         let Some(stdin) = child.stdin.take() else {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(LibbunError::initialize(
-                "contained retained worker stdin custody is missing",
-            ));
+            let admission =
+                LibbunError::initialize("contained retained worker stdin custody is missing");
+            return Err(retire_partial_admission(&mut child, None)
+                .err()
+                .unwrap_or(admission));
         };
         let Some(stdout) = child.stdout.take() else {
             drop(stdin);
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(LibbunError::initialize(
-                "contained retained worker stdout custody is missing",
-            ));
+            let admission =
+                LibbunError::initialize("contained retained worker stdout custody is missing");
+            return Err(retire_partial_admission(&mut child, None)
+                .err()
+                .unwrap_or(admission));
         };
         let Some(stderr) = child.stderr.take() else {
             drop(stdin);
             drop(stdout);
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(LibbunError::initialize(
-                "contained retained worker stderr custody is missing",
-            ));
+            let admission =
+                LibbunError::initialize("contained retained worker stderr custody is missing");
+            return Err(retire_partial_admission(&mut child, None)
+                .err()
+                .unwrap_or(admission));
         };
         let (response_sender, responses) = mpsc::channel();
         let response_reader = match thread::Builder::new()
@@ -1228,11 +1482,12 @@ impl ContainedProcess {
             Err(error) => {
                 drop(stdin);
                 drop(stderr);
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(LibbunError::initialize(format!(
+                let admission = LibbunError::initialize(format!(
                     "contained retained worker response reader spawn failed: {error}"
-                )));
+                ));
+                return Err(retire_partial_admission(&mut child, None)
+                    .err()
+                    .unwrap_or(admission));
             }
         };
         let stderr_reader = match thread::Builder::new()
@@ -1242,12 +1497,12 @@ impl ContainedProcess {
             Ok(reader) => reader,
             Err(error) => {
                 drop(stdin);
-                let _ = child.kill();
-                let _ = child.wait();
-                let _ = response_reader.join();
-                return Err(LibbunError::initialize(format!(
+                let admission = LibbunError::initialize(format!(
                     "contained retained worker stderr reader spawn failed: {error}"
-                )));
+                ));
+                return Err(retire_partial_admission(&mut child, Some(response_reader))
+                    .err()
+                    .unwrap_or(admission));
             }
         };
         let mut process = Self {
@@ -1258,8 +1513,22 @@ impl ContainedProcess {
             stderr_reader: Some(stderr_reader),
             next_id: 1,
             finished: false,
+            exit_status: None,
+            retirement_fault: None,
         };
-        process.initialize(config)?;
+        let admission = catch_unwind(AssertUnwindSafe(|| process.initialize(config)));
+        match admission {
+            Ok(Ok(())) => {}
+            Ok(Err(admission)) => {
+                return Err(process.force_terminate().err().unwrap_or(admission));
+            }
+            Err(_) => {
+                let admission = LibbunError::initialize(
+                    "contained retained worker admission supervisor unwound",
+                );
+                return Err(process.force_terminate().err().unwrap_or(admission));
+            }
+        }
         Ok(process)
     }
 
@@ -1314,6 +1583,7 @@ impl ContainedProcess {
         request: ProviderRequest,
         options: ProviderSettleOptions,
         interrupt: &AtomicBool,
+        retirement_requested: &AtomicBool,
     ) -> WorkerDriveResponse {
         let call_id =
             match self.send(HelperRequestPayload::CallProviderUntilSettled { request, options }) {
@@ -1325,7 +1595,7 @@ impl ContainedProcess {
                     };
                 }
             };
-        let call = match self.receive_interruptible(call_id, interrupt) {
+        let call = match self.receive_interruptible(call_id, interrupt, retirement_requested) {
             Ok(response) => response,
             Err(error) => {
                 return WorkerDriveResponse {
@@ -1355,39 +1625,40 @@ impl ContainedProcess {
                 };
             }
         };
-        let unowned_output = match self.receive_interruptible(drain_id, interrupt) {
-            Ok(HelperResponse {
-                result: Ok(HelperResponsePayload::Output(output)),
-                ..
-            }) => output,
-            Ok(HelperResponse { result: Ok(_), .. }) => {
-                return WorkerDriveResponse {
-                    result: Err(LibbunError::backend_state(
-                        "retained_worker_protocol_payload_mismatch",
-                        "contained retained worker returned a non-output drain payload",
-                    )),
-                    unowned_output: Vec::new(),
-                };
-            }
-            Ok(HelperResponse {
-                result: Err(message),
-                ..
-            }) => {
-                return WorkerDriveResponse {
-                    result: Err(LibbunError::backend_state(
-                        "retained_worker_output_drain_failed",
-                        message,
-                    )),
-                    unowned_output: Vec::new(),
-                };
-            }
-            Err(error) => {
-                return WorkerDriveResponse {
-                    result: Err(error),
-                    unowned_output: Vec::new(),
-                };
-            }
-        };
+        let unowned_output =
+            match self.receive_interruptible(drain_id, interrupt, retirement_requested) {
+                Ok(HelperResponse {
+                    result: Ok(HelperResponsePayload::Output(output)),
+                    ..
+                }) => output,
+                Ok(HelperResponse { result: Ok(_), .. }) => {
+                    return WorkerDriveResponse {
+                        result: Err(LibbunError::backend_state(
+                            "retained_worker_protocol_payload_mismatch",
+                            "contained retained worker returned a non-output drain payload",
+                        )),
+                        unowned_output: Vec::new(),
+                    };
+                }
+                Ok(HelperResponse {
+                    result: Err(message),
+                    ..
+                }) => {
+                    return WorkerDriveResponse {
+                        result: Err(LibbunError::backend_state(
+                            "retained_worker_output_drain_failed",
+                            message,
+                        )),
+                        unowned_output: Vec::new(),
+                    };
+                }
+                Err(error) => {
+                    return WorkerDriveResponse {
+                        result: Err(error),
+                        unowned_output: Vec::new(),
+                    };
+                }
+            };
         WorkerDriveResponse {
             result,
             unowned_output,
@@ -1475,9 +1746,10 @@ impl ContainedProcess {
         &mut self,
         id: u64,
         interrupt: &AtomicBool,
+        retirement_requested: &AtomicBool,
     ) -> LibbunResult<HelperResponse> {
         loop {
-            if interrupt.load(Ordering::Acquire) {
+            if interrupt.load(Ordering::Acquire) || retirement_requested.load(Ordering::Acquire) {
                 match self.responses.try_recv() {
                     Ok(Ok(response)) if response.id == id => return Ok(response),
                     Ok(Ok(response)) => {
@@ -1540,26 +1812,21 @@ impl ContainedProcess {
 
     fn force_terminate(&mut self) -> LibbunResult<()> {
         self.stdin.take();
-        if !self.finished {
-            if let Err(kill_error) = self.child.kill()
-                && self.child.try_wait().map_err(|wait_error| {
-                    LibbunError::shutdown(format!(
-                        "contained retained worker status probe failed after kill refusal: {wait_error}"
-                    ))
-                })?.is_none()
+        while !self.poll_retirement_once() {
+            if !self.finished
+                && let Err(error) = self.child.kill()
+                && self.retirement_fault.is_none()
             {
-                return Err(LibbunError::shutdown(format!(
-                    "contained retained worker namespace leader could not be killed: {kill_error}"
+                self.retirement_fault = Some(LibbunError::shutdown(format!(
+                    "contained retained worker namespace leader kill failed: {error}"
                 )));
             }
-            self.child.wait().map_err(|error| {
-                LibbunError::shutdown(format!(
-                    "contained retained worker namespace leader could not be reaped: {error}"
-                ))
-            })?;
-            self.finished = true;
+            thread::park_timeout(Duration::from_millis(2));
         }
-        self.join_pumps()
+        match self.retirement_fault.take() {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 
     fn finish_process(&mut self, timeout: Duration) -> LibbunResult<ExitStatus> {
@@ -1568,54 +1835,128 @@ impl ContainedProcess {
             LibbunError::shutdown("contained retained worker exit deadline overflow")
         })?;
         loop {
-            match self.child.try_wait().map_err(|error| {
-                LibbunError::shutdown(format!(
-                    "contained retained worker namespace leader status failed: {error}"
-                ))
-            })? {
-                Some(status) => {
-                    self.finished = true;
-                    self.join_pumps()?;
-                    return Ok(status);
+            if self.poll_retirement_once() {
+                if let Some(error) = self.retirement_fault.take() {
+                    return Err(error);
                 }
-                None if Instant::now() < deadline => thread::yield_now(),
-                None => {
-                    self.force_terminate()?;
-                    return Err(LibbunError::shutdown(
+                return self.exit_status.take().ok_or_else(|| {
+                    LibbunError::shutdown(
+                        "contained retained worker retired without an exit status",
+                    )
+                });
+            }
+            if Instant::now() >= deadline {
+                if self.retirement_fault.is_none() {
+                    self.retirement_fault = Some(LibbunError::shutdown(
                         "contained retained worker acknowledged exit but did not terminate before its deadline",
                     ));
                 }
+                self.force_terminate()?;
             }
+            thread::park_timeout(Duration::from_millis(2));
         }
     }
 
-    fn join_pumps(&mut self) -> LibbunResult<()> {
-        if let Some(reader) = self.response_reader.take() {
-            reader.join().map_err(|_| {
-                LibbunError::shutdown("contained retained worker response reader unwound")
-            })?;
+    fn poll_retirement_once(&mut self) -> bool {
+        if !self.finished {
+            match self.child.try_wait() {
+                Ok(Some(status)) => {
+                    self.finished = true;
+                    self.exit_status = Some(status);
+                }
+                Ok(None) => return false,
+                Err(error) => {
+                    if self.retirement_fault.is_none() {
+                        self.retirement_fault = Some(LibbunError::shutdown(format!(
+                            "contained retained worker namespace leader status failed: {error}"
+                        )));
+                    }
+                    return false;
+                }
+            }
+        }
+        if self
+            .response_reader
+            .as_ref()
+            .is_some_and(|reader| !reader.is_finished())
+            || self
+                .stderr_reader
+                .as_ref()
+                .is_some_and(|reader| !reader.is_finished())
+        {
+            return false;
+        }
+        if let Some(reader) = self.response_reader.take()
+            && reader.join().is_err()
+            && self.retirement_fault.is_none()
+        {
+            self.retirement_fault = Some(LibbunError::shutdown(
+                "contained retained worker response reader unwound",
+            ));
         }
         if let Some(reader) = self.stderr_reader.take() {
-            reader
-                .join()
-                .map_err(|_| {
-                    LibbunError::shutdown("contained retained worker stderr reader unwound")
-                })?
-                .map_err(|error| {
-                    LibbunError::shutdown(format!(
+            match reader.join() {
+                Err(_) if self.retirement_fault.is_none() => {
+                    self.retirement_fault = Some(LibbunError::shutdown(
+                        "contained retained worker stderr reader unwound",
+                    ));
+                }
+                Ok(Err(error)) if self.retirement_fault.is_none() => {
+                    self.retirement_fault = Some(LibbunError::shutdown(format!(
                         "contained retained worker stderr drain failed: {error}"
-                    ))
-                })?;
+                    )));
+                }
+                _ => {}
+            }
         }
-        Ok(())
+        true
     }
 }
 
-impl Drop for ContainedProcess {
-    fn drop(&mut self) {
-        if !self.finished {
-            let _ = self.force_terminate();
+fn retire_partial_admission(
+    child: &mut Child,
+    mut response_reader: Option<JoinHandle<()>>,
+) -> LibbunResult<()> {
+    let mut first_fault = None;
+    loop {
+        if let Err(error) = child.kill()
+            && first_fault.is_none()
+        {
+            first_fault = Some(LibbunError::shutdown(format!(
+                "partially admitted retained worker kill failed: {error}"
+            )));
         }
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                if response_reader
+                    .as_ref()
+                    .is_some_and(|reader| !reader.is_finished())
+                {
+                    thread::park_timeout(Duration::from_millis(2));
+                    continue;
+                }
+                if let Some(reader) = response_reader.take()
+                    && reader.join().is_err()
+                    && first_fault.is_none()
+                {
+                    first_fault = Some(LibbunError::shutdown(
+                        "partially admitted retained worker response reader unwound",
+                    ));
+                }
+                return match first_fault {
+                    Some(error) => Err(error),
+                    None => Ok(()),
+                };
+            }
+            Ok(None) => {}
+            Err(error) if first_fault.is_none() => {
+                first_fault = Some(LibbunError::shutdown(format!(
+                    "partially admitted retained worker status failed: {error}"
+                )));
+            }
+            Err(_) => {}
+        }
+        thread::park_timeout(Duration::from_millis(2));
     }
 }
 
@@ -1666,6 +2007,7 @@ fn contained_worker_loop(
     bubblewrap: PathBuf,
     receiver: Receiver<WorkerCommand>,
     initialized: SyncSender<LibbunResult<()>>,
+    retirement_requested: Arc<AtomicBool>,
 ) {
     let mut process = match ContainedProcess::start(&config, &helper, &bubblewrap) {
         Ok(process) => process,
@@ -1675,31 +2017,43 @@ fn contained_worker_loop(
         }
     };
     if initialized.send(Ok(())).is_err() {
+        let _ = process.force_terminate();
         return;
     }
-    while let Ok(command) = receiver.recv() {
-        match command {
-            WorkerCommand::Drive {
-                request,
-                options,
-                interrupt,
-                response,
-            } => {
-                let drive = process.drive(request, options, interrupt.as_ref());
-                let terminated = matches!(&drive.result, Err(error) if is_typed_interrupt(error));
-                let _ = response.send(drive);
-                if terminated {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        while let Ok(command) = receiver.recv() {
+            match command {
+                WorkerCommand::Drive {
+                    request,
+                    options,
+                    interrupt,
+                    response,
+                } => {
+                    let drive = process.drive(
+                        request,
+                        options,
+                        interrupt.as_ref(),
+                        retirement_requested.as_ref(),
+                    );
+                    let terminated =
+                        matches!(&drive.result, Err(error) if is_typed_interrupt(error));
+                    let _ = response.send(drive);
+                    if terminated {
+                        break;
+                    }
+                }
+                WorkerCommand::Shutdown { response } => {
+                    let result = process.graceful_shutdown();
+                    if let Some(response) = response {
+                        let _ = response.send(result);
+                    }
                     break;
                 }
             }
-            WorkerCommand::Shutdown { response } => {
-                let result = process.graceful_shutdown();
-                if let Some(response) = response {
-                    let _ = response.send(result);
-                }
-                break;
-            }
         }
+    }));
+    if !process.finished {
+        let _ = process.force_terminate();
     }
 }
 
@@ -1708,32 +2062,32 @@ fn spawn_in_process_worker<R>(config: BunRuntimeConfig) -> LibbunResult<WorkerCu
 where
     R: BunEmbeddingRuntime + 'static,
 {
+    let reaper_node = preallocate_reaper_node()?;
     let factory = WorkerFactory::InProcess {
         config: config.clone(),
         spawn: spawn_in_process_worker::<R>,
     };
+    let retirement_requested = Arc::new(AtomicBool::new(false));
+    let worker_retirement = Arc::clone(&retirement_requested);
     let (commands, receiver) = mpsc::channel();
     let (initialized, initialization) = mpsc::sync_channel(1);
     let join = thread::Builder::new()
         .name("libbun-retained-runtime-owner".to_owned())
-        .spawn(move || retained_worker_loop::<R>(config, receiver, initialized))
+        .spawn(move || retained_worker_loop::<R>(config, receiver, initialized, worker_retirement))
         .map_err(|error| {
             LibbunError::initialize(format!(
                 "retained runtime owner thread spawn failed: {error}"
             ))
         })?;
+    let worker = WorkerCustody::new(commands, join, factory, retirement_requested, reaper_node);
     match initialization.recv() {
-        Ok(Ok(())) => Ok(WorkerCustody {
-            commands,
-            join: Some(join),
-            factory,
-        }),
+        Ok(Ok(())) => Ok(worker),
         Ok(Err(error)) => {
-            let _ = join.join();
+            adopt_for_disposal(worker);
             Err(error)
         }
         Err(error) => {
-            let _ = join.join();
+            adopt_for_disposal(worker);
             Err(LibbunError::initialize(format!(
                 "retained runtime owner disconnected during initialization: {error}"
             )))
@@ -1746,6 +2100,7 @@ fn retained_worker_loop<R>(
     config: BunRuntimeConfig,
     receiver: Receiver<WorkerCommand>,
     initialized: SyncSender<LibbunResult<()>>,
+    _retirement_requested: Arc<AtomicBool>,
 ) where
     R: BunEmbeddingRuntime + 'static,
 {
@@ -2176,6 +2531,72 @@ mod tests {
         assert!(SHUTDOWNS.load(Ordering::Relaxed) > before);
     }
 
+    #[test]
+    fn reaper_node_allocation_failure_precedes_live_worker_admission() {
+        FAIL_REAPER_NODE_ALLOCATION.with(|failure| failure.set(true));
+        let result = spawn_in_process_worker::<OwnerTestRuntime>(BunRuntimeConfig::new(
+            "allocation-refused",
+            "/tmp",
+        ));
+        assert!(matches!(result, Err(LibbunError::Initialize { .. })));
+    }
+
+    #[test]
+    fn caller_drive_unwind_publishes_worker_custody_before_terminal() {
+        let published_before = DURABLE_PUBLISHED.load(Ordering::Acquire);
+        PANIC_CALLER_AFTER_DISPATCH.with(|panic_after_dispatch| panic_after_dispatch.set(true));
+        let terminal = drive(backend("caller-unwind"), "blocking", Duration::from_secs(1));
+        assert_eq!(
+            terminal.fault().expect("caller unwind is typed").kind(),
+            MechanicalFaultKind::SupervisorUnwind
+        );
+        assert!(DURABLE_PUBLISHED.load(Ordering::Acquire) > published_before);
+    }
+
+    #[test]
+    fn drop_is_nonblocking_and_publishes_preallocated_node() {
+        let backend = backend("nonblocking-drop");
+        let published_before = DURABLE_PUBLISHED.load(Ordering::Acquire);
+        let started = Instant::now();
+        drop(backend);
+        assert!(started.elapsed() < Duration::from_millis(50));
+        assert!(DURABLE_PUBLISHED.load(Ordering::Acquire) > published_before);
+    }
+
+    #[test]
+    fn reaper_wake_failure_retains_published_node_until_later_drain() {
+        let queue = Arc::new(DurableReaper {
+            head: AtomicPtr::new(std::ptr::null_mut()),
+            worker: OnceLock::new(),
+        });
+        let node = Box::new(DurableReaperNode {
+            next: AtomicPtr::new(std::ptr::null_mut()),
+            custody: UnsafeCell::new(None),
+            queue: Arc::clone(&queue),
+            publication_counted: false,
+        });
+        let (commands, receiver) = mpsc::channel();
+        let join = thread::spawn(|| {});
+        while !join.is_finished() {
+            thread::yield_now();
+        }
+        let worker = WorkerCustody::new(
+            commands,
+            join,
+            WorkerFactory::InProcess {
+                config: BunRuntimeConfig::new("wake-failure", "/tmp"),
+                spawn: spawn_in_process_worker::<OwnerTestRuntime>,
+            },
+            Arc::new(AtomicBool::new(false)),
+            node,
+        );
+        drop(worker);
+        assert!(!queue.head.load(Ordering::Acquire).is_null());
+        queue.drain_snapshot();
+        assert!(queue.head.load(Ordering::Acquire).is_null());
+        drop(receiver);
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn contained_process_interrupt_and_deadline_reap_and_restart_the_exact_helper() {
@@ -2197,6 +2618,7 @@ import time
 
 reader = sys.stdin.buffer
 writer = sys.stdout.buffer
+block_exit = False
 
 def read_frame():
     header = reader.read(4)
@@ -2219,7 +2641,12 @@ while True:
     kind = payload["type"]
     if kind == "hello":
         response = {"type": "hello", "payload": payload["payload"]}
-    elif kind == "create" or kind == "exit":
+    elif kind == "create":
+        block_exit = payload["payload"]["config"]["hostId"] == "shutdown-block"
+        response = {"type": "unit"}
+    elif kind == "exit":
+        if block_exit:
+            time.sleep(60)
         response = {"type": "unit"}
     elif kind == "drainOutput":
         response = {"type": "output", "payload": []}
@@ -2242,7 +2669,7 @@ while True:
         std::fs::set_permissions(&helper, permissions).expect("fixture helper is executable");
         let helper = helper.canonicalize().expect("helper path resolves exactly");
         let config = BunRuntimeConfig::new("contained-owner-test", fixture.path());
-        let worker = spawn_contained_worker_with_paths(config, helper, bubblewrap)
+        let worker = spawn_contained_worker_with_paths(config, helper.clone(), bubblewrap.clone())
             .expect("exact-contained fixture worker opens");
         let backend = BunProviderBackend {
             worker: Some(worker),
@@ -2276,6 +2703,21 @@ while True:
         let restarted = deadline
             .prepare_next(package, invocation)
             .expect("deadline retirement preserves one exact-path restart");
+        let control = DriveControl::deadline_after(Duration::from_secs(2))
+            .expect("second cancellation deadline is representable");
+        let interrupt = control.interrupt();
+        let requester = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(20));
+            interrupt.request();
+        });
+        let cancelled = restarted.drive(control);
+        requester.join().expect("second interrupt requester joins");
+        assert!(matches!(cancelled, MechanicalTerminal::Cancelled(_)));
+
+        let (package, invocation) = selected("ok", json!(null));
+        let restarted = cancelled
+            .prepare_next(package, invocation)
+            .expect("repeated cancellation preserves exact-path restart");
         assert!(matches!(
             restarted.shutdown(
                 ShutdownControl::deadline_after(Duration::from_secs(2))
@@ -2283,5 +2725,21 @@ while True:
             ),
             BackendShutdownTerminal::Complete
         ));
+
+        let config = BunRuntimeConfig::new("shutdown-block", fixture.path());
+        let worker = spawn_contained_worker_with_paths(config, helper, bubblewrap)
+            .expect("shutdown-hostile fixture worker opens");
+        let backend = BunProviderBackend {
+            worker: Some(worker),
+        };
+        let started = Instant::now();
+        assert!(matches!(
+            backend.shutdown(
+                ShutdownControl::deadline_after(Duration::from_millis(20))
+                    .expect("hostile shutdown deadline is representable")
+            ),
+            BackendShutdownTerminal::MechanicalFault(_)
+        ));
+        assert!(started.elapsed() < Duration::from_millis(100));
     }
 }
