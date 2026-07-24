@@ -1,13 +1,13 @@
-# Correction-4 Fable file plan: Lifecycle/JSC interruption/retained-host/quarantine/reaper/shutdown
+# Correction-5 Fable file plan: Lifecycle/JSC interruption/retained-host/quarantine/reaper/shutdown
 
-- Prior independent verdict: PART BUNDLE REVISE at a5ab10f422fb955b899e6ce1089b8c74a4600860
+- Prior independent verdict: PART BUNDLE REVISE at d6f9ae079eea0d635115fabae13526b29266b491
 - State: NOT LAUNCHED
 - Engine: local Fable wrapper
 - Model: claude-fable-5
 - Effort: max
 - Deliverable: CONCRETE IMPLEMENTATION
 - Prompt: docs/reviews/libbun-w1112-20260724/lifecycle-prompt.md
-- Prompt SHA-256: db33f0c83d35142167661c69d3eb55118a0c333753ba4d9f76073519051e230b
+- Prompt SHA-256: e4c4a80927e4ac59986b76cdda8ab6deff2ff32c7e4650fb72e85ba00b56b1d0
 - Ordered file plan: docs/reviews/libbun-w1112-20260724/lifecycle-files.txt
 - Ordered file count: 37
 - Identical to Oracle ordered attachments: yes
@@ -18,10 +18,10 @@
 | ---: | --- | --- | ---: |
 | 1 | docs/LIBBUN-LIFECYCLE-CONTRACT.md | c3775f713913713ebc36b37f442cf87927d3e445ba82f80ae1c7fef041526881 | 17107 |
 | 2 | docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md | 72ece5d9eeef7a220ee4d309d5e28f7c852376c7fecd6288cddc4e643dc61fe8 | 2382 |
-| 3 | docs/reviews/libbun-w1112-20260724/correction4-index.md | f2c4b1452288fe220cfe1a0ae167a2c543cc8d2c6ff87843991e99fc397bfbbc | 2074 |
-| 4 | docs/reviews/libbun-w1112-20260724/lifecycle-correction3-independent-verdict.md | 82a9678c444921696178bc051d27484f7ccfa50ea154a52dc369b6a58733a938 | 12423 |
-| 5 | docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md | 0b0c735ef749de1929678c89405ba96537c46e3dd2e9ceb15a89e4ac6d8b2e2f | 15244 |
-| 6 | docs/reviews/libbun-w1112-20260724/lifecycle-process-worker-source-bundle.md | 847aa002148fa3c3612c160c56623e425d4e32bfe092df2b152e7a88a346d62d | 70338 |
+| 3 | docs/reviews/libbun-w1112-20260724/correction5-index.md | 08fd92e21a78e05b1e48dd2ee7e754b69ac4731cde9a11e409a5b5560dd0e7dd | 1161 |
+| 4 | docs/reviews/libbun-w1112-20260724/lifecycle-correction4-independent-verdict.md | adaafa862469dcb90eb6a4d7181fc6dc400a1294bc3c1fba794ff85b8c720a89 | 7613 |
+| 5 | docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md | ec410d9d572e3bf17adc4d1ebc4cc193bedf057ad42c0f415d4973305cd51b57 | 15244 |
+| 6 | docs/reviews/libbun-w1112-20260724/lifecycle-process-worker-source-bundle.md | f5647100ea07d9204c2a451ae43e5dd2af7aa56db313d61be5371c1f2339460a | 78506 |
 | 7 | src/lib.rs | 25e7a172b0c099e65d289e38c05866a5c4808475194038dd59bf2b29af53f96b | 551 |
 | 8 | src/prepared_export.rs | 88bb176940654c17528329ee50cc0f2894a8abf64a069689b46d4903a477d9e8 | 42745 |
 | 9 | native/src/lib.rs | 7eb9cc6ef601cbbe5d7aa3a40e33dd9870883051a59edc884b150f78468efb8a | 32133 |
@@ -54,4 +54,4 @@
 | 36 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/imported_helper_external_result_payload.test.ss | 9a26ebc4737439e4ae0e8342a3b19a357d2a8008d2d09330cc92fcae924dae43 | 771 |
 | 37 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/negative/ss/provider/external_provider_json_nfc_duplicate_keys.test.ss | 5d238da6cfd9e1f46a46fc243409d62c3940964cb084343adae08b9079d6c99d | 493 |
 
-No Fable session, request, response, or output exists. Fresh literal independent PART BUNDLE PASS verdicts for correction 4 remain required before launch.
+No Fable session, request, response, or output exists. Fresh literal independent PART BUNDLE PASS verdicts for correction 5 remain required before launch. Synthesis remains blocked until all three part verdicts pass.

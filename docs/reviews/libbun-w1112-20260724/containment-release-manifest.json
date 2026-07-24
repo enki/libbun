@@ -1,11 +1,11 @@
 {
-  "schema": "libbun.w1112.external-review-manifest.v4",
-  "correction": 4,
+  "schema": "libbun.w1112.external-review-manifest.v5",
+  "correction": 5,
   "part": "containment-release",
   "title": "Containment/persistent output/locks/packaging/release",
   "exact_source_sha": "6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb",
   "exact_source_tree": "cb964de8ab8162449fbe95959bf34d231570aa5c",
-  "review_base_commit": "c2ea016e4c9810fa86ddfd21bd4b30823746a9b9",
+  "review_base_commit": "4dd3395129a221d8c1fb2d1dbbdae509b2331f0e",
   "adjacent_source": {
     "repository": "SWARM_REPO",
     "sha": "95323ff17cb29928e31467f651ef03bae2099c14",
@@ -15,34 +15,39 @@
   "deliverable": "CONCRETE IMPLEMENTATION",
   "evidence_generator": {
     "path": "scripts/generate-libbun-w1112-review-evidence-20260724.py",
-    "sha256": "f4158b8bf8d9862de47105b87957bf961d7d87f8ec1ba7096de5156c5fa31309",
+    "sha256": "ebfec58b565f3739fe70a711ca3fae85f1a256ef04d39580527c43dc3271258b",
     "check_command": "LIBBUN_REPO=<libbun-checkout> SWARM_REPO=<swarm-checkout> python3 scripts/generate-libbun-w1112-review-evidence-20260724.py --check"
   },
   "bundle_verifier": {
     "path": "scripts/verify-libbun-w1112-review-bundle-20260724.py",
-    "sha256": "52c35938408a84107acb43282f27761844369494fd6fcb6b3ae1ce6a9e54b749",
+    "sha256": "c6e2f1f6e8d43cd9737bf9a398610e264a39bb862245594b92a654165f6d9aaf",
     "command": "SWARM_REPO=<swarm-checkout> python3 scripts/verify-libbun-w1112-review-bundle-20260724.py",
     "independent_checkout_replay": true
   },
   "prompt": {
     "path": "docs/reviews/libbun-w1112-20260724/containment-release-prompt.md",
-    "sha256": "9ca91668ca5f266e4432fe6e0b7ace604cd5096b1c28e7d94c8177e6fee0e7be"
+    "sha256": "974c690f71b27910d70c37a8321b0e97890c7b93b37bbdc102e2360ae533d625"
   },
   "ordered_file_plan": {
     "path": "docs/reviews/libbun-w1112-20260724/containment-release-files.txt",
-    "sha256": "cd03bc8454b144cf93820b6d13973e2fe9e6ec68b5ca862096d8ebb6f7c30a96",
-    "count": 55
+    "sha256": "d8c4226d1c05f83c73ce1fe98c118ec5d151f84ff7708b59c2aee5d298d79040",
+    "count": 56
   },
   "ordered_attachments": [
     {
-      "path": "docs/reviews/libbun-w1112-20260724/correction4-index.md",
-      "sha256": "f2c4b1452288fe220cfe1a0ae167a2c543cc8d2c6ff87843991e99fc397bfbbc",
-      "bytes": 2074
+      "path": "docs/reviews/libbun-w1112-20260724/correction5-index.md",
+      "sha256": "08fd92e21a78e05b1e48dd2ee7e754b69ac4731cde9a11e409a5b5560dd0e7dd",
+      "bytes": 1161
     },
     {
-      "path": "docs/reviews/libbun-w1112-20260724/containment-release-correction3-independent-verdict.md",
-      "sha256": "a7076b20968629d5df4b08fab77f38d792c03585d0f26c49c099a62c3ac4367a",
-      "bytes": 11841
+      "path": "docs/reviews/libbun-w1112-20260724/containment-release-correction4-independent-verdict.md",
+      "sha256": "c751b5d48a8331062e7ad23a02f29234bc63d05dc31c810c2df1705787c2973f",
+      "bytes": 9027
+    },
+    {
+      "path": "docs/reviews/libbun-w1112-20260724/atomic-deletion-tests-source-bundle.md",
+      "sha256": "30e620ee8efd602632a7a70a64a8536e21200d31fc8d94bc8df5c31edf32788f",
+      "bytes": 37849
     },
     {
       "path": "docs/reviews/libbun-w1112-20260724/lock-privacy-compliance-index.md",
@@ -310,7 +315,7 @@
       "bytes": 493
     }
   ],
-  "total_attachment_bytes": 603270,
+  "total_attachment_bytes": 637392,
   "oracle": {
     "provider": "openai",
     "engine": "api",
@@ -325,10 +330,10 @@
     "dry_run_command": "mapfile -t files < docs/reviews/libbun-w1112-20260724/containment-release-files.txt; oracle --provider openai --engine api --model gpt-5.6-sol --reasoning-mode pro --dry-run summary --files-report --prompt \"$(cat docs/reviews/libbun-w1112-20260724/containment-release-prompt.md)\" --file \"${files[@]}\"",
     "dry_run_report": {
       "path": "docs/reviews/libbun-w1112-20260724/containment-release-oracle-dry-run.txt",
-      "sha256": "6ad5b915c626be855c67596ed78a085265a5804725a83b518df4f1e7988a9e63"
+      "sha256": "337f4ec19af154c203606d4a3d51aab829f9fce3c4ecf93ea0ecf34080e4b358"
     },
-    "estimated_total_tokens": 241868,
-    "estimated_call_tokens": 242688,
+    "estimated_total_tokens": 251954,
+    "estimated_call_tokens": 252881,
     "state": "NOT LAUNCHED",
     "session_id": null,
     "request_id": null,
@@ -340,7 +345,7 @@
     "effort": "max",
     "file_plan": {
       "path": "docs/reviews/libbun-w1112-20260724/containment-release-fable-plan.md",
-      "sha256": "e60500b368044bbbcf4ab69b0f8eb626c93eb0a1110e989ab3243724c53f12dc"
+      "sha256": "c1939a74af68ff16a5c3021aa4a9a9b94a8bd09b612e6ab851b200e778fb4632"
     },
     "state": "NOT LAUNCHED",
     "session_id": null,
@@ -348,23 +353,23 @@
     "response_id": null,
     "output_paths": []
   },
-  "correction_evidence_state": "CORRECTION 4 COMPLETE; FRESH LITERAL INDEPENDENT REVIEW PENDING",
+  "correction_evidence_state": "CORRECTION 5 COMPLETE; FRESH LITERAL INDEPENDENT REVIEW PENDING",
   "independent_bundle_review": {
-    "reviewer": "PENDING correction-4 source-aware independent reviewer",
+    "reviewer": "PENDING correction-5 source-aware independent reviewer",
     "verdict": "PENDING; literal PART BUNDLE PASS required before launch"
   },
   "omissions": [
     "Oracle and Fable response artifacts are intentionally absent because model launch is out of scope.",
-    "Fresh literal independent PART BUNDLE PASS at the correction-4 commit is pending and this manifest does not authorize launch."
+    "Fresh literal independent PART BUNDLE PASS at the correction-5 commit is pending and this manifest does not authorize launch."
   ],
   "launch_state": "NOT LAUNCHED",
   "prior_independent_verdict": {
-    "commit": "16ae0060d9c8648048b89c8451cc51cfe1ec72db",
+    "commit": "d6f9ae079eea0d635115fabae13526b29266b491",
     "verdict": "PART BUNDLE REVISE",
     "records": [
       {
-        "path": "docs/reviews/libbun-w1112-20260724/containment-release-correction3-independent-verdict.md",
-        "sha256": "a7076b20968629d5df4b08fab77f38d792c03585d0f26c49c099a62c3ac4367a"
+        "path": "docs/reviews/libbun-w1112-20260724/containment-release-correction4-independent-verdict.md",
+        "sha256": "c751b5d48a8331062e7ad23a02f29234bc63d05dc31c810c2df1705787c2973f"
       }
     ]
   }

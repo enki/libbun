@@ -1,7 +1,7 @@
 docs/LIBBUN-LIFECYCLE-CONTRACT.md
 docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
-docs/reviews/libbun-w1112-20260724/correction4-index.md
-docs/reviews/libbun-w1112-20260724/lifecycle-correction3-independent-verdict.md
+docs/reviews/libbun-w1112-20260724/correction5-index.md
+docs/reviews/libbun-w1112-20260724/lifecycle-correction4-independent-verdict.md
 docs/reviews/libbun-w1112-20260724/lifecycle-vendored-jsc-source-bundle.md
 docs/reviews/libbun-w1112-20260724/lifecycle-process-worker-source-bundle.md
 src/lib.rs

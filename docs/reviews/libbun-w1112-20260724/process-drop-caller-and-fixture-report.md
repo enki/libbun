@@ -141,9 +141,9 @@ Meaning: Discovers the concrete process-exit to WebWorker termination/wait and o
 
 Expected result: Exit 0; the compact lifecycle source bundle must bind every source that changes process-exit selection, worker termination clearing, live-worker wait, or ordered shutdown semantics.
 
-Command: git -C "$LIBBUN_REPO" grep -n -E 'Bun__Process__exit|process_exit|global_exit|terminate_all_workers_and_wait|terminate_all_and_wait|notifyNeedTermination|request[Tt]ermination|clear[Tt]ermination|has[Tt]ermination[Rr]equest|WebWorker__notifyNeedTermination|live_workers::(register|unregister)|fn (spin|shutdown|destroy|exit)' 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb -- vendor/bun/src
+Command: git -C "$LIBBUN_REPO" grep -n -E 'Bun__Process__exit|process_exit|global_exit|terminate_all_workers_and_wait|terminate_all_and_wait|notifyNeedTermination|request[Tt]ermination|clear[Tt]ermination|clearHasTerminationRequest|has[Tt]ermination[Rr]equest|WebWorker__notifyNeedTermination|live_workers::(register|unregister)|fn (spin|shutdown|destroy|exit)' 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb -- vendor/bun/src
 
-Pattern: Bun__Process__exit|process_exit|global_exit|terminate_all_workers_and_wait|terminate_all_and_wait|notifyNeedTermination|request[Tt]ermination|clear[Tt]ermination|has[Tt]ermination[Rr]equest|WebWorker__notifyNeedTermination|live_workers::(register|unregister)|fn (spin|shutdown|destroy|exit)
+Pattern: Bun__Process__exit|process_exit|global_exit|terminate_all_workers_and_wait|terminate_all_and_wait|notifyNeedTermination|request[Tt]ermination|clear[Tt]ermination|clearHasTerminationRequest|has[Tt]ermination[Rr]equest|WebWorker__notifyNeedTermination|live_workers::(register|unregister)|fn (spin|shutdown|destroy|exit)
 
 Pathspecs: vendor/bun/src
 
@@ -256,12 +256,16 @@ Output:
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.rs:43:    safe fn JSC__VM__notifyNeedTermination(vm: &VM);
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.rs:161:        JSC__VM__notifyNeedTermination(self)
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.rs:188:        crate::cpp::JSC__VM__hasTerminationRequest(self)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.rs:192:        crate::cpp::JSC__VM__clearHasTerminationRequest(self)
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:117:    extern fn JSC__VM__notifyNeedTermination(vm: *VM) void;
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:120:    pub fn notifyNeedTermination(vm: *VM) void {
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:121:        JSC__VM__notifyNeedTermination(vm);
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:154:    extern fn JSC__VM__hasTerminationRequest(vm: *VM) bool;
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:155:    pub fn hasTerminationRequest(vm: *VM) bool {
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:156:        return JSC__VM__hasTerminationRequest(vm);
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:159:    extern fn JSC__VM__clearHasTerminationRequest(vm: *VM) void;
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:160:    pub fn clearHasTerminationRequest(vm: *VM) void {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VM.zig:161:        JSC__VM__clearHasTerminationRequest(vm);
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1396:            // SAFETY: `global_object` is the live VM global; `process_exit` is
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1398:            unsafe { (hooks.process_exit)(global_object.as_ptr(), 7) };
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/VirtualMachine.rs:1404:            unsafe { (hooks.process_exit)(global_object.as_ptr(), 1) };
@@ -284,9 +288,14 @@ Output:
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/BunProcess.cpp:3257:    Bun__Process__exit(zigGlobal, exitCode);
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/BunProcess.cpp:3258:    // Main-thread Bun__Process__exit is noreturn. In a worker it returns; the
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/NodeVM.cpp:869:    vm().notifyNeedTermination();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/NodeVMModule.cpp:132:        vm.clearHasTerminationRequest();
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/NodeVMScript.cpp:285:    if (vm.hasTerminationRequest()) {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/NodeVMScript.cpp:287:        vm.clearHasTerminationRequest();
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/ZigGlobalObject.cpp:3129:extern "C" void JSGlobalObject__requestTermination(JSC::JSGlobalObject* globalObject)
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/ZigGlobalObject.cpp:3136:extern "C" void JSGlobalObject__clearTerminationException(JSC::JSGlobalObject* globalObject)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/ZigGlobalObject.cpp:3140:    vm.clearHasTerminationRequest();
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4966:void JSC__VM__clearHasTerminationRequest(JSC::VM* vm)
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4968:    vm->clearHasTerminationRequest();
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4971:bool JSC__VM__hasTerminationRequest(JSC::VM* vm)
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4973:    return vm->hasTerminationRequest();
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/bindings/bindings.cpp:4982:void JSC__VM__notifyNeedTermination(JSC::VM* arg0)
@@ -355,6 +364,7 @@ Output:
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:575:fn spin(this: *WebWorker) void {
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:681:///   1. `vm = null` under lock    — a racing notifyNeedTermination() now sees
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:693:fn shutdown(this: *WebWorker) noreturn {
+6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:724:        vm.jsc_vm.clearHasTerminationRequest();
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:775:pub fn exit(this: *WebWorker) void {
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:782:        vm.jsc_vm.notifyNeedTermination();
 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb:vendor/bun/src/jsc/web_worker.zig:965:    @export(&notifyNeedTermination, .{ .name = "WebWorker__notifyNeedTermination" });

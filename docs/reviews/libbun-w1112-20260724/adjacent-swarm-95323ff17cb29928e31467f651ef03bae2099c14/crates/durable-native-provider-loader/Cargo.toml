@@ -1,0 +1,30 @@
+[package]
+name = "durable-native-provider-loader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+compiled-swarm-binary-manifest-model.workspace = true
+durable-direct-run-boundary-model.workspace = true
+libloading.workspace = true
+rand.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+swarm-capability-model.workspace = true
+swarm-native-provider-authority.workspace = true
+swarm-provider-host-set.workspace = true
+swarm-rust-sdk-capability.workspace = true
+swarm-substrate-invariant.workspace = true
+swarmvm-session-runtime-effect-model.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+example-echo-provider.workspace = true
+libswarm-package-graph-executable-program-receipt-owner.workspace = true
+swarm-contract-tson.workspace = true
+swarm-rust-sdk-static-provider-host.workspace = true

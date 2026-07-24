@@ -1,8 +1,8 @@
 README.md
 docs/LIBBUN-LIFECYCLE-CONTRACT.md
 docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
-docs/reviews/libbun-w1112-20260724/correction4-index.md
-docs/reviews/libbun-w1112-20260724/owner-generative-correction3-independent-verdict.md
+docs/reviews/libbun-w1112-20260724/correction5-index.md
+docs/reviews/libbun-w1112-20260724/owner-generative-correction4-independent-verdict.md
 docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md
 docs/reviews/libbun-w1112-20260724/adjacent-generative-source-bundle.md
 src/lib.rs

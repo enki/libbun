@@ -1,10 +1,10 @@
-# Vendored Bun process-exit, WebWorker termination/wait, and ordered shutdown source bundle (correction 4)
+# Vendored Bun process-exit, VM interruption/reset, WebWorker quiescence, and ordered shutdown source bundle (correction 5)
 
 Exact source SHA: 6066a5b85a0c6d1f6397914b8666b0fd0e5fd7eb
 
 Exact source tree: cb964de8ab8162449fbe95959bf34d231570aa5c
 
-The ordered source path is public process exit -> Rust process owner -> main-VM global exit or worker exit -> concrete RuntimeHooks binding -> process-global worker registry termination sweep/wait -> per-worker termination checkpoint -> ordered VM unpublish, exit handlers, JSC teardown, unregister, exit dispatch, and worker-resource destruction. Timeout or surviving nested-worker state is ambiguous custody and cannot authorize reuse.
+The ordered source path is public or uncaught-exception-handler process exit -> Rust process owner -> main-VM global exit or worker exit -> concrete RuntimeHooks binding -> process-global worker registry termination sweep/wait -> per-worker termination checkpoint -> ordered VM unpublish, exit handlers, JSC teardown, unregister, exit dispatch, and worker-resource destruction. NodeVMModule::evaluate and NodeVMScript bind timeout/SIGINT exception clearing and VM termination-request reset. A reset is not quiescence: timeout, exception-path ambiguity, or surviving child/nested-worker state cannot authorize reuse.
 
 Every compact excerpt names the complete owning item span selected from the exact file, plus the full-file blob/SHA-256/byte identity and an excerpt SHA-256. Small bounded files are included completely. The repository-wide discovery gate runs before this fixed closure is rendered.
 
@@ -20,6 +20,7 @@ Every compact excerpt names the complete owning item span selected from the exac
 | vendor/bun/src/jsc/bindings/vm/SigintWatcher.cpp | 93f2c42bd2b53369ada78a93a33b04fce0f0fdc3 | 5d0adef2743902412b1d8f378176374dba9f03ba0e98248dff555552a2d56369 | 4424 | complete owning items |
 | vendor/bun/src/jsc/bindings/NodeVM.cpp | dae4e540c9da7a8a974df664e9140162b514c7a4 | c90f9095225c82af0fc7c4c275b872d212854595ca52fd99d0c69d8dd153ba4f | 80305 | complete owning items |
 | vendor/bun/src/jsc/bindings/NodeVMScript.cpp | d7cfa6157cbd91ba454848573318869ecd837f27 | 2bc8b85e761e0cafd3c2b9f18628dd78db6d34f9cff32d2934525017663e8c56 | 27536 | complete owning items |
+| vendor/bun/src/jsc/bindings/NodeVMModule.cpp | bba5326eb0512ce4f6fb6e0d73b23dbb39592dee | b9e58e4bc00c8d01d98ca3991fdacfda2f59c8f99351aaca2432596528309ce2 | 24625 | complete owning items |
 
 ## vendor/bun/src/runtime/node/node_process.rs:1-64
 
@@ -1051,6 +1052,58 @@ Every compact excerpt names the complete owning item span selected from the exac
    303  JSC_DEFINE_CUSTOM_SETTER(Process_defaultSetter, (JSC::JSGlobalObject * globalObject, JSC::EncodedJSValue thisValue, JSC::EncodedJSValue value, JSC::PropertyName propertyName))
    304  {
 
+## vendor/bun/src/jsc/bindings/BunProcess.cpp:1205-1247
+
+- Full-file Git blob: 6935f0cbbcee9bf5f5f5364560a16707b9cc527e
+- Full-file SHA-256: ec7a0a9d63d2bbd1549871c0e36b200336748a976c617ed593198bf5866a2872
+- Full-file bytes: 193398
+- Excerpt line span: 1205-1247
+- Excerpt SHA-256: 35aed93786ab319a4e60d60c05e7337d646c9c1275a60ef0b197135b5cb8ba1f
+
+  1205  extern "C" int Bun__handleUncaughtException(JSC::JSGlobalObject* lexicalGlobalObject, JSC::JSValue exception, int isRejection)
+  1206  {
+  1207      if (!lexicalGlobalObject->inherits(Zig::GlobalObject::info()))
+  1208          return false;
+  1209      auto* globalObject = uncheckedDowncast<Zig::GlobalObject>(lexicalGlobalObject);
+  1210      auto* process = globalObject->processObject();
+  1211      auto& wrapped = process->wrapped();
+  1212      auto& vm = JSC::getVM(globalObject);
+  1213
+  1214      MarkedArgumentBuffer args;
+  1215      args.append(exception);
+  1216      if (isRejection) {
+  1217          args.append(jsString(vm, String("unhandledRejection"_s)));
+  1218      } else {
+  1219          args.append(jsString(vm, String("uncaughtException"_s)));
+  1220      }
+  1221
+  1222      auto uncaughtExceptionMonitor = Identifier::fromString(JSC::getVM(globalObject), "uncaughtExceptionMonitor"_s);
+  1223      if (wrapped.listenerCount(uncaughtExceptionMonitor) > 0) {
+  1224          wrapped.emit(uncaughtExceptionMonitor, args);
+  1225      }
+  1226
+  1227      auto uncaughtExceptionIdent = Identifier::fromString(JSC::getVM(globalObject), "uncaughtException"_s);
+  1228
+  1229      // if there is an uncaughtExceptionCaptureCallback, call it and consider the exception handled
+  1230      auto capture = process->getUncaughtExceptionCaptureCallback();
+  1231      if (!capture.isEmpty() && !capture.isUndefinedOrNull()) {
+  1232          auto scope = DECLARE_TOP_EXCEPTION_SCOPE(vm);
+  1233          (void)call(lexicalGlobalObject, capture, args, "uncaughtExceptionCaptureCallback"_s);
+  1234          if (auto ex = scope.exception()) {
+  1235              (void)scope.tryClearException();
+  1236              // if an exception is thrown in the uncaughtException handler, we abort
+  1237              Bun__logUnhandledException(JSValue::encode(JSValue(ex)));
+  1238              Bun__Process__exit(lexicalGlobalObject, 1);
+  1239          }
+  1240      } else if (wrapped.listenerCount(uncaughtExceptionIdent) > 0) {
+  1241          wrapped.emit(uncaughtExceptionIdent, args);
+  1242      } else {
+  1243          return false;
+  1244      }
+  1245
+  1246      return true;
+  1247  }
+
 ## vendor/bun/src/jsc/bindings/BunProcess.cpp:3245-3263
 
 - Full-file Git blob: 6935f0cbbcee9bf5f5f5364560a16707b9cc527e
@@ -1346,3 +1399,112 @@ Every compact excerpt names the complete owning item span selected from the exac
    298
    299      return false;
    300  }
+
+## vendor/bun/src/jsc/bindings/NodeVMModule.cpp:52-151
+
+- Full-file Git blob: bba5326eb0512ce4f6fb6e0d73b23dbb39592dee
+- Full-file SHA-256: b9e58e4bc00c8d01d98ca3991fdacfda2f59c8f99351aaca2432596528309ce2
+- Full-file bytes: 24625
+- Excerpt line span: 52-151
+- Excerpt SHA-256: 4bd9e8ff0268b4110a337daf7b9c1f3adfbcb95302d087d4be7bdbf311b3361a
+
+    52  JSValue NodeVMModule::evaluate(JSGlobalObject* globalObject, uint32_t timeout, bool breakOnSigint)
+    53  {
+    54      VM& vm = globalObject->vm();
+    55      auto scope = DECLARE_THROW_SCOPE(vm);
+    56
+    57      if (m_status != Status::Linked && m_status != Status::Evaluated && m_status != Status::Errored) {
+    58          throwError(globalObject, scope, ErrorCode::ERR_VM_MODULE_STATUS, "Module must be linked, evaluated or errored before evaluating"_s);
+    59          return {};
+    60      }
+    61
+    62      if (m_status == Status::Evaluated) {
+    63          return m_evaluationResult.get();
+    64      }
+    65
+    66      auto* sourceTextThis = dynamicDowncast<NodeVMSourceTextModule>(this);
+    67      auto* syntheticThis = dynamicDowncast<NodeVMSyntheticModule>(this);
+    68
+    69  #define VM_RETURN_IF_EXCEPTION(scope__, value__)                                                \
+    70      do {                                                                                        \
+    71          if (JSC::Exception* exception = scope__.exception()) {                                  \
+    72              status(Status::Errored);                                                            \
+    73              if (sourceTextThis) sourceTextThis->m_evaluationException.set(vm, this, exception); \
+    74              return value__;                                                                     \
+    75          }                                                                                       \
+    76      } while (false);
+    77
+    78      AbstractModuleRecord* record {};
+    79      if (sourceTextThis) {
+    80          record = sourceTextThis->moduleRecord(globalObject);
+    81          VM_RETURN_IF_EXCEPTION(scope, {});
+    82      } else if (syntheticThis) {
+    83          record = syntheticThis->moduleRecord(globalObject);
+    84          VM_RETURN_IF_EXCEPTION(scope, {});
+    85      } else {
+    86          RELEASE_ASSERT_NOT_REACHED_WITH_MESSAGE("Invalid module type");
+    87      }
+    88
+    89      JSValue result {};
+    90
+    91      NodeVMGlobalObject* nodeVmGlobalObject = NodeVM::getGlobalObjectFromContext(globalObject, m_context.get(), false);
+    92      VM_RETURN_IF_EXCEPTION(scope, {});
+    93      if (nodeVmGlobalObject) globalObject = nodeVmGlobalObject;
+    94
+    95      auto run = [&] {
+    96          if (sourceTextThis) {
+    97              status(Status::Evaluating);
+    98              evaluateDependencies(globalObject, record, timeout, breakOnSigint);
+    99              RETURN_IF_EXCEPTION(scope, );
+   100              sourceTextThis->initializeImportMeta(globalObject);
+   101              RETURN_IF_EXCEPTION(scope, );
+   102          } else if (syntheticThis) {
+   103              syntheticThis->evaluate(globalObject);
+   104              RETURN_IF_EXCEPTION(scope, );
+   105          }
+   106          result = record->evaluate(globalObject, jsUndefined(), jsNumber(static_cast<int32_t>(JSGenerator::ResumeMode::NormalMode)));
+   107          RETURN_IF_EXCEPTION(scope, );
+   108      };
+   109
+   110      setSigintReceived(false);
+   111
+   112      std::optional<double> oldLimit, newLimit;
+   113
+   114      if (timeout != 0) {
+   115          setupWatchdog(vm, timeout, &oldLimit.emplace(), &newLimit.emplace());
+   116      }
+   117
+   118      if (breakOnSigint) {
+   119          auto holder = SigintWatcher::hold(nodeVmGlobalObject, this);
+   120          run();
+   121      } else {
+   122          run();
+   123      }
+   124
+   125      if (timeout != 0) {
+   126          vm.watchdog()->setTimeLimit(WTF::Seconds::fromMilliseconds(*oldLimit));
+   127      }
+   128
+   129      if (vm.hasPendingTerminationException()) {
+   130          vm.drainMicrotasksForGlobalObject(nodeVmGlobalObject);
+   131          DECLARE_TOP_EXCEPTION_SCOPE(vm).clearException();
+   132          vm.clearHasTerminationRequest();
+   133          if (getSigintReceived()) {
+   134              setSigintReceived(false);
+   135              throwError(globalObject, scope, ErrorCode::ERR_SCRIPT_EXECUTION_INTERRUPTED, "Script execution was interrupted by `SIGINT`"_s);
+   136          } else if (timeout != 0) {
+   137              throwError(globalObject, scope, ErrorCode::ERR_SCRIPT_EXECUTION_TIMEOUT, makeString("Script execution timed out after "_s, timeout, "ms"_s));
+   138          } else {
+   139              RELEASE_ASSERT_NOT_REACHED_WITH_MESSAGE("vm.SourceTextModule evaluation terminated due neither to SIGINT nor to timeout");
+   140          }
+   141      } else {
+   142          setSigintReceived(false);
+   143      }
+   144
+   145      VM_RETURN_IF_EXCEPTION(scope, {});
+   146
+   147      status(Status::Evaluated);
+   148      m_evaluationResult.set(vm, this, result);
+   149      return result;
+   150  #undef VM_RETURN_IF_EXCEPTION
+   151  }

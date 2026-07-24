@@ -1,25 +1,25 @@
 [oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
-🧿 oracle 0.16.0 — Ships facts faster than agents make excuses.
-[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~174,425 tokens and 32 files.
+🧿 oracle 0.16.0 — One command, several seers; results stay grounded.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~198,601 tokens and 32 files.
 File Token Usage
-    81,630    30.01%  docs/reviews/libbun-w1112-20260724/adjacent-generative-source-bundle.md
+   104,034    38.25%  docs/reviews/libbun-w1112-20260724/adjacent-generative-source-bundle.md
     20,118     7.40%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs
     12,852     4.72%  src/prepared_export.rs
+    12,214     4.49%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md
     11,831     4.35%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/docs/PROVIDER_EXECUTION_AND_SDK_LAW.md
-    10,560     3.88%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md
      7,392     2.72%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/Cargo.toml
      5,525     2.03%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-value-model/src/lib.rs
      4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
+     4,374     1.61%  docs/reviews/libbun-w1112-20260724/owner-generative-correction4-independent-verdict.md
      4,296     1.58%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/docs/PROVIDER_VALUE_JSON_WIRE_V1.md
-     4,078     1.50%  docs/reviews/libbun-w1112-20260724/owner-generative-correction3-independent-verdict.md
      1,987     0.73%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-source-compiler-owner/Cargo.toml
      1,691     0.62%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/src/lib.rs
        890     0.33%  README.md
        695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
-       688     0.25%  docs/reviews/libbun-w1112-20260724/correction4-index.md
        542     0.20%  tests/public_api_boundary.rs
        484     0.18%  tests/fixtures/public_api_boundary/Cargo.lock
        462     0.17%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/Cargo.toml
+       429     0.16%  docs/reviews/libbun-w1112-20260724/correction5-index.md
        397     0.15%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-rust-sdk-static-provider-host/Cargo.toml
        394     0.14%  Cargo.toml
        319     0.12%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarm-provider-host-set/Cargo.toml
@@ -34,4 +34,4 @@ File Token Usage
        164     0.06%  src/lib.rs
         75     0.03%  tests/fixtures/public_api_boundary/src/bin/import_raw_installer.rs
         65     0.02%  tests/fixtures/public_api_boundary/src/bin/call_raw_installer.rs
-Total: 173,462 tokens (63.77% of 272,000)
+Total: 197,557 tokens (72.63% of 272,000)

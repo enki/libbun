@@ -1,10 +1,10 @@
-# Adjacent Swarm generative mint, carrier, consumer, fault, and test source bundle (correction 4)
+# Adjacent Swarm owner, correspondence, drive, final-output, fault, and test source bundle (correction 5)
 
 Exact source SHA: 95323ff17cb29928e31467f651ef03bae2099c14
 
 Exact source tree: 43b47bbd49a6053d270b3e15cc141cb1b1bb86da
 
-This bundle is driven by the exact repository-wide 24-file search. It exposes the existing one-occurrence output seal, its mismatch fault, every selected request carrier, both direct-run drive consumers, the sibling event consumer, the final ready-output commit, and static-host correspondence tests. A new package/invocation brand must extend or atomically replace this seal; a parallel seal is forbidden.
+This bundle preserves the exact repository-wide 24-path lexical hit set as a regression gate and then binds the complete semantic supplements omitted by correction 4. It exposes the existing one-occurrence output seal, the complete final correspondence join and ingress wrapper, drive-to-final-output carriers and typed fault algebras, both direct-run consumers, the ProviderHostExecutionSession fields/mint/reexport/selected branch/Drop, its durable-loader caller and dependency direction, capability-model mismatch/custody-preservation tests, and static-host nominal accepted/rejected/authored correspondence tests. No static-host mismatch or replay test exists at the bound SHA; new static-host mismatch and retained-libbun replay tests remain mandatory implementation output. A new package/invocation brand must extend or atomically replace the existing seal; a parallel seal is forbidden.
 
 Every compact excerpt names the complete owning item span selected from the exact file, plus the full-file blob/SHA-256/byte identity and an excerpt SHA-256. Small bounded files are included completely. The repository-wide discovery gate runs before this fixed closure is rendered.
 
@@ -36,6 +36,11 @@ Every compact excerpt names the complete owning item span selected from the exac
 | crates/swarm-rust-sdk-static-provider-host/src/lib_parts/host_set.rs | 426b8adff41141655cce2a9c145546e30d989dcf | 96daf7b8831aae9aad1ef00ae8433c3b27ce5e9d0d29a6fe6acd870379bd12d5 | 27276 | complete owning items |
 | crates/swarm-rust-sdk-static-provider-host/src/lib_parts/request_and_output.rs | 9a6996e9add6e3b02e3ea579a91b2e18d069e2b5 | c4dcc653964e40c424bfff20278dd62e6e1d04e7134d09320bc21208c08b6e2d | 108022 | complete owning items |
 | crates/swarm-rust-sdk-static-provider-host/src/lib_parts/tests.rs | c69452689e6ee481703ac8e14a6fb506eebfb72d | 13491a21a0c47836497b5bb798251a769a1e61db27be4f53f4ac8f43c54768ba | 49920 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/errors.rs | 7f45738aeac6f21a488317fc06dac16df56b2446 | 5b2a1e3b25c3b2722a0ff84a6f732e10f99d9e988ad314c6da8a494b1151ed13 | 39746 | complete owning items |
+| crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/mod.rs | d3fc886642c8c9e9f25cc775501bb19a8815d157 | 161832e5852a4d5de580f7c452ca098833c3396821fcc7fddeae219814ad9e32 | 7287 | complete owning items |
+| crates/swarm-provider-host-set/src/lib.rs | f7c9ebc958f73ca04f0393c6f51136474a167593 | 31a2d3108dfdb7c96f4407023d91f34ef4449891a7eed0e2d40245b78650e0f7 | 865 | complete owning items |
+| crates/durable-native-provider-loader/src/lib.rs | d8e4be25ef804fbd2810f82dec5eeb1795d9142a | 5c47f1e31bc66173f62021caad4e090814a8a63c964434a5b9e48b09b41bd84d | 17447 | complete owning items |
+| crates/durable-native-provider-loader/Cargo.toml | a0a507d42e2f1cfb8d9c9a890cd3934e81331bb5 | 8d3a24b795494aee5d8ccc2a44478df8f73987fc0b02697bb477d4d537f3bc8d | 913 | complete file |
 
 ## crates/ss-runtime-external-capability-provider-owner/src/lib.rs: complete file
 
@@ -951,13 +956,13 @@ Every compact excerpt names the complete owning item span selected from the exac
     29  use super::kernel_state_substrate::{
     30      DirectRunProcessSessionPublicApertureRouteOutput, DirectRunProcessSessionStartDriveAuthority,
 
-## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs:822-831
+## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/live_process_session_registry.rs:822-902
 
 - Full-file Git blob: 384f1dabdaeca305d68e791a66de498dd53176e9
 - Full-file SHA-256: 90d72026dc888b6cd8d20aecfaa301f4eedd3c5d8f129977d963ae5d1867d80b
 - Full-file bytes: 52830
-- Excerpt line span: 822-831
-- Excerpt SHA-256: c372155626c93aecd97b09dcb4787bc69d7941cb14b80ffa2e1a3987179e18f0
+- Excerpt line span: 822-902
+- Excerpt SHA-256: 87ff705175d03489f0391a79ffc407114254b65a7b9acd356dcd1e3ded582b91
 
    822      pub(in crate::direct_run) fn take_selected_provider_resume_host_input_for_live_process_session(
    823          session_id: &str,
@@ -969,6 +974,77 @@ Every compact excerpt names the complete owning item span selected from the exac
    829                  .take_selected_provider_resume_host_input_for_direct_run_owner_v1(selected_boundary)
    830          })
    831      }
+   832
+   833      pub(in crate::direct_run) fn admit_selected_process_run_child_launch_for_live_process_session(
+   834          session_id: &str,
+   835          root_scope_id: &str,
+   836          selected: crate::SelectedProcessRunExactStaticChildProviderResumeInputForDirectRunOwnerV1,
+   837      ) -> Result<crate::AdmittedProcessRunChildLaunchForDirectRunOwnerV1, String> {
+   838          with_live_process_session_mut(session_id, root_scope_id, |live_session| {
+   839              live_session
+   840                  .admit_selected_process_run_child_launch_for_direct_run_owner_v1(selected)
+   841                  .map_err(|fault| fault.to_string())
+   842          })
+   843      }
+   844
+   845      pub(in crate::direct_run) fn admit_selected_process_load_child_launch_for_live_process_session(
+   846          session_id: &str,
+   847          root_scope_id: &str,
+   848          selected: crate::SelectedProcessLoadExactStaticChildProviderResumeInputForDirectRunOwnerV1,
+   849      ) -> Result<crate::AdmittedProcessLoadChildLaunchForDirectRunOwnerV1, String> {
+   850          with_live_process_session_mut(session_id, root_scope_id, |live_session| {
+   851              live_session
+   852                  .admit_selected_process_load_child_launch_for_direct_run_owner_v1(selected)
+   853                  .map_err(|fault| fault.to_string())
+   854          })
+   855      }
+   856
+   857      pub(in crate::direct_run) fn admit_selected_process_invoke_child_launch_for_live_process_session(
+   858          session_id: &str,
+   859          root_scope_id: &str,
+   860          selected: crate::SelectedProcessInvokeExactStaticChildProviderResumeInputForDirectRunOwnerV1,
+   861      ) -> Result<crate::AdmittedProcessInvokeChildLaunchForDirectRunOwnerV1, String> {
+   862          with_live_process_session_mut(session_id, root_scope_id, |live_session| {
+   863              live_session
+   864                  .admit_selected_process_invoke_child_launch_for_direct_run_owner_v1(selected)
+   865                  .map_err(|fault| fault.to_string())
+   866          })
+   867      }
+   868
+   869      pub(in crate::direct_run) fn apply_provider_drive_ready_result_for_live_process_session(
+   870          session_id: &str,
+   871          root_scope_id: &str,
+   872          provider_drive_result: crate::ProviderDriveResult,
+   873      ) -> Result<EngineProcessSessionRunResultV1, String> {
+   874          with_live_process_session_entry_mut(session_id, root_scope_id, |entry| {
+   875              let (outcome, output_effect_drain_receipts) = provider_drive_result
+   876                  .commit_ready_into_session_execution_kernel_and_drive_to_direct_run_result_product_v1(
+   877                      &mut entry.session,
+   878                      "direct_provider_resume_ready_output",
+   879                  )
+   880                  .map_err(|error| error.to_string())?;
+   881              let process_creation_export_readiness =
+   882                  process_creation_export_readiness_for_live_process_session_owner_v1(
+   883                      &entry.session,
+   884                      "direct_provider_resume_ready_output",
+   885                  );
+   886              let (output_drain_observations, process_output_records) =
+   887                  DirectRunEventPublicationBackendOutputDrainObservationBundle::from_provider_drive_output_effect_drain_receipts_and_process_output_records_for_direct_run_event_publication_owner_v1(
+   888                      output_effect_drain_receipts,
+   889                  );
+   890              append_pending_process_session_effects_for_live_process_session_registry_owner_v1(
+   891                  entry,
+   892                  output_drain_observations,
+   893                  Some(process_output_records),
+   894              );
+   895              Ok(EngineProcessSessionRunResultV1::admitted(
+   896                  outcome,
+   897                  None,
+   898                  process_creation_export_readiness,
+   899                  "direct_provider_resume_ready_output",
+   900              ))
+   901          })
+   902      }
 
 ## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture.rs: complete file
 
@@ -1112,6 +1188,409 @@ Every compact excerpt names the complete owning item span selected from the exac
     33          process_output_records: Option<
     34              crate::ProviderDriveProcessOutputRecordProductForProviderHostOwner,
     35          >,
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:85-445
+
+- Full-file Git blob: da2fa203c929a2a87aade4972c0ab841a2fa6abd
+- Full-file SHA-256: ae216aaf92f19073142396027701c160e63c0a4d2c62dc44d00f85e71dcfc316
+- Full-file bytes: 128850
+- Excerpt line span: 85-445
+- Excerpt SHA-256: eef3f733768e57264bb8b8d2827f6a3992dcedafa1253f5ba20656ab135fa35a
+
+    85
+    86  struct DirectRunSuspendedProcessChildSessionV1 {
+    87      frame: DirectRunProcessChildSessionFrameV1,
+    88      resume: DirectRunNestedProcessChildResumeV1,
+    89  }
+    90
+    91  enum DirectRunProcessChildProviderTransitionV1 {
+    92      Continue(DirectRunActiveProcessChildSessionV1),
+    93      Descend {
+    94          parent: DirectRunSuspendedProcessChildSessionV1,
+    95          child: DirectRunActiveProcessChildSessionV1,
+    96      },
+    97      Refused(DirectRunProcessChildProviderRefusalV1),
+    98      Fault(DirectRunProcessChildProviderFaultV1),
+    99  }
+   100
+   101  enum DirectRunProcessChildProviderFaultPhaseV1 {
+   102      SelectedBoundaryTake,
+   103      RouteSelection,
+   104      ProcessLoadExecute,
+   105      ProcessLoadCommit,
+   106      ProcessCheckpointExecute,
+   107      ProcessCheckpointCommit,
+   108      ProcessRestoreExecute,
+   109      ProcessRestoreCommit,
+   110      ProcessInvokeContext,
+   111      ProcessInvokePrepare,
+   112      ProcessRunContext,
+   113      ProcessRunPrepare,
+   114      ProcessActivateContext,
+   115      ProcessActivatePrepare,
+   116      EventHostExecute,
+   117  }
+   118
+   119  enum DirectRunProcessChildProviderFaultV1 {
+   120      Frame {
+   121          frame: DirectRunProcessChildSessionFrameV1,
+   122          phase: DirectRunProcessChildProviderFaultPhaseV1,
+   123          failure: String,
+   124      },
+   125      ProcessInvokeAdmission {
+   126          frame: DirectRunProcessChildSessionFrameV1,
+   127          fault: crate::ProcessChildLaunchInputAdmissionFaultForDirectRunOwnerV1,
+   128      },
+   129      ProcessRunAdmission {
+   130          frame: DirectRunProcessChildSessionFrameV1,
+   131          fault: crate::ProcessChildLaunchInputAdmissionFaultForDirectRunOwnerV1,
+   132      },
+   133      ProcessActivateAdmission {
+   134          frame: DirectRunProcessChildSessionFrameV1,
+   135          fault: crate::ProcessChildLaunchInputAdmissionFaultForDirectRunOwnerV1,
+   136      },
+   137      ProcessLoad {
+   138          frame: DirectRunProcessChildSessionFrameV1,
+   139          refusal: DirectRunProcessLoadExecutionRefusalV1,
+   140      },
+   141      ProcessCheckpoint {
+   142          frame: DirectRunProcessChildSessionFrameV1,
+   143          refusal: DirectRunProcessCheckpointExecutionRefusalV1,
+   144      },
+   145      ProcessRestore {
+   146          frame: DirectRunProcessChildSessionFrameV1,
+   147          refusal: DirectRunProcessRestoreExecutionRefusalV1,
+   148      },
+   149      ProcessInvokeStart {
+   150          parent: DirectRunProcessChildSessionFrameV1,
+   151          ingress: crate::ProcessInvokeExecutionProviderIngressForDirectRunOwnerV1,
+   152          registration: crate::ProcessInvokeExecutionRegistrationForDirectRunOwnerV1,
+   153          failure: String,
+   154      },
+   155      ProcessInvokeIngress {
+   156          parent: DirectRunProcessChildSessionFrameV1,
+   157          child: DirectRunActiveProcessChildSessionV1,
+   158          registration: crate::ProcessInvokeExecutionRegistrationForDirectRunOwnerV1,
+   159          failure: crate::ProcessInvokeExecutionProviderIngressDriveFailureForDirectRunOwnerV1,
+   160      },
+   161      ProcessInvokeBoundarySelection {
+   162          parent: DirectRunProcessChildSessionFrameV1,
+   163          child: DirectRunActiveProcessChildSessionV1,
+   164          registration: crate::ProcessInvokeExecutionRegistrationForDirectRunOwnerV1,
+   165          failure: String,
+   166      },
+   167      ProcessInvokeBoundaryJoin {
+   168          parent: DirectRunProcessChildSessionFrameV1,
+   169          child: DirectRunActiveProcessChildSessionV1,
+   170          boundary: crate::SelectedProcessInvokeAwaitExecutionBoundaryForDirectRunOwnerV1,
+   171          registration: crate::ProcessInvokeExecutionRegistrationForDirectRunOwnerV1,
+   172      },
+   173      ProcessRunStart {
+   174          parent: DirectRunProcessChildSessionFrameV1,
+   175          ingress: crate::ProcessRunChildProviderIngressForDirectRunOwnerV1,
+   176          registration: crate::ProcessRunChildRegistrationForDirectRunOwnerV1,
+   177          failure: String,
+   178      },
+   179      ProcessRunIngress {
+   180          parent: DirectRunProcessChildSessionFrameV1,
+   181          child: DirectRunActiveProcessChildSessionV1,
+   182          registration: crate::ProcessRunChildRegistrationForDirectRunOwnerV1,
+   183          failure: crate::ProcessRunChildProviderIngressDriveFailureForDirectRunOwnerV1,
+   184      },
+   185      ProcessRunBoundarySelection {
+   186          parent: DirectRunProcessChildSessionFrameV1,
+   187          child: DirectRunActiveProcessChildSessionV1,
+   188          registration: crate::ProcessRunChildRegistrationForDirectRunOwnerV1,
+   189          failure: String,
+   190      },
+   191      ProcessRunBoundaryJoin {
+   192          parent: DirectRunProcessChildSessionFrameV1,
+   193          child: DirectRunActiveProcessChildSessionV1,
+   194          boundary: crate::SelectedProcessRunDriveTerminalBoundaryForDirectRunOwnerV1,
+   195          registration: crate::ProcessRunChildRegistrationForDirectRunOwnerV1,
+   196      },
+   197      HostAdmission {
+   198          frame: DirectRunProcessChildSessionFrameV1,
+   199          fault: swarm_capability_model::CapabilitySdkError,
+   200      },
+   201      HostExecution {
+   202          frame: DirectRunProcessChildSessionFrameV1,
+   203          fault: swarm_capability_model::CapabilitySdkError,
+   204      },
+   205      HostResultAdmission {
+   206          frame: DirectRunProcessChildSessionFrameV1,
+   207          fault: swarm_capability_model::CapabilitySdkError,
+   208      },
+   209      ProviderDriveCommit {
+   210          frame: DirectRunProcessChildSessionFrameV1,
+   211          fault: crate::ProviderDriveSessionExecutionCommitFault,
+   212      },
+   213  }
+   214
+   215  impl DirectRunProcessChildProviderFaultPhaseV1 {
+   216      fn diagnostic_kind_for_process_kernel_owner_v1(&self) -> &'static str {
+   217          match self {
+   218              Self::SelectedBoundaryTake => "process_child_selected_boundary_take_fault",
+   219              Self::RouteSelection => "process_child_provider_route_selection_fault",
+   220              Self::ProcessLoadExecute => "process_child_process_load_execute_fault",
+   221              Self::ProcessLoadCommit => "process_child_process_load_commit_fault",
+   222              Self::ProcessCheckpointExecute => "process_child_process_checkpoint_execute_fault",
+   223              Self::ProcessCheckpointCommit => "process_child_process_checkpoint_commit_fault",
+   224              Self::ProcessRestoreExecute => "process_child_process_restore_execute_fault",
+   225              Self::ProcessRestoreCommit => "process_child_process_restore_commit_fault",
+   226              Self::ProcessInvokeContext => "process_child_process_invoke_context_fault",
+   227              Self::ProcessInvokePrepare => "process_child_process_invoke_prepare_fault",
+   228              Self::ProcessRunContext => "process_child_process_run_context_fault",
+   229              Self::ProcessRunPrepare => "process_child_process_run_prepare_fault",
+   230              Self::ProcessActivateContext => "process_child_process_activate_context_fault",
+   231              Self::ProcessActivatePrepare => "process_child_process_activate_prepare_fault",
+   232              Self::EventHostExecute => "process_child_event_host_execute_fault",
+   233          }
+   234      }
+   235  }
+   236
+   237  enum DirectRunProcessChildProviderRefusalV1 {
+   238      InvokeIngress {
+   239          parent: DirectRunProcessChildSessionFrameV1,
+   240          child: DirectRunActiveProcessChildSessionV1,
+   241          registration: crate::ProcessInvokeExecutionRegistrationForDirectRunOwnerV1,
+   242          failure: crate::ProcessInvokeExecutionProviderIngressDriveFailureForDirectRunOwnerV1,
+   243      },
+   244      InvokeBoundaryJoin {
+   245          parent: DirectRunProcessChildSessionFrameV1,
+   246          child: DirectRunActiveProcessChildSessionV1,
+   247          boundary: crate::SelectedProcessInvokeAwaitExecutionBoundaryForDirectRunOwnerV1,
+   248          registration: crate::ProcessInvokeExecutionRegistrationForDirectRunOwnerV1,
+   249      },
+   250      InvokeBoundarySelection {
+   251          parent: DirectRunProcessChildSessionFrameV1,
+   252          child: DirectRunActiveProcessChildSessionV1,
+   253          registration: crate::ProcessInvokeExecutionRegistrationForDirectRunOwnerV1,
+   254          failure: String,
+   255      },
+   256      RunIngress {
+   257          parent: DirectRunProcessChildSessionFrameV1,
+   258          child: DirectRunActiveProcessChildSessionV1,
+   259          registration: crate::ProcessRunChildRegistrationForDirectRunOwnerV1,
+   260          failure: crate::ProcessRunChildProviderIngressDriveFailureForDirectRunOwnerV1,
+   261      },
+   262      RunBoundaryJoin {
+   263          parent: DirectRunProcessChildSessionFrameV1,
+   264          child: DirectRunActiveProcessChildSessionV1,
+   265          boundary: crate::SelectedProcessRunDriveTerminalBoundaryForDirectRunOwnerV1,
+   266          registration: crate::ProcessRunChildRegistrationForDirectRunOwnerV1,
+   267      },
+   268      RunBoundarySelection {
+   269          parent: DirectRunProcessChildSessionFrameV1,
+   270          child: DirectRunActiveProcessChildSessionV1,
+   271          registration: crate::ProcessRunChildRegistrationForDirectRunOwnerV1,
+   272          failure: String,
+   273      },
+   274  }
+   275
+   276  struct DirectRunCompletedProcessChildSessionV1 {
+   277      session: EngineLiveProcessSessionV1,
+   278      drive_context: DirectRunProcessKernelChildDriveContext,
+   279  }
+   280
+   281  enum DirectRunProcessChildResumeRefusalV1 {
+   282      Invoke {
+   283          parent: DirectRunProcessChildSessionFrameV1,
+   284          child: DirectRunCompletedProcessChildSessionV1,
+   285          failure: crate::ProcessInvokeAwaitExecutionResumeDriveFailureForDirectRunOwnerV1,
+   286      },
+   287      Run {
+   288          parent: DirectRunProcessChildSessionFrameV1,
+   289          child: DirectRunCompletedProcessChildSessionV1,
+   290          failure: crate::ProcessRunDriveTerminalResumeDriveFailureForDirectRunOwnerV1,
+   291      },
+   292  }
+   293
+   294  enum DirectRunProcessChildResumeFaultV1 {
+   295      Invoke {
+   296          parent: DirectRunProcessChildSessionFrameV1,
+   297          child: DirectRunCompletedProcessChildSessionV1,
+   298          failure: crate::ProcessInvokeAwaitExecutionResumeDriveFailureForDirectRunOwnerV1,
+   299      },
+   300      Run {
+   301          parent: DirectRunProcessChildSessionFrameV1,
+   302          child: DirectRunCompletedProcessChildSessionV1,
+   303          failure: crate::ProcessRunDriveTerminalResumeDriveFailureForDirectRunOwnerV1,
+   304      },
+   305  }
+   306
+   307  enum DirectRunProcessChildPostTerminalRefusalV1 {
+   308      InvokeCapture {
+   309          boundary: crate::MatchedProcessInvokeAwaitExecutionBoundaryForDirectRunOwnerV1,
+   310          result: ProviderValue,
+   311          event_publication_backend_output_drain_receipts: Vec<Value>,
+   312          process_output_records:
+   313              Option<crate::ProviderDriveProcessOutputRecordProductForProviderHostOwner>,
+   314          drive_context: DirectRunProcessKernelChildDriveContext,
+   315          failure: String,
+   316      },
+   317      RunCapture {
+   318          boundary: crate::MatchedProcessRunDriveTerminalBoundaryForDirectRunOwnerV1,
+   319          terminal: ProviderValue,
+   320          process_output_records:
+   321              Option<crate::ProviderDriveProcessOutputRecordProductForProviderHostOwner>,
+   322          drive_context: DirectRunProcessKernelChildDriveContext,
+   323          failure: String,
+   324      },
+   325  }
+   326
+   327  struct DirectRunProcessInvokeChildStartFaultV1 {
+   328      boundary: crate::MatchedProcessInvokeAwaitExecutionBoundaryForDirectRunOwnerV1,
+   329      failure: String,
+   330  }
+   331
+   332  struct DirectRunProcessRunChildStartFaultV1 {
+   333      boundary: crate::MatchedProcessRunDriveTerminalBoundaryForDirectRunOwnerV1,
+   334      failure: String,
+   335  }
+   336
+   337  enum DirectRunProcessChildOuterFaultV1 {
+   338      InvokeSelection(DirectRunProcessInvokeExecutionSelectionFaultV1),
+   339      RunSelection(DirectRunProcessRunChildSelectionFaultV1),
+   340      InvokeStart(DirectRunProcessInvokeChildStartFaultV1),
+   341      RunStart(DirectRunProcessRunChildStartFaultV1),
+   342      InvokeTerminalProjection {
+   343          boundary: crate::MatchedProcessInvokeAwaitExecutionBoundaryForDirectRunOwnerV1,
+   344          drive_context: DirectRunProcessKernelChildDriveContext,
+   345          failure:
+   346              super::super::process_session_result_authority::DirectRunProcessChildTerminalProjectionFaultV1,
+   347      },
+   348      RunTerminalProjection {
+   349          boundary: crate::MatchedProcessRunDriveTerminalBoundaryForDirectRunOwnerV1,
+   350          drive_context: DirectRunProcessKernelChildDriveContext,
+   351          failure:
+   352              super::super::process_session_result_authority::DirectRunProcessChildTerminalProjectionFaultV1,
+   353      },
+   354  }
+   355
+   356  enum DirectRunProcessChildLoopFaultV1 {
+   357      TerminalResultConversion {
+   358          session: EngineLiveProcessSessionV1,
+   359          drive_context: DirectRunProcessKernelChildDriveContext,
+   360          failure: super::super::process_session_result_authority::EngineProcessSessionTerminalResultConversionFaultV1,
+   361      },
+   362      TerminalMaterialization {
+   363          session: EngineLiveProcessSessionV1,
+   364          drive_context: DirectRunProcessKernelChildDriveContext,
+   365          failure: super::super::process_session_result_authority::EngineProcessSessionChildTerminalMaterializationFaultV1,
+   366      },
+   367      InvokeTerminalProjection {
+   368          parent: DirectRunProcessChildSessionFrameV1,
+   369          child: DirectRunCompletedProcessChildSessionV1,
+   370          failure:
+   371              super::super::process_session_result_authority::DirectRunProcessChildTerminalProjectionFaultV1,
+   372      },
+   373      RunTerminalProjection {
+   374          parent: DirectRunProcessChildSessionFrameV1,
+   375          child: DirectRunCompletedProcessChildSessionV1,
+   376          failure:
+   377              super::super::process_session_result_authority::DirectRunProcessChildTerminalProjectionFaultV1,
+   378      },
+   379      ProviderBoundarySelection {
+   380          frame: DirectRunProcessChildSessionFrameV1,
+   381          failure: String,
+   382      },
+   383      HostResourceFinalizationSelection {
+   384          frame: DirectRunProcessChildSessionFrameV1,
+   385          failure: String,
+   386      },
+   387      HostResourceFinalizationCommit {
+   388          frame: DirectRunProcessChildSessionFrameV1,
+   389          failure: String,
+   390      },
+   391      WaitingOnLiveness {
+   392          active: DirectRunActiveProcessChildSessionV1,
+   393      },
+   394      UnhandledOutcome {
+   395          active: DirectRunActiveProcessChildSessionV1,
+   396      },
+   397  }
+   398
+   399  enum DirectRunProcessChildOwnedRefusalV1 {
+   400      Provider(DirectRunProcessChildProviderRefusalV1),
+   401      ProviderFault(DirectRunProcessChildProviderFaultV1),
+   402      Resume(DirectRunProcessChildResumeRefusalV1),
+   403      ResumeFault(DirectRunProcessChildResumeFaultV1),
+   404      PostTerminal(DirectRunProcessChildPostTerminalRefusalV1),
+   405      LoopFault(DirectRunProcessChildLoopFaultV1),
+   406  }
+   407
+   408  pub(crate) struct DirectRunProcessChildDriveRefusalV1 {
+   409      suspended: Vec<DirectRunSuspendedProcessChildSessionV1>,
+   410      refusal: DirectRunProcessChildOwnedRefusalV1,
+   411  }
+   412
+   413  struct DirectRunProcessChildTerminalDriveProductV1 {
+   414      terminal: DirectRunProcessChildTerminalMaterializationV1,
+   415      drive_context: DirectRunProcessKernelChildDriveContext,
+   416  }
+   417
+   418  enum DirectRunProcessChildDriveOutcomeV1 {
+   419      Terminal(DirectRunProcessChildTerminalDriveProductV1),
+   420      RetryableRefused(DirectRunProcessChildDriveRefusalV1),
+   421      Fault(DirectRunProcessChildDriveRefusalV1),
+   422  }
+   423
+   424  pub(crate) struct DirectRunProcessChildParentResumeFaultV1 {
+   425      kind: DirectRunProcessChildParentResumeFaultKindV1,
+   426  }
+   427
+   428  enum DirectRunProcessChildParentResumeFaultKindV1 {
+   429      InvokeCommit {
+   430          parent_route: DirectRunProcessKernelBoundaryParentRouteV1,
+   431          observations:
+   432              crate::direct_run::event::DirectRunEventPublicationBackendOutputDrainObservationBundle,
+   433          process_output_records:
+   434              Option<crate::ProviderDriveProcessOutputRecordProductForProviderHostOwner>,
+   435          failure:
+   436              super::super::live_process_session_registry::DirectRunProcessInvokeLiveSessionResumeFaultV1,
+   437      },
+   438      InvokeAppend {
+   439          parent_route: DirectRunProcessKernelBoundaryParentRouteV1,
+   440          result: EngineProcessSessionRunResultV1,
+   441          failure:
+   442              super::super::live_process_session_registry::DirectRunPendingProcessChildEffectsAppendFaultV1,
+   443      },
+   444      RunCommit {
+   445          parent_route: DirectRunProcessKernelBoundaryParentRouteV1,
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:1387-1410
+
+- Full-file Git blob: da2fa203c929a2a87aade4972c0ab841a2fa6abd
+- Full-file SHA-256: ae216aaf92f19073142396027701c160e63c0a4d2c62dc44d00f85e71dcfc316
+- Full-file bytes: 128850
+- Excerpt line span: 1387-1410
+- Excerpt SHA-256: 1ca0405e65873b4d1e9ecda938cf22e0f7e5ac608cb66d28b147ebb20d5e06eb
+
+  1387  fn commit_process_child_provider_drive_result_for_process_kernel_owner_v1(
+  1388      session: &mut EngineLiveProcessSessionV1,
+  1389      provider_drive_result: ProviderDriveResult,
+  1390  ) -> Result<EngineProcessSessionRunResultV1, crate::ProviderDriveSessionExecutionCommitFault> {
+  1391      let (outcome, output_effect_drain_receipts) = provider_drive_result
+  1392          .commit_ready_into_session_execution_kernel_and_drive_to_direct_run_result_product_v1(
+  1393              session,
+  1394              "direct_process_child_provider_resume_ready_output",
+  1395          )?;
+  1396      let (observations, process_output_records) =
+  1397          crate::direct_run::event::DirectRunEventPublicationBackendOutputDrainObservationBundle::from_provider_drive_output_effect_drain_receipts_and_process_output_records_for_direct_run_event_publication_owner_v1(
+  1398              output_effect_drain_receipts,
+  1399          );
+  1400      Ok(
+  1401          admit_process_child_engine_result_for_process_kernel_owner_v1(
+  1402              session,
+  1403              outcome,
+  1404              "direct_process_child_provider_resume_ready_output",
+  1405          )
+  1406          .with_event_publication_backend_output_drain_observations_for_direct_run_owner_v1(
+  1407              observations,
+  1408          )
+  1409          .with_provider_process_output_records_for_direct_run_owner_v1(process_output_records),
+  1410      )
 
 ## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/process_child_lifecycle.rs:1586-1940
 
@@ -1727,13 +2206,13 @@ Every compact excerpt names the complete owning item span selected from the exac
    335      ))
    336  }
 
-## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:1-20
+## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:1-530
 
 - Full-file Git blob: 2a54a7795c6076879fa3d3f25a7897ba87e1f97e
 - Full-file SHA-256: 705b04c8e923bccf57a7e52d696a01f1db117b4a846ba6502557272e61321588
 - Full-file bytes: 27631
-- Excerpt line span: 1-20
-- Excerpt SHA-256: 2a2798aaef66a4eeed93c48ad6e4462f3bd784f39b417679f3b05874a64cb213
+- Excerpt line span: 1-530
+- Excerpt SHA-256: 705b04c8e923bccf57a7e52d696a01f1db117b4a846ba6502557272e61321588
 
      1  use super::provider_resume_lifecycle::*;
      2  use super::session_route_lifecycle::*;
@@ -1755,15 +2234,157 @@ Every compact excerpt names the complete owning item span selected from the exac
     18          command: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartCommand,
     19      ) -> Result<
     20          DirectRunProcessSessionPublicApertureDriveOutputV1,
-
-## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/process_session_public_aperture/public_aperture_drive.rs:172-466
-
-- Full-file Git blob: 2a54a7795c6076879fa3d3f25a7897ba87e1f97e
-- Full-file SHA-256: 705b04c8e923bccf57a7e52d696a01f1db117b4a846ba6502557272e61321588
-- Full-file bytes: 27631
-- Excerpt line span: 172-466
-- Excerpt SHA-256: e56adc54a0da703b0bdb0f3f7487116ce5008d470619cdb476fbb95478df214d
-
+    21          DirectRunProcessSessionDriveFaultV1,
+    22      > {
+    23          let (kernel_state, prepared_runtime_executable_image) = command
+    24              .into_start_product_for_direct_run_public_aperture_owner_v1()?
+    25              .into_kernel_state_and_session_open_inputs_for_direct_run_runtime_authority_owner_v1(
+    26              )?;
+    27          Self::drive_process_start_kernel_state_public_aperture_until_terminal_or_next_step(
+    28              kernel_state,
+    29              prepared_runtime_executable_image,
+    30              "prepared_runtime_process_start_public_aperture",
+    31          )
+    32      }
+    33
+    34      pub(in crate::direct_run) fn drive_prepared_runtime_process_start_command_public_aperture_until_terminal_with_runtime_terminal_observation_for_ss_test_owner_v1(
+    35          command: DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartCommand,
+    36          provider_execution_session: &mut ProviderHostExecutionSession,
+    37      ) -> Result<
+    38          DirectRunProcessSessionPublicApertureOutputEmissionProductV1,
+    39          DirectRunProcessSessionDriveFaultV1,
+    40      > {
+    41          let mut output =
+    42              Self::drive_prepared_runtime_process_start_command_public_aperture_until_terminal_or_next_step_with_runtime_terminal_observation_for_ss_test_owner_v1(
+    43                  command,
+    44              )?;
+    45          loop {
+    46              match output.into_closed_drive_state_for_direct_run_runtime_execution_owner_v1() {
+    47                  DirectRunProcessSessionPublicApertureClosedDriveStateV1::Terminal(output) => {
+    48                      return Ok(output);
+    49                  }
+    50                  DirectRunProcessSessionPublicApertureClosedDriveStateV1::NextStep(next_step) => {
+    51                      output = Self::drive_public_aperture_next_step_until_terminal_or_next_step(
+    52                          next_step,
+    53                          provider_execution_session,
+    54                      )?;
+    55                  }
+    56                  DirectRunProcessSessionPublicApertureClosedDriveStateV1::HostResourceFinalization(
+    57                      finalization,
+    58                  ) => {
+    59                      output = Self::drive_host_resource_finalization_until_terminal_or_next_step(
+    60                          finalization,
+    61                          provider_execution_session,
+    62                      )
+    63                      .map_err(DirectRunProcessSessionDriveFaultV1::Generic)?;
+    64                  }
+    65                  DirectRunProcessSessionPublicApertureClosedDriveStateV1::ProcessInvokeAwaitExecution(
+    66                      boundary,
+    67                  ) => {
+    68                      output = Self::drive_process_invoke_await_execution_until_terminal_or_next_step(
+    69                          boundary,
+    70                          provider_execution_session,
+    71                      )?;
+    72                  }
+    73                  DirectRunProcessSessionPublicApertureClosedDriveStateV1::ProcessRunDriveTerminal(
+    74                      boundary,
+    75                  ) => {
+    76                      output = Self::drive_process_run_drive_terminal_until_terminal_or_next_step(
+    77                          boundary,
+    78                          provider_execution_session,
+    79                      )?;
+    80                  }
+    81                  DirectRunProcessSessionPublicApertureClosedDriveStateV1::ProcessControl(
+    82                      boundary,
+    83                  ) => {
+    84                      output = finish_direct_run_public_aperture_drive_output(
+    85                          boundary
+    86                              .drive_for_process_kernel_owner_v1()
+    87                              .map_err(DirectRunProcessSessionDriveFaultV1::Generic)?,
+    88                      )
+    89                      .map_err(DirectRunProcessSessionDriveFaultV1::Generic)?;
+    90                  }
+    91              }
+    92          }
+    93      }
+    94
+    95      fn drive_public_aperture_next_step_until_terminal_or_next_step(
+    96          next_step: DirectRunProcessSessionPublicApertureNextStepOutputProductV1,
+    97          provider_execution_session: &mut ProviderHostExecutionSession,
+    98      ) -> Result<
+    99          DirectRunProcessSessionPublicApertureDriveOutputV1,
+   100          DirectRunProcessSessionDriveFaultV1,
+   101      > {
+   102          let owner_kind = next_step
+   103              .owner_kind_for_direct_run_process_session_public_aperture_owner_v1(
+   104                  "direct_run_public_aperture_closed_drive.next_step.owner_kind",
+   105              )?;
+   106          match owner_kind {
+   107              DirectRunKernelStateRefOwnerKind::ProviderResume => {
+   108                  Self::drive_provider_resume_public_aperture_next_step_until_terminal_or_next_step(
+   109                      next_step,
+   110                      provider_execution_session,
+   111                  )
+   112              }
+   113              DirectRunKernelStateRefOwnerKind::ProcessSessionStart
+   114              | DirectRunKernelStateRefOwnerKind::ProcessSessionReawaken
+   115              | DirectRunKernelStateRefOwnerKind::ProcessSessionProjection => {
+   116                  let kernel_state_ref = next_step
+   117                      .into_kernel_state_ref_for_direct_run_process_session_public_aperture_owner_v1(
+   118                      );
+   119                  drive_process_session_continuation_ref_to_public_aperture_with_typed_live_authority(
+   120                      kernel_state_ref,
+   121                  )
+   122              }
+   123              other => Err(DirectRunProcessSessionDriveFaultV1::Generic(
+   124                  direct_run_public_aperture_next_step_without_closed_drive_consumer_fault(other),
+   125              )),
+   126          }
+   127      }
+   128
+   129      fn drive_host_resource_finalization_until_terminal_or_next_step(
+   130          finalization: DirectRunHostResourceFinalizationNextStepV1,
+   131          provider_execution_session: &mut ProviderHostExecutionSession,
+   132      ) -> Result<DirectRunProcessSessionPublicApertureDriveOutputV1, String> {
+   133          let route_output =
+   134              finalization.drive_for_direct_run_owner_v1(provider_execution_session)?;
+   135          Ok(finish_direct_run_public_aperture_drive_output(
+   136              route_output,
+   137          )?)
+   138      }
+   139
+   140      fn drive_process_invoke_await_execution_until_terminal_or_next_step(
+   141          next_step: DirectRunProcessInvokeAwaitExecutionNextStepV1,
+   142          provider_execution_session: &mut ProviderHostExecutionSession,
+   143      ) -> Result<
+   144          DirectRunProcessSessionPublicApertureDriveOutputV1,
+   145          DirectRunProcessSessionDriveFaultV1,
+   146      > {
+   147          let route_output = next_step
+   148              .into_child_drive_stage_for_process_kernel_owner_v1()
+   149              .drive_matching_child_for_process_kernel_owner_v1(provider_execution_session)?
+   150              .commit_and_route_parent_for_process_kernel_owner_v1()?;
+   151          Ok(finish_direct_run_public_aperture_drive_output(
+   152              route_output,
+   153          )?)
+   154      }
+   155
+   156      fn drive_process_run_drive_terminal_until_terminal_or_next_step(
+   157          next_step: DirectRunProcessRunDriveTerminalNextStepV1,
+   158          provider_execution_session: &mut ProviderHostExecutionSession,
+   159      ) -> Result<
+   160          DirectRunProcessSessionPublicApertureDriveOutputV1,
+   161          DirectRunProcessSessionDriveFaultV1,
+   162      > {
+   163          let route_output = next_step
+   164              .into_child_drive_stage_for_process_kernel_owner_v1()
+   165              .drive_matching_child_for_process_kernel_owner_v1(provider_execution_session)?
+   166              .commit_and_route_parent_for_process_kernel_owner_v1()?;
+   167          Ok(finish_direct_run_public_aperture_drive_output(
+   168              route_output,
+   169          )?)
+   170      }
+   171
    172      fn drive_provider_resume_public_aperture_next_step_until_terminal_or_next_step(
    173          next_step: DirectRunProcessSessionPublicApertureNextStepOutputProductV1,
    174          provider_execution_session: &mut ProviderHostExecutionSession,
@@ -2059,6 +2680,70 @@ Every compact excerpt names the complete owning item span selected from the exac
    464          finish_direct_run_public_aperture_drive_output(route_output)
    465              .map_err(DirectRunProcessSessionDriveFaultV1::Generic)
    466      }
+   467
+   468      fn drive_process_start_kernel_state_public_aperture_until_terminal_or_next_step(
+   469          mut kernel_state: DirectSwarmScriptRunKernelState,
+   470          prepared_runtime_executable_image: EngineInstalledPreparedSessionRuntimeV1,
+   471          aperture_label: &'static str,
+   472      ) -> Result<
+   473          DirectRunProcessSessionPublicApertureDriveOutputV1,
+   474          DirectRunProcessSessionDriveFaultV1,
+   475      > {
+   476          let root_input = direct_run_take_process_session_root_input(&mut kernel_state)?;
+   477          Self::drive_process_start_kernel_state_public_aperture_with_root_input_until_terminal_or_next_step(
+   478              kernel_state,
+   479              prepared_runtime_executable_image,
+   480              root_input,
+   481              aperture_label,
+   482          )
+   483      }
+   484
+   485      fn drive_process_start_kernel_state_public_aperture_with_root_input_until_terminal_or_next_step(
+   486          kernel_state: DirectSwarmScriptRunKernelState,
+   487          prepared_runtime_executable_image: EngineInstalledPreparedSessionRuntimeV1,
+   488          root_input: EngineVmObjectValueV1,
+   489          aperture_label: &'static str,
+   490      ) -> Result<
+   491          DirectRunProcessSessionPublicApertureDriveOutputV1,
+   492          DirectRunProcessSessionDriveFaultV1,
+   493      > {
+   494          let durability_policy =
+   495              direct_run_process_session_durability_policy_for_public_aperture_owner(
+   496                  kernel_state.launch_durability_policy,
+   497              )?;
+   498          let process_identity = kernel_state
+   499              .current_process
+   500              .as_ref()
+   501              .ok_or_else(|| {
+   502                  "prepared-runtime public-aperture process session open requires the launch owner's admitted current-process identity; the fresh direct-run launch path must install it before open"
+   503                      .to_owned()
+   504              })?
+   505              .process_session_identity_for_session_runtime_open_owner_v1()?;
+   506          let live_session =
+   507              open_process_session_v0_from_exact_static_child_dispatch_installed_prepared_runtime_for_direct_run_owner_v1(
+   508                  prepared_runtime_executable_image,
+   509                  crate::ProcessSessionInitialInputForDirectRunOwnerV1::from_root_input_for_direct_run_owner_v1(root_input),
+   510                  durability_policy,
+   511                  process_identity,
+   512              )
+   513              .map_err(|error| {
+   514                  format!("prepared-runtime public-aperture process session open failed: {error}")
+   515              })?;
+   516          let process_session_start_authority =
+   517              Self::admit_process_session_start_with_live_session_for_direct_run_owner_v1(
+   518                  kernel_state,
+   519                  live_session,
+   520                  aperture_label,
+   521              )
+   522              .map_err(DirectRunProcessSessionDriveFaultV1::ProcessSessionStartAdmission)?;
+   523          let output =
+   524              drive_process_session_start_with_typed_drive_authority_and_owner_execution_substrate(
+   525                  process_session_start_authority,
+   526              )?;
+   527          finish_direct_run_public_aperture_drive_output(output)
+   528              .map_err(DirectRunProcessSessionDriveFaultV1::Generic)
+   529      }
+   530  }
 
 ## crates/ss-runtime-source-compiler-owner/src/provider_drive_result.rs:1-30
 
@@ -2098,6 +2783,90 @@ Every compact excerpt names the complete owning item span selected from the exac
     28      Parked,
     29  }
     30
+
+## crates/ss-runtime-source-compiler-owner/src/provider_drive_result.rs:45-119
+
+- Full-file Git blob: 60e0fbe87086ce222913c9531458592c8d76aca2
+- Full-file SHA-256: 984d364e07ea2eac5fe54c3615fe30dda49ee3805e539b8af9f3cc74cec037e9
+- Full-file bytes: 31471
+- Excerpt line span: 45-119
+- Excerpt SHA-256: 43dcb8c6ca15e714d56b139e0f44ae64522ecb0e0efde524ec158959c14deb46
+
+    45          settlement: ProviderDriveParkSettlementForProviderHostOwner,
+    46      },
+    47  }
+    48
+    49  pub struct ProviderDriveResult {
+    50      payload: ProviderDriveResultPayload,
+    51  }
+    52
+    53  #[derive(Debug, PartialEq, Error)]
+    54  pub enum ProviderDriveSessionExecutionCommitFault {
+    55      #[error("provider-drive session commit requires a ready provider result")]
+    56      NotReady,
+    57      #[error("provider-drive session commit failed: {source}")]
+    58      SessionExecution {
+    59          #[from]
+    60          source: crate::ProcessSessionRunError,
+    61      },
+    62  }
+    63
+    64  #[derive(PartialEq)]
+    65  pub(crate) struct ProviderDriveParkSettlementForProviderHostOwner {
+    66      receipt: ProviderParkReceipt,
+    67  }
+    68
+    69  pub(crate) struct ProviderReadyBoundaryReceiptShapeProjectionV1<'a> {
+    70      payload: ProviderReadyBoundaryReceiptShapeProjectionPayloadV1<'a>,
+    71  }
+    72
+    73  #[derive(Serialize)]
+    74  #[serde(tag = "receipt_kind", rename_all = "snake_case")]
+    75  enum ProviderReadyBoundaryReceiptShapeProjectionPayloadV1<'a> {
+    76      Boundary {
+    77          schema: &'a str,
+    78          boundary_present: bool,
+    79          details_product_present: bool,
+    80      },
+    81      Deadline {
+    82          schema: &'a str,
+    83          owner_class: &'static str,
+    84          deadline_id_present: bool,
+    85          reached_at_present: bool,
+    86      },
+    87      Cancellation {
+    88          schema: &'a str,
+    89          owner_class: &'static str,
+    90          cancellation_id_present: bool,
+    91          cancelled_at_present: bool,
+    92      },
+    93      LivenessWait {
+    94          schema: &'a str,
+    95          blocker_kind_present: bool,
+    96      },
+    97  }
+    98
+    99  struct ProviderHostOwnerReadyOutputPayload {
+   100      ready_output: swarm_capability_model::ProviderReadyBoundaryOutput,
+   101      output_effect_drain_receipts: ProviderDriveOutputEffectDrainReceiptBundleForProviderHostOwner,
+   102      host_resource_releases: ProviderHostResourceReleaseTransferSetV1,
+   103  }
+   104
+   105  pub(crate) struct ProviderDriveReadyOutputForProviderHostOwner {
+   106      output: ProviderHostOwnerReadyOutputPayload,
+   107  }
+   108
+   109  pub struct ProviderDriveOutputEffectDrainReceiptBundleForProviderHostOwner {
+   110      observations: Vec<serde_json::Value>,
+   111      process_output_records: ProviderDriveProcessOutputRecordProductForProviderHostOwner,
+   112  }
+   113
+   114  pub struct ProviderDriveProcessOutputRecordProductForProviderHostOwner {
+   115      records: Vec<RustSdkStaticProviderProcessOutputRecordForProviderHostOwnerV1>,
+   116  }
+   117
+   118  #[derive(PartialEq)]
+   119  pub(crate) enum ProviderDriveBoundaryDetailsForProviderHostOwner {}
 
 ## crates/ss-runtime-source-compiler-owner/src/provider_drive_result.rs:130-180
 
@@ -2219,6 +2988,44 @@ Every compact excerpt names the complete owning item span selected from the exac
    449          request: HostAdmittedTypedProviderRequest,
    450      ) -> Result<Self, String> {
 
+## crates/ss-runtime-source-compiler-owner/src/provider_drive_result.rs:491-519
+
+- Full-file Git blob: 60e0fbe87086ce222913c9531458592c8d76aca2
+- Full-file SHA-256: 984d364e07ea2eac5fe54c3615fe30dda49ee3805e539b8af9f3cc74cec037e9
+- Full-file bytes: 31471
+- Excerpt line span: 491-519
+- Excerpt SHA-256: 4d5b16b2a5f4eb03b6d619427367497bd7d5b7dd4bc8fcea300c0491cefd34f0
+
+   491      pub fn commit_ready_into_session_execution_kernel_and_drive_to_direct_run_result_product_v1(
+   492          self,
+   493          session: &mut crate::ProcessSessionV0,
+   494          boundary_context: &'static str,
+   495      ) -> Result<
+   496          (
+   497              crate::DirectRunProcessSessionRunResultProductV1,
+   498              ProviderDriveOutputEffectDrainReceiptBundleForProviderHostOwner,
+   499          ),
+   500          ProviderDriveSessionExecutionCommitFault,
+   501      > {
+   502          match self.payload {
+   503              ProviderDriveResultPayload::Ready { result } => {
+   504                  let (ready_output, output_effect_drain_receipts, host_resource_releases) = result
+   505                      .into_output_for_provider_drive_result_owner_v1()
+   506                      .into_ready_boundary_output_effect_drain_receipts_and_host_resource_releases_for_provider_drive_result_owner_v1();
+   507                  let result_product = session
+   508                      .commit_provider_ready_boundary_output_and_drive_to_direct_run_result_product_for_direct_run_owner_v1(
+   509                          ready_output,
+   510                          host_resource_releases,
+   511                          boundary_context,
+   512                      )?;
+   513                  Ok((result_product, output_effect_drain_receipts))
+   514              }
+   515              ProviderDriveResultPayload::Parked { settlement: _ } => {
+   516                  Err(ProviderDriveSessionExecutionCommitFault::NotReady)
+   517              }
+   518          }
+   519      }
+
 ## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime.rs:190-220
 
 - Full-file Git blob: d525a3ab706f3d85b82bd250897a81851286146e
@@ -2307,6 +3114,65 @@ Every compact excerpt names the complete owning item span selected from the exac
     38      },
     39  }
     40
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_image/plan/operation_algebra/boundary_and_work_selection.rs:148-197
+
+- Full-file Git blob: 5162d5f4943a95d8dea90b7b3dbf81ba9d56febd
+- Full-file SHA-256: 332e676da4da3e8869a106b32936b91f580328c5a5918d16b6c71c7c679d1987
+- Full-file bytes: 36038
+- Excerpt line span: 148-197
+- Excerpt SHA-256: b22203d63fb0e44c486074d0cc3949f67eba76a4a432f216d512738b4d9f64cf
+
+   148  impl PendingExecutableProviderBoundary {
+   149      pub(in crate::session) fn pending_activity_for_observation(
+   150          &self,
+   151      ) -> &crate::session::work_runtime::PendingActivityEffectFrame {
+   152          &self.pending_activity
+   153      }
+   154
+   155      pub(in crate::session) fn consume_corresponded_ready_output(
+   156          self,
+   157          ready_output: swarm_capability_model::ProviderReadyBoundaryOutput,
+   158          host_resource_releases: swarm_rust_sdk_static_provider_host::ProviderHostResourceReleaseTransferSetV1,
+   159          runtime_heap: &mut crate::SessionRuntimeHeapOwner,
+   160          execution_state: &mut crate::session::execution_state::KernelExecutionState,
+   161          cursor: &mut ExecutableCursor,
+   162      ) -> Result<(), crate::ProviderBoundaryIngressFault> {
+   163          let Self {
+   164              site: _,
+   165              pending_activity: _,
+   166              pending_output_authority,
+   167              result_mode,
+   168              result_commit,
+   169              continuation,
+   170              observable_effect_obligation: _observable_effect_obligation,
+   171          } = self;
+   172          let provider_output = pending_output_authority
+   173              .consume_corresponded_ready_output_for_provider_boundary_owner_v1(ready_output)
+   174              .map_err(crate::ProviderBoundaryIngressFault::from)?;
+   175          let runtime_output = provider_output
+   176              .try_map_payload_for_session_runtime_owner_v1(|provider_output| {
+   177                  runtime_heap
+   178                      .admit_corresponded_provider_output_transactionally_for_session_execution_kernel_owner_v1(
+   179                          provider_output,
+   180                          host_resource_releases,
+   181                      )
+   182              })
+   183              .map_err(crate::ProviderBoundaryIngressFault::from)?;
+   184          let settlement = crate::session::result_carrier_owner::SessionRuntimeProviderBoundarySettlement::from_correlated_provider_boundary_output(
+   185              runtime_output,
+   186          );
+   187          execution_state
+   188              .commit_corresponded_provider_effect_settlement(
+   189                  runtime_heap,
+   190                  result_mode,
+   191                  result_commit,
+   192                  settlement,
+   193              )
+   194              .map_err(crate::ProviderBoundaryExecutionCommitFault::from_provider_execution_frame)?;
+   195          cursor.commit_target(&continuation);
+   196          Ok(())
+   197      }
 
 ## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/execution_kernel/executable_value/process_carriers.rs:1-20
 
@@ -3315,6 +4181,172 @@ Every compact excerpt names the complete owning item span selected from the exac
     29  pub const PROVIDER_STREAM_EVENT_SCHEMA: &str = "swarm.capability_sdk.provider_stream_event.v1";
     30  pub const PROVIDER_PRIMITIVE_OPERATION_START_SCHEMA: &str =
 
+## crates/swarm-capability-model/src/lib.rs:71-227
+
+- Full-file Git blob: f1416ac0b6b0e73ca335b1de66464df67d9d11e6
+- Full-file SHA-256: 86a8705707dbcae8d1711c6dd3e61b913633fa6a9835a61fb5f7bb739ad023f4
+- Full-file bytes: 33882
+- Excerpt line span: 71-227
+- Excerpt SHA-256: b30f179bb0c265ff3056a7897a5d288b06a0f12296763b84f6c1ddf5d1a74b55
+
+    71  #[derive(Debug, Error)]
+    72  pub enum CapabilitySdkError {
+    73      #[error(transparent)]
+    74      Identifier(#[from] LinkerIdentifierError),
+    75      #[error("capability projection package specifier must be nonblank and trimmed: {0:?}")]
+    76      InvalidProjectionPackageSpecifier(String),
+    77      #[error("capability projection export name must be nonblank and trimmed: {0:?}")]
+    78      InvalidProjectionExportName(String),
+    79      #[error("capability contract fingerprint must be a lowercase sha256 ref: {0}")]
+    80      InvalidFingerprint(String),
+    81      #[error("capability contract TSON source rejected: {0}")]
+    82      InvalidContractTson(String),
+    83      #[error(
+    84          "capability contract fingerprint mismatch for {package_specifier}:{export_name}: expected {expected}, observed {observed}"
+    85      )]
+    86      ContractFingerprintMismatch {
+    87          package_specifier: String,
+    88          export_name: String,
+    89          expected: String,
+    90          observed: String,
+    91      },
+    92      #[error("provider continuation id must be nonblank and trimmed: {0:?}")]
+    93      InvalidContinuationId(String),
+    94      #[error("provider error code must be nonblank and trimmed: {0:?}")]
+    95      InvalidProviderErrorCode(String),
+    96      #[error("provider error details must be an object descriptor")]
+    97      InvalidProviderErrorDetails,
+    98      #[error("provider stream id must be nonblank and trimmed: {0:?}")]
+    99      InvalidStreamId(String),
+   100      #[error("provider operation id must be nonblank and trimmed: {0:?}")]
+   101      InvalidProviderOperationId(String),
+   102      #[error("provider operation start request must be an object: {0}")]
+   103      InvalidProviderOperationStartRequest(String),
+   104      #[error(
+   105          "provider operation route {route} cannot mint {carrier}: expected {expected_provider_id} with {expected_contract_fingerprint}, observed {observed_provider_id} with {observed_contract_fingerprint}"
+   106      )]
+   107      InvalidProviderOperationRouteBinding {
+   108          route: String,
+   109          carrier: String,
+   110          expected_provider_id: String,
+   111          observed_provider_id: String,
+   112          expected_contract_fingerprint: String,
+   113          observed_contract_fingerprint: String,
+   114      },
+   115      #[error("provider stream cursor must be nonblank and trimmed when present: {0:?}")]
+   116      InvalidProviderStreamCursor(String),
+   117      #[error("provider boundary name must be nonblank and trimmed: {0:?}")]
+   118      InvalidBoundaryName(String),
+   119      #[error("provider deadline id must be nonblank and trimmed: {0:?}")]
+   120      InvalidDeadlineId(String),
+   121      #[error("provider cancellation id must be nonblank and trimmed: {0:?}")]
+   122      InvalidCancellationId(String),
+   123      #[error("provider liveness blocker kind must be nonblank and trimmed: {0:?}")]
+   124      InvalidLivenessBlockerKind(String),
+   125      #[error("provider host id must be nonblank and trimmed: {0:?}")]
+   126      InvalidProviderHostId(String),
+   127      #[error("provider host set has duplicate provider binding for {0}")]
+   128      DuplicateProviderHostProvider(String),
+   129      #[error("provider host set direct-run requirement rejected: {0}")]
+   130      InvalidDirectRunProviderRequirement(String),
+   131      #[error(
+   132          "provider-host closed-sum output for {provider_id} is not the compiler-owned carrier object"
+   133      )]
+   134      ProviderHostClosedSumOutputNotCarrierObject { provider_id: String },
+   135      #[error("provider-host closed-sum output carrier for {provider_id} is malformed")]
+   136      ProviderHostClosedSumOutputCarrierMalformed { provider_id: String },
+   137      #[error("provider-host closed-sum output carrier symbol for {provider_id} is malformed")]
+   138      ProviderHostClosedSumOutputSymbolMalformed { provider_id: String },
+   139      #[error(
+   140          "provider-host closed-sum output symbol for {provider_id} must be {expected_symbol_path}, observed {observed_symbol_path}"
+   141      )]
+   142      ProviderHostClosedSumOutputSymbolMismatch {
+   143          provider_id: String,
+   144          expected_symbol_path: String,
+   145          observed_symbol_path: String,
+   146      },
+   147      #[error("provider-host closed-sum output carrier variant for {provider_id} is malformed")]
+   148      ProviderHostClosedSumOutputVariantMalformed { provider_id: String },
+   149      #[error(
+   150          "provider-host closed-sum output variant for {provider_id} is not declared by the admitted output type: {source}"
+   151      )]
+   152      ProviderHostClosedSumOutputVariantNotDeclared {
+   153          provider_id: String,
+   154          source: CapabilityTypeContractError,
+   155      },
+   156      #[error("provider-host closed-sum output payload flag for {provider_id} is malformed")]
+   157      ProviderHostClosedSumOutputPayloadFlagMalformed { provider_id: String },
+   158      #[error("provider-host closed-sum output payload for {provider_id} is missing")]
+   159      ProviderHostClosedSumOutputPayloadMissing { provider_id: String },
+   160      #[error("provider-host closed-sum unit payload for {provider_id} is malformed")]
+   161      ProviderHostClosedSumOutputUnitPayloadMalformed { provider_id: String },
+   162      #[error(
+   163          "provider-host std.Result closed-sum output for {provider_id} must carry a payload for Ok and Err variants"
+   164      )]
+   165      ProviderHostStdResultClosedSumPayloadMissing { provider_id: String },
+   166      #[error(
+   167          "provider-host std.Result closed-sum output for {provider_id} has unsupported variant {variant}"
+   168      )]
+   169      ProviderHostStdResultClosedSumVariantUnsupported {
+   170          provider_id: String,
+   171          variant: String,
+   172      },
+   173      #[error(
+   174          "live primitive source advance requires closed-sum provider-host output authority, got finite invocation result"
+   175      )]
+   176      ProviderHostLivePrimitiveSourceAdvanceGotInvocationResult,
+   177      #[error(
+   178          "live primitive source advance requires closed-sum provider-host output authority, got plain provider contract output"
+   179      )]
+   180      ProviderHostLivePrimitiveSourceAdvanceGotPlainContractOutput,
+   181      #[error("provider-drive ready output requires sealed provider-host output authority: {source}")]
+   182      ProviderHostReadyOutputTypeAdmission { source: CapabilityTypeContractError },
+   183      #[error("provider host set has no Rust SDK capability provider for {provider_id}")]
+   184      NoRustSdkProvider { provider_id: String },
+   185      #[error("provider contract registry has duplicate record for {provider_id}")]
+   186      DuplicateProviderContractRecord { provider_id: String },
+   187      #[error(
+   188          "provider {provider_id} requires external capability provider host {provider_execution_domain}, but no such provider host is installed"
+   189      )]
+   190      NoExternalCapabilityProviderHost {
+   191          provider_id: String,
+   192          provider_execution_domain: String,
+   193      },
+   194      #[error("provider contract {provider_id} has been removed and cannot be executed: {reason}")]
+   195      RemovedProviderContract { provider_id: String, reason: String },
+   196      #[error("compiled Swarm binary manifest rejected: {0}")]
+   197      InvalidCompiledSwarmBinaryManifest(String),
+   198      #[error("compiled Swarm binary manifest names provider host {host_id}, but it is not admitted")]
+   199      NativeBinaryManifestProviderHostNotAdmitted { host_id: String },
+   200      #[error(
+   201          "compiled Swarm binary manifest contract fingerprint mismatch for {package_specifier}:{export_name}: expected {expected}, observed {observed}"
+   202      )]
+   203      NativeBinaryManifestContractFingerprintMismatch {
+   204          package_specifier: String,
+   205          export_name: String,
+   206          expected: String,
+   207          observed: String,
+   208      },
+   209      #[error("native provider manifest rejected: {0}")]
+   210      InvalidNativeProviderManifest(String),
+   211      #[error("native provider package declaration rejected: {0}")]
+   212      InvalidNativeProviderPackageManifest(String),
+   213      #[error("native provider manifest has no artifact for platform {platform}")]
+   214      MissingNativeProviderArtifact { platform: String },
+   215      #[error(
+   216          "native provider descriptor mismatch for {provider_id}: expected {expected}, observed {observed}"
+   217      )]
+   218      NativeProviderDescriptorMismatch {
+   219          provider_id: String,
+   220          expected: String,
+   221          observed: String,
+   222      },
+   223      #[error("native provider manifest set has duplicate provider manifest for {provider_id}")]
+   224      DuplicateNativeProviderManifest { provider_id: String },
+   225      #[error("no native provider manifest satisfies required contract {provider_id}")]
+   226      NoNativeProviderManifestForContract { provider_id: String },
+   227  }
+
 ## crates/swarm-capability-model/src/provider_boundary_correspondence.rs: complete file
 
 - Full-file Git blob: de657bc7d16e2d6c0a9350288b923994a9052b69
@@ -3987,6 +5019,47 @@ Every compact excerpt names the complete owning item span selected from the exac
     29  use prepared_runtime_image_manifest_model::{
     30      ManifestResolvedExternalProviderCallAdmissionSelection,
 
+## crates/swarm-provider-host-set/src/provider_host_set.rs:42-54
+
+- Full-file Git blob: 24651b77b63c1b00e1d5b76fdd3246b1fae6f275
+- Full-file SHA-256: 14a1994c40bb5c0dfb6e0610b523b5deaf67404e4a2785971cd3c56501a77699
+- Full-file bytes: 45089
+- Excerpt line span: 42-54
+- Excerpt SHA-256: abbb9f457ebd7c2a86df05bc667ca929d666f52143b1e6289cb4c3a6f373fb50
+
+    42  pub struct ProviderHostExecutionSession {
+    43      provider_hosts: ProviderHostSet,
+    44      external_provider_session: Option<ExternalTransportCapabilityProviderExecutionSession>,
+    45      provider_import_execution_start_admission:
+    46          Option<PreparedRuntimeProviderImportExecutionStartAdmissionSet>,
+    47  }
+    48
+    49  // compiler-custody: symbol=ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 disposition=migrating reviewer=package-root-compiler-kernel-hardcut-20260722 justification="retaining refusal crosses into compiler process-start admission; exact first consumer edit: prepared_runtime.rs::DirectSwarmScriptRunPublicAperturePreparedRuntimeProcessStartAdmissionInputV1::admit_for_direct_run_public_aperture_owner_v1"
+    50  #[must_use = "a refused provider-import execution-start admission retains the execution session and the complete incoming admission set"]
+    51  pub struct ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 {
+    52      session: ProviderHostExecutionSession,
+    53      incoming: PreparedRuntimeProviderImportExecutionStartAdmissionSet,
+    54  }
+
+## crates/swarm-provider-host-set/src/provider_host_set.rs:267-276
+
+- Full-file Git blob: 24651b77b63c1b00e1d5b76fdd3246b1fae6f275
+- Full-file SHA-256: 14a1994c40bb5c0dfb6e0610b523b5deaf67404e4a2785971cd3c56501a77699
+- Full-file bytes: 45089
+- Excerpt line span: 267-276
+- Excerpt SHA-256: d14c61e116c65ccfd54feb76d350e152863b7bf3dc124693a9ef92c5c80acf35
+
+   267      pub fn begin_provider_execution_session_v1(&self) -> ProviderHostExecutionSession {
+   268          ProviderHostExecutionSession {
+   269              external_provider_session: self
+   270                  .external_transport_capability_provider
+   271                  .as_ref()
+   272                  .map(ExternalTransportCapabilityProviderHost::begin_execution_session_for_provider_host_owner_v1),
+   273              provider_hosts: self.duplicate_for_provider_host_owner_v1(),
+   274              provider_import_execution_start_admission: None,
+   275          }
+   276      }
+
 ## crates/swarm-provider-host-set/src/provider_host_set.rs:650-730
 
 - Full-file Git blob: 24651b77b63c1b00e1d5b76fdd3246b1fae6f275
@@ -4077,14 +5150,45 @@ Every compact excerpt names the complete owning item span selected from the exac
    729      }
    730
 
-## crates/swarm-provider-host-set/src/provider_host_set.rs:870-940
+## crates/swarm-provider-host-set/src/provider_host_set.rs:839-1038
 
 - Full-file Git blob: 24651b77b63c1b00e1d5b76fdd3246b1fae6f275
 - Full-file SHA-256: 14a1994c40bb5c0dfb6e0610b523b5deaf67404e4a2785971cd3c56501a77699
 - Full-file bytes: 45089
-- Excerpt line span: 870-940
-- Excerpt SHA-256: b4b3dff3be12f5e1cc76843084a7d14ee2b3811a19bda0c089dea5680a612ef9
+- Excerpt line span: 839-1038
+- Excerpt SHA-256: 0f318d254207cefb0fbe4e88d9954a3d17be4db50e673649c241c1b3a5b33aca
 
+   839  impl ProviderHostExecutionSession {
+   840      pub fn admit_prepared_runtime_provider_import_execution_start_for_direct_run_owner_v1(
+   841          self,
+   842          incoming: PreparedRuntimeProviderImportExecutionStartAdmissionSet,
+   843      ) -> Result<Self, ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1>
+   844      {
+   845          if self.provider_import_execution_start_admission.is_some() {
+   846              return Err(
+   847                  ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1 {
+   848                      session: self,
+   849                      incoming,
+   850                  },
+   851              );
+   852          }
+   853          let mut admitted = self;
+   854          admitted.provider_import_execution_start_admission = Some(incoming);
+   855          Ok(admitted)
+   856      }
+   857
+   858      pub fn commit_selected_host_resource_release_for_session_execution_kernel_owner_v1(
+   859          &mut self,
+   860          selected: SelectedProviderHostResourceReleaseV1,
+   861      ) -> Result<ProviderHostResourceReleaseReceiptV1, ProviderHostResourceReleaseRefusalV1> {
+   862          self.provider_hosts
+   863              .rust_sdk
+   864              .commit_selected_host_resource_release_for_swarm_provider_host_set_owner_v1(selected)
+   865      }
+   866
+   867      pub fn commit_selected_host_resource_release_borrowed_for_session_execution_kernel_owner_v1(
+   868          &mut self,
+   869          selected: &mut SelectedProviderHostResourceReleaseV1,
    870      ) -> Result<ProviderHostResourceReleaseReceiptV1, ProviderHostResourceReleaseFaultV1> {
    871          self.provider_hosts
    872              .rust_sdk
@@ -4156,15 +5260,45 @@ Every compact excerpt names the complete owning item span selected from the exac
    938      /// dependency edge. The kernel consumes the returned sealed classification to
    939      /// mint the route-descriptor-free park; the sealed dlopen handle stays in the
    940      /// loader (identity-admission at park, handle-resolution at source-advance).
-
-## crates/swarm-provider-host-set/src/provider_host_set.rs:980-1030
-
-- Full-file Git blob: 24651b77b63c1b00e1d5b76fdd3246b1fae6f275
-- Full-file SHA-256: 14a1994c40bb5c0dfb6e0610b523b5deaf67404e4a2785971cd3c56501a77699
-- Full-file bytes: 45089
-- Excerpt line span: 980-1030
-- Excerpt SHA-256: 8b21ae5c88fe85af9e82ca0732b73e1e83699202a60aa6753a98a564910ceb91
-
+   941      pub fn admit_loaded_native_park_typed_request_for_direct_run_kernel_owner_contract_tson_v1(
+   942          &self,
+   943          contract: AdmittedCapabilityContractTson,
+   944          input: ProviderValue,
+   945      ) -> CapabilitySdkResult<LoadedNativeProviderKindAdmission> {
+   946          self.provider_hosts
+   947              .admit_loaded_native_park_typed_request_for_provider_host_set_owner_contract_tson_v1(
+   948                  contract, input,
+   949              )
+   950      }
+   951
+   952      pub fn drive_rust_sdk_static_provider_request_for_provider_host_set_owner_contract_tson_v1(
+   953          &mut self,
+   954          contract: AdmittedCapabilityContractTson,
+   955          input: ProviderValue,
+   956      ) -> CapabilitySdkResult<RustSdkStaticProviderExecutionResultForProviderHostOwner> {
+   957          let request = self
+   958              .provider_hosts
+   959              .admit_typed_request_for_provider_host_set_owner_contract_tson_v1(contract, input)?;
+   960          let context =
+   961              ProviderHostContext::from_admitted_request_for_swarm_rust_sdk_static_provider_host_owner_v1(
+   962                  &request,
+   963              )?;
+   964          self.provider_hosts
+   965              .invoke_admitted_rust_sdk_request(request, context)
+   966      }
+   967
+   968      pub fn drive_rust_sdk_static_provider_request_for_provider_host_set_owner_operation_contract_tson_v1(
+   969          &mut self,
+   970          provider_route_contract: CapabilityContractIdentity,
+   971          contract: AdmittedCapabilityContractTson,
+   972          input: ProviderValue,
+   973      ) -> CapabilitySdkResult<RustSdkStaticProviderExecutionResultForProviderHostOwner> {
+   974          let request = self
+   975              .provider_hosts
+   976              .admit_typed_request_for_provider_host_set_operation_contract_tson_v1(
+   977                  provider_route_contract,
+   978                  contract,
+   979                  input,
    980              )?;
    981          let context =
    982              ProviderHostContext::from_admitted_request_for_swarm_rust_sdk_static_provider_host_owner_v1(
@@ -4216,6 +5350,14 @@ Every compact excerpt names the complete owning item span selected from the exac
   1028          }
   1029      }
   1030  }
+  1031
+  1032  impl Drop for ProviderHostExecutionSession {
+  1033      fn drop(&mut self) {
+  1034          if let Some(session) = self.external_provider_session.as_mut() {
+  1035              let _ = session.shutdown_for_provider_host_set_owner_v1();
+  1036          }
+  1037      }
+  1038  }
 
 ## crates/swarm-rust-sdk-static-provider-host/src/lib_parts/host_set.rs:1-30
 
@@ -5023,3 +6165,289 @@ Every compact excerpt names the complete owning item span selected from the exac
    528                      ProviderValue::String("hello".to_owned()),
    529                  )]).into()),
    530              )
+
+## crates/ss-runtime-source-compiler-owner/src/source_entrypoint_executable_runtime/errors.rs:215-238
+
+- Full-file Git blob: 7f45738aeac6f21a488317fc06dac16df56b2446
+- Full-file SHA-256: 5b2a1e3b25c3b2722a0ff84a6f732e10f99d9e988ad314c6da8a494b1151ed13
+- Full-file bytes: 39746
+- Excerpt line span: 215-238
+- Excerpt SHA-256: abe9126d3288dc5975fd2952f0945d9a5c35fcf85fe871511a312760f60c9080
+
+   215  #[derive(Debug, PartialEq, Eq, Error)]
+   216  pub enum ProviderBoundaryIngressFault {
+   217      #[error("provider-ready boundary commit has no selected pending provider application")]
+   218      NoPendingApplication,
+   219      #[error(
+   220          "provider-ready boundary commit found a different pending kernel boundary: {pending_kind}"
+   221      )]
+   222      DifferentPendingBoundary { pending_kind: &'static str },
+   223      #[error("provider-ready boundary correspondence failed: {source}")]
+   224      OutputCorrespondence {
+   225          #[from]
+   226          source: swarm_capability_model::ProviderBoundaryOutputCorrespondenceFault,
+   227      },
+   228      #[error("provider-ready boundary runtime-value admission failed: {source}")]
+   229      RuntimeValueAdmission {
+   230          #[from]
+   231          source: crate::VmRuntimeHeapAllocationError,
+   232      },
+   233      #[error("provider-ready boundary executable-state commit failed: {source}")]
+   234      ExecutionCommit {
+   235          #[from]
+   236          source: ProviderBoundaryExecutionCommitFault,
+   237      },
+   238  }
+
+## crates/ss-runtime-source-compiler-owner/src/direct_run/runtime_authority/mod.rs:1-123
+
+- Full-file Git blob: d3fc886642c8c9e9f25cc775501bb19a8815d157
+- Full-file SHA-256: 161832e5852a4d5de580f7c452ca098833c3396821fcc7fddeae219814ad9e32
+- Full-file bytes: 7287
+- Excerpt line span: 1-123
+- Excerpt SHA-256: b5c748c14946b9c87ecb9efadf2816705d453f2566e8812ebd8d7d10c73da1f7
+
+     1  use std::cell::RefCell;
+     2
+     3  pub(crate) enum DirectRunProcessSessionDriveFaultV1 {
+     4      RuntimeTerminal {
+     5          observation: crate::DirectRunProcessSessionRuntimeTerminalFaultObservationV1,
+     6          context: &'static str,
+     7      },
+     8      ProcessChild(
+     9          process_session_public_aperture::process_child_lifecycle::DirectRunProcessChildDriveFailureV1,
+    10      ),
+    11      ProcessChildStage(kernel_state_substrate::DirectRunProcessChildStageFaultV1),
+    12      ProcessChildParentResume(
+    13          process_session_public_aperture::process_child_lifecycle::DirectRunProcessChildParentResumeFaultV1,
+    14      ),
+    15      ProcessLoad(
+    16          process_session_public_aperture::provider_resume_lifecycle::DirectRunProcessLoadExecutionRefusalV1,
+    17      ),
+    18      ProcessCheckpoint(
+    19          process_session_public_aperture::provider_resume_lifecycle::DirectRunProcessCheckpointExecutionRefusalV1,
+    20      ),
+    21      ProcessRestore(
+    22          process_session_public_aperture::provider_resume_lifecycle::DirectRunProcessRestoreExecutionRefusalV1,
+    23      ),
+    24      ProcessSessionStartAdmission(
+    25          live_process_session_registry::DirectRunProcessSessionStartAdmissionRefusalV1,
+    26      ),
+    27      ProcessSessionStartDrive(
+    28          live_process_session_registry::DirectRunProcessSessionStartDriveRefusalV1,
+    29      ),
+    30      Generic(String),
+    31  }
+    32
+    33  impl From<String> for DirectRunProcessSessionDriveFaultV1 {
+    34      fn from(message: String) -> Self {
+    35          Self::Generic(message)
+    36      }
+    37  }
+    38
+    39  impl DirectRunProcessSessionDriveFaultV1 {
+    40      pub(crate) fn from_session_run_error_for_direct_run_owner_v1(
+    41          error: crate::ProcessSessionRunError,
+    42      ) -> Self {
+    43          match error {
+    44              crate::ProcessSessionRunError::RuntimeTerminal {
+    45                  observation,
+    46                  context,
+    47              } => Self::RuntimeTerminal {
+    48                  observation,
+    49                  context,
+    50              },
+    51              error => Self::Generic(error.to_string()),
+    52          }
+    53      }
+    54
+    55      pub(crate) fn cancel_into_generic_message_for_direct_run_boundary_owner_v1(
+    56          self,
+    57      ) -> Result<String, Self> {
+    58          match self {
+    59              Self::RuntimeTerminal {
+    60                  observation,
+    61                  context,
+    62              } => {
+    63                  let (code, message) =
+    64                      observation.consume_into_generic_fault_for_direct_run_boundary_owner_v1();
+    65                  Ok(format!(
+    66                      "process session actor scheduler failed: {}",
+    67                      serde_json::json!({
+    68                          "kind": code,
+    69                          "reason": message,
+    70                          "context": context,
+    71                      })
+    72                  ))
+    73              }
+    74              Self::ProcessChild(refusal) => {
+    75                  Ok(refusal.consume_into_final_diagnostic_for_direct_run_boundary_owner_v1())
+    76              }
+    77              Self::ProcessChildStage(fault) => {
+    78                  Ok(fault.consume_into_final_diagnostic_for_direct_run_boundary_owner_v1())
+    79              }
+    80              Self::ProcessChildParentResume(fault) => {
+    81                  Ok(fault.consume_into_final_diagnostic_for_direct_run_boundary_owner_v1())
+    82              }
+    83              Self::ProcessLoad(refusal) => {
+    84                  Ok(refusal.consume_into_final_diagnostic_for_direct_run_boundary_owner_v1())
+    85              }
+    86              Self::ProcessCheckpoint(refusal) => {
+    87                  Ok(refusal.consume_into_final_diagnostic_for_direct_run_boundary_owner_v1())
+    88              }
+    89              Self::ProcessRestore(refusal) => {
+    90                  Ok(refusal.consume_into_final_diagnostic_for_direct_run_boundary_owner_v1())
+    91              }
+    92              Self::ProcessSessionStartAdmission(refusal) => refusal
+    93                  .cancel_for_direct_run_boundary_owner_v1()
+    94                  .map(|receipt| {
+    95                      receipt.consume_into_generic_message_for_direct_run_boundary_owner_v1()
+    96                  })
+    97                  .map_err(Self::ProcessSessionStartAdmission),
+    98              Self::ProcessSessionStartDrive(refusal) => refusal
+    99                  .cancel_for_direct_run_boundary_owner_v1()
+   100                  .map(|receipt| {
+   101                      receipt.consume_into_generic_message_for_direct_run_boundary_owner_v1()
+   102                  })
+   103                  .map_err(Self::ProcessSessionStartDrive),
+   104              Self::Generic(message) => Ok(message),
+   105          }
+   106      }
+   107  }
+   108
+   109  mod base_refs;
+   110  mod child_terminal_persist_refs;
+   111  mod kernel_state_substrate;
+   112  pub(super) mod live_persist_receipts;
+   113  mod live_process_session_registry;
+   114  pub(super) mod live_source_resume;
+   115  mod process_child_launch;
+   116  mod process_invoke_child_settlement;
+   117  mod process_kernel_boundary;
+   118  mod process_session_public_aperture;
+   119  mod process_session_result_authority;
+   120  mod public_abi_boundary;
+   121  mod runtime_operation;
+   122  mod typed_continuation_token_admission;
+   123  mod volatile_runtime_state;
+
+## crates/swarm-provider-host-set/src/lib.rs:1-22
+
+- Full-file Git blob: f7c9ebc958f73ca04f0393c6f51136474a167593
+- Full-file SHA-256: 31a2d3108dfdb7c96f4407023d91f34ef4449891a7eed0e2d40245b78650e0f7
+- Full-file bytes: 865
+- Excerpt line span: 1-22
+- Excerpt SHA-256: 31a2d3108dfdb7c96f4407023d91f34ef4449891a7eed0e2d40245b78650e0f7
+
+     1  #![forbid(unsafe_code)]
+     2
+     3  // compiler-custody-scope: status=complete reviewer=package-root-compiler-kernel-hardcut-20260722 justification="all Rust source in this assigned owner was reviewed; every lexical custody candidate is classified adjacent to its item"
+     4
+     5  mod external_transport;
+     6  mod json_fields;
+     7  mod loaded_native;
+     8  mod manifest;
+     9  mod provider_host_set;
+    10  mod removed_contracts;
+    11
+    12  pub use external_transport::{
+    13      DurableExternalCapabilityProvider, DurableExternalCapabilityProviderFactory,
+    14      ExternalTransportCapabilityProviderHost,
+    15  };
+    16  pub use manifest::AdmittedCompiledSwarmBinaryManifest;
+    17  pub use provider_host_set::{
+    18      LoadedNativeProviderKindAdmission, NativeProviderLinkHostSetAdmission,
+    19      ProviderHostExecutionSession,
+    20      ProviderHostExecutionSessionProviderImportExecutionStartAdmissionRefusalV1, ProviderHostSet,
+    21      ProviderHostSetObservation,
+    22  };
+
+## crates/durable-native-provider-loader/src/lib.rs:332-374
+
+- Full-file Git blob: d8e4be25ef804fbd2810f82dec5eeb1795d9142a
+- Full-file SHA-256: 5c47f1e31bc66173f62021caad4e090814a8a63c964434a5b9e48b09b41bd84d
+- Full-file bytes: 17447
+- Excerpt line span: 332-374
+- Excerpt SHA-256: 335a7f04cd368e371ded63fb2567b1019f1628a2c2ebf8d2e0858c17c9ae00ec
+
+   332  impl LoadedNativeProviderArtifactSet {
+   333      pub fn load_from_host_load_admissions(
+   334          provider_hosts: &ProviderHostSet,
+   335          admissions: NativeProviderHostLoadAdmissionSet,
+   336      ) -> NativeProviderLoaderResult<Self> {
+   337          let admitted_loads =
+   338              admissions.into_admitted_load_requests_for_durable_native_provider_loader_owner_v1()?;
+   339          let mut artifacts = Vec::with_capacity(admitted_loads.len());
+   340          for request in admitted_loads {
+   341              let loaded = LoadedNativeProviderArtifact::load_from_host_load_request(request)?;
+   342              artifacts.push(loaded);
+   343          }
+   344          let pending_hosts = artifacts
+   345              .iter_mut()
+   346              .map(LoadedNativeProviderArtifact::take_pending_sdk_host)
+   347              .collect::<Vec<_>>();
+   348          let installed_roles = pending_hosts
+   349              .into_iter()
+   350              .map(
+   351                  NativeProviderLoadedHostAdmission::into_installed_host_roles_for_durable_native_provider_loader_owner_v1,
+   352              )
+   353              .collect::<Vec<_>>();
+   354          let (loader_hosts, installed_hosts): (Vec<_>, Vec<_>) = installed_roles.into_iter().unzip();
+   355          let provider_hosts = provider_hosts
+   356              .admit_loaded_native_provider_hosts_for_durable_native_provider_loader_owner_v1(
+   357                  installed_hosts,
+   358              )?;
+   359          for (artifact, loader_host) in artifacts.iter_mut().zip(loader_hosts) {
+   360              artifact.install_sdk_host(loader_host);
+   361          }
+   362          Ok(Self {
+   363              provider_hosts,
+   364              artifacts,
+   365          })
+   366      }
+   367
+   368      pub fn artifact_count(&self) -> usize {
+   369          self.artifacts.len()
+   370      }
+   371
+   372      pub fn begin_provider_execution_session_v1(&self) -> ProviderHostExecutionSession {
+   373          self.provider_hosts.begin_provider_execution_session_v1()
+   374      }
+
+## crates/durable-native-provider-loader/Cargo.toml: complete file
+
+- Full-file Git blob: a0a507d42e2f1cfb8d9c9a890cd3934e81331bb5
+- Full-file SHA-256: 8d3a24b795494aee5d8ccc2a44478df8f73987fc0b02697bb477d4d537f3bc8d
+- Full-file bytes: 913
+- Complete file line span: 1-30
+
+     1  [package]
+     2  name = "durable-native-provider-loader"
+     3  version.workspace = true
+     4  edition.workspace = true
+     5  license.workspace = true
+     6  authors.workspace = true
+     7
+     8  [lib]
+     9  doctest = false
+    10
+    11  [dependencies]
+    12  compiled-swarm-binary-manifest-model.workspace = true
+    13  durable-direct-run-boundary-model.workspace = true
+    14  libloading.workspace = true
+    15  rand.workspace = true
+    16  serde_json.workspace = true
+    17  sha2.workspace = true
+    18  swarm-capability-model.workspace = true
+    19  swarm-native-provider-authority.workspace = true
+    20  swarm-provider-host-set.workspace = true
+    21  swarm-rust-sdk-capability.workspace = true
+    22  swarm-substrate-invariant.workspace = true
+    23  swarmvm-session-runtime-effect-model.workspace = true
+    24  thiserror.workspace = true
+    25
+    26  [dev-dependencies]
+    27  example-echo-provider.workspace = true
+    28  libswarm-package-graph-executable-program-receipt-owner.workspace = true
+    29  swarm-contract-tson.workspace = true
+    30  swarm-rust-sdk-static-provider-host.workspace = true

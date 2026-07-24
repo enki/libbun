@@ -1,9 +1,9 @@
 [oracle-policy] provider=openai engine=api model=gpt-5.6-sol reasoning-mode=pro
-🧿 oracle 0.16.0 — Your AI's swagger, audited.
-[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~269,113 tokens and 37 files.
+🧿 oracle 0.16.0 — Less hallucination, more escalation.
+[dry-run] Oracle (0.16.0) would call gpt-5.6-sol with ~270,494 tokens and 37 files.
 File Token Usage
     87,933    32.33%  vendor/bun/src/jsc/VirtualMachine.rs
-    24,317     8.94%  docs/reviews/libbun-w1112-20260724/lifecycle-process-worker-source-bundle.md
+    27,065     9.95%  docs/reviews/libbun-w1112-20260724/lifecycle-process-worker-source-bundle.md
     23,840     8.76%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/runtime_execution_domain.rs
     21,987     8.08%  vendor/bun/src/jsc/JSGlobalObject.rs
     20,118     7.40%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/swarmvm-image/src/prepared_runtime_artifact_owner.rs
@@ -16,8 +16,8 @@ File Token Usage
      4,554     1.67%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/tests/external_capability_provider.rs
      4,467     1.64%  docs/LIBBUN-LIFECYCLE-CONTRACT.md
      4,347     1.60%  vendor/bun/src/jsc/virtual_machine_exports.rs
-     3,636     1.34%  docs/reviews/libbun-w1112-20260724/lifecycle-correction3-independent-verdict.md
      3,155     1.16%  vendor/bun/src/jsc/VM.rs
+     2,454     0.90%  docs/reviews/libbun-w1112-20260724/lifecycle-correction4-independent-verdict.md
      1,961     0.72%  wire/src/lib.rs
      1,722     0.63%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/lib.rs
      1,661     0.61%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/source_work_set_live_feed_session.rs
@@ -26,8 +26,8 @@ File Token Usage
        923     0.34%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/provider_settlement_lane.rs
        845     0.31%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/Cargo.toml
        695     0.26%  docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md
-       688     0.25%  docs/reviews/libbun-w1112-20260724/correction4-index.md
        675     0.25%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss-runtime-test-execution-owner/src/test_runner/artifact_session/runtime_plan_owner/external_capability_provider_pool.rs
+       429     0.16%  docs/reviews/libbun-w1112-20260724/correction5-index.md
        426     0.16%  docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/crates/ss/Cargo.toml
        394     0.14%  Cargo.toml
        364     0.13%  runtime/src/main.rs
@@ -39,4 +39,4 @@ File Token Usage
        194     0.07%  runtime/Cargo.toml
        164     0.06%  src/lib.rs
         80     0.03%  wire/Cargo.toml
-Total: 268,280 tokens (98.63% of 272,000)
+Total: 269,587 tokens (99.11% of 272,000)

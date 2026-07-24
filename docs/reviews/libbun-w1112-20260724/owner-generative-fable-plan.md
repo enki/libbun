@@ -1,13 +1,13 @@
-# Correction-4 Fable file plan: Owner/W1-10/generative correspondence/admission/reservation/release
+# Correction-5 Fable file plan: Owner/W1-10/generative correspondence/admission/reservation/release
 
-- Prior independent verdict: PART BUNDLE REVISE at 29136ad08f0103cd4338db51552a2a566625d81d
+- Prior independent verdict: PART BUNDLE REVISE at d7292c2c3beaabb807efc5b551f4beaae1d70a3c
 - State: NOT LAUNCHED
 - Engine: local Fable wrapper
 - Model: claude-fable-5
 - Effort: max
 - Deliverable: CONCRETE IMPLEMENTATION
 - Prompt: docs/reviews/libbun-w1112-20260724/owner-generative-prompt.md
-- Prompt SHA-256: 680ca13fb173f88820e52b003069336706f70294ea2f5e606cd55513ecd6eff0
+- Prompt SHA-256: 619b66dfcb331b30e2dfdb899d80671a04b6a4f36f1a9ebe91120dfcc1904319
 - Ordered file plan: docs/reviews/libbun-w1112-20260724/owner-generative-files.txt
 - Ordered file count: 32
 - Identical to Oracle ordered attachments: yes
@@ -19,10 +19,10 @@
 | 1 | README.md | 7b8a88d47e3ccf5fe518f0dfa44bdc09d26440dc7e461cb33160cf1e2e618d70 | 3369 |
 | 2 | docs/LIBBUN-LIFECYCLE-CONTRACT.md | c3775f713913713ebc36b37f442cf87927d3e445ba82f80ae1c7fef041526881 | 17107 |
 | 3 | docs/LIBBUN-W1112-POISON-INSTALLER-EVIDENCE-20260724.md | 72ece5d9eeef7a220ee4d309d5e28f7c852376c7fecd6288cddc4e643dc61fe8 | 2382 |
-| 4 | docs/reviews/libbun-w1112-20260724/correction4-index.md | f2c4b1452288fe220cfe1a0ae167a2c543cc8d2c6ff87843991e99fc397bfbbc | 2074 |
-| 5 | docs/reviews/libbun-w1112-20260724/owner-generative-correction3-independent-verdict.md | cfbaf63f12927553a36c5377145ec9309b9d7a601cc497861433d1b637f8a30e | 15022 |
-| 6 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md | 1243798c2522857ed03e2e14c3ee51c22079ae4291ceeac68237c6af712e2e10 | 25577 |
-| 7 | docs/reviews/libbun-w1112-20260724/adjacent-generative-source-bundle.md | 06273bfe021a85fbab49622a1efe8701fba72a9ee80af2ec88dde225564851fc | 279138 |
+| 4 | docs/reviews/libbun-w1112-20260724/correction5-index.md | 08fd92e21a78e05b1e48dd2ee7e754b69ac4731cde9a11e409a5b5560dd0e7dd | 1161 |
+| 5 | docs/reviews/libbun-w1112-20260724/owner-generative-correction4-independent-verdict.md | e814343062c217d283313c02f612a6afce0da4a354cbf571238306c384a90807 | 14977 |
+| 6 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-source-index.md | 9a2605e7b1e539c46662ce8389e32b70c3c88591e288ea88ce0a290f6fd70962 | 29598 |
+| 7 | docs/reviews/libbun-w1112-20260724/adjacent-generative-source-bundle.md | 0727a7efbd268d05bb6ee04d99a168bc9cc2cb7ac18b45b7ccfe9c1e0ebb121f | 353167 |
 | 8 | src/lib.rs | 25e7a172b0c099e65d289e38c05866a5c4808475194038dd59bf2b29af53f96b | 551 |
 | 9 | src/prepared_export.rs | 88bb176940654c17528329ee50cc0f2894a8abf64a069689b46d4903a477d9e8 | 42745 |
 | 10 | Cargo.toml | 0fe7a603f1cc43394421f03fca41255166ca665b11c4b75357376cd98c99c496 | 956 |
@@ -49,4 +49,4 @@
 | 31 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/conformance/ss/provider/imported_helper_external_result_payload.test.ss | 9a26ebc4737439e4ae0e8342a3b19a357d2a8008d2d09330cc92fcae924dae43 | 771 |
 | 32 | docs/reviews/libbun-w1112-20260724/adjacent-swarm-95323ff17cb29928e31467f651ef03bae2099c14/tests/negative/ss/provider/external_provider_json_nfc_duplicate_keys.test.ss | 5d238da6cfd9e1f46a46fc243409d62c3940964cb084343adae08b9079d6c99d | 493 |
 
-No Fable session, request, response, or output exists. Fresh literal independent PART BUNDLE PASS verdicts for correction 4 remain required before launch.
+No Fable session, request, response, or output exists. Fresh literal independent PART BUNDLE PASS verdicts for correction 5 remain required before launch. Synthesis remains blocked until all three part verdicts pass.
