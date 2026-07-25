@@ -4,9 +4,7 @@ use std::io::{self, Read};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
-#[cfg(test)]
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender, TryRecvError};
 use std::sync::{Arc, OnceLock};
 use std::thread::{self, JoinHandle};
@@ -27,7 +25,6 @@ use crate::{
     SettledProviderReceipt, StructuralValue,
 };
 
-#[cfg(test)]
 static NEXT_SELECTION_BRAND: AtomicU64 = AtomicU64::new(1);
 static DURABLE_REAPER: OnceLock<Result<Arc<DurableReaper>, String>> = OnceLock::new();
 #[cfg(test)]
@@ -607,6 +604,42 @@ impl BunProviderBackend {
                 },
             ));
         }
+        Ok(self.prepare_matching_selection(package, invocation))
+    }
+
+    pub fn prepare_selected_request(
+        self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> PreparedExport {
+        let brand = NEXT_SELECTION_BRAND.fetch_add(1, Ordering::Relaxed);
+        let ProviderRequest {
+            contract,
+            domain,
+            module,
+            export,
+            input,
+        } = request;
+        let package = SelectedProviderPackage {
+            brand,
+            contract,
+            domain,
+            module,
+            export,
+        };
+        let invocation = ProviderInvocation {
+            brand,
+            input,
+            options,
+        };
+        self.prepare_matching_selection(package, invocation)
+    }
+
+    fn prepare_matching_selection(
+        mut self,
+        package: SelectedProviderPackage,
+        invocation: ProviderInvocation,
+    ) -> PreparedExport {
         let request = ProviderRequest {
             contract: package.contract,
             domain: package.domain,
@@ -614,11 +647,11 @@ impl BunProviderBackend {
             export: package.export,
             input: invocation.input,
         };
-        Ok(PreparedExport {
+        PreparedExport {
             worker: self.worker.take(),
             request: Some(request),
             options: Some(invocation.options),
-        })
+        }
     }
 
     pub fn shutdown(mut self, control: ShutdownControl) -> BackendShutdownTerminal {
@@ -725,6 +758,25 @@ impl MechanicalTerminal {
         };
         match continuation.into_backend() {
             Ok(backend) => backend.prepare(package, invocation),
+            Err(fault) => Err(MechanicalTerminal::MechanicalFault(
+                MechanicalFaultTerminal {
+                    fault,
+                    continuation: None,
+                },
+            )),
+        }
+    }
+
+    pub fn prepare_next_selected_request(
+        mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> Result<PreparedExport, Self> {
+        let Some(continuation) = self.take_continuation() else {
+            return Err(self);
+        };
+        match continuation.into_backend() {
+            Ok(backend) => Ok(backend.prepare_selected_request(request, options)),
             Err(fault) => Err(MechanicalTerminal::MechanicalFault(
                 MechanicalFaultTerminal {
                     fault,
@@ -2322,23 +2374,28 @@ mod tests {
         behavior: &str,
         input: serde_json::Value,
     ) -> (SelectedProviderPackage, ProviderInvocation) {
-        select_request_for_owner_test(
-            ProviderRequest {
-                contract: ProviderContractIdentity {
-                    package: "owner-test".to_owned(),
-                    capability: "drive".to_owned(),
-                    contract_fingerprint: "owner-test-v1".to_owned(),
-                },
-                domain: ProviderDomainClass::JavaScriptExternalTransport,
-                module: BunModuleSpec::Source {
-                    module_id: "owner-test".to_owned(),
-                    source: behavior.to_owned(),
-                },
-                export: "default".to_owned(),
-                input: StructuralValue(input),
+        select_request_for_owner_test(selected_request(behavior, input), selected_options())
+    }
+
+    fn selected_request(behavior: &str, input: serde_json::Value) -> ProviderRequest {
+        ProviderRequest {
+            contract: ProviderContractIdentity {
+                package: "owner-test".to_owned(),
+                capability: "drive".to_owned(),
+                contract_fingerprint: "owner-test-v1".to_owned(),
             },
-            ProviderSettleOptions::new(ProviderDeadline::from_millis(5_000)),
-        )
+            domain: ProviderDomainClass::JavaScriptExternalTransport,
+            module: BunModuleSpec::Source {
+                module_id: "owner-test".to_owned(),
+                source: behavior.to_owned(),
+            },
+            export: "default".to_owned(),
+            input: StructuralValue(input),
+        }
+    }
+
+    fn selected_options() -> ProviderSettleOptions {
+        ProviderSettleOptions::new(ProviderDeadline::from_millis(5_000))
     }
 
     fn drive(backend: BunProviderBackend, behavior: &str, timeout: Duration) -> MechanicalTerminal {
@@ -2347,6 +2404,77 @@ mod tests {
             .prepare(package, invocation)
             .expect("matching selected input prepares")
             .drive(DriveControl::deadline_after(timeout).expect("deadline is representable"))
+    }
+
+    #[test]
+    fn selected_request_is_consumed_directly_and_ready_retry_retains_exact_custody() {
+        let first = backend("selected-request")
+            .prepare_selected_request(
+                selected_request("ok", json!({ "value": 41 })),
+                selected_options(),
+            )
+            .drive(
+                DriveControl::deadline_after(Duration::from_secs(1))
+                    .expect("deadline is representable"),
+            );
+        assert_eq!(
+            first
+                .cargo()
+                .expect("directly prepared request yields authored cargo")
+                .kind(),
+            AuthoredSettlementKind::Fulfilled
+        );
+
+        let second = first
+            .prepare_next_selected_request(
+                selected_request("reject", json!(null)),
+                selected_options(),
+            )
+            .expect("the ready terminal consumes its sole continuation")
+            .drive(
+                DriveControl::deadline_after(Duration::from_secs(1))
+                    .expect("deadline is representable"),
+            );
+        assert_eq!(
+            second
+                .cargo()
+                .expect("direct retry yields authored rejection cargo")
+                .kind(),
+            AuthoredSettlementKind::Rejected
+        );
+        assert!(matches!(
+            second.shutdown(
+                ShutdownControl::deadline_after(Duration::from_secs(1))
+                    .expect("shutdown deadline is representable")
+            ),
+            BackendShutdownTerminal::Complete
+        ));
+    }
+
+    #[test]
+    fn selected_request_predispatch_interrupt_preserves_one_direct_retry() {
+        let prepared = backend("selected-request-cancel")
+            .prepare_selected_request(selected_request("ok", json!(null)), selected_options());
+        let control = DriveControl::deadline_after(Duration::from_secs(1))
+            .expect("deadline is representable");
+        control.interrupt().request();
+        let cancelled = prepared.drive(control);
+        assert!(matches!(cancelled, MechanicalTerminal::Cancelled(_)));
+
+        let resumed = cancelled
+            .prepare_next_selected_request(selected_request("ok", json!(null)), selected_options())
+            .expect("predispatch cancellation retains one direct retry")
+            .drive(
+                DriveControl::deadline_after(Duration::from_secs(1))
+                    .expect("deadline is representable"),
+            );
+        assert!(matches!(
+            resumed.shutdown(
+                ShutdownControl::deadline_after(Duration::from_secs(1))
+                    .expect("shutdown deadline is representable")
+            ),
+            BackendShutdownTerminal::Complete
+        ));
     }
 
     #[test]
