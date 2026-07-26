@@ -1469,28 +1469,38 @@ struct ContainedProcess {
     retirement_fault: Option<LibbunError>,
 }
 
+fn contained_process_command(
+    config: &BunRuntimeConfig,
+    helper: &Path,
+    bubblewrap: &Path,
+) -> Command {
+    let mut command = Command::new(bubblewrap);
+    command
+        .arg("--die-with-parent")
+        .arg("--unshare-user")
+        .arg("--uid")
+        .arg("0")
+        .arg("--gid")
+        .arg("0")
+        .arg("--unshare-pid")
+        .arg("--new-session")
+        .arg("--proc")
+        .arg("/proc")
+        .arg("--ro-bind")
+        .arg("/")
+        .arg("/")
+        .arg("--dev")
+        .arg("/dev")
+        .arg("--chdir")
+        .arg(&config.working_directory)
+        .arg("--")
+        .arg(helper);
+    command
+}
+
 impl ContainedProcess {
     fn start(config: &BunRuntimeConfig, helper: &Path, bubblewrap: &Path) -> LibbunResult<Self> {
-        let mut child = Command::new(bubblewrap)
-            .arg("--die-with-parent")
-            .arg("--unshare-user")
-            .arg("--uid")
-            .arg("0")
-            .arg("--gid")
-            .arg("0")
-            .arg("--unshare-pid")
-            .arg("--new-session")
-            .arg("--proc")
-            .arg("/proc")
-            .arg("--dev")
-            .arg("/dev")
-            .arg("--ro-bind")
-            .arg("/")
-            .arg("/")
-            .arg("--chdir")
-            .arg(&config.working_directory)
-            .arg("--")
-            .arg(helper)
+        let mut child = contained_process_command(config, helper, bubblewrap)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -2723,6 +2733,127 @@ mod tests {
         queue.drain_snapshot();
         assert!(queue.head.load(Ordering::Acquire).is_null());
         drop(receiver);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn contained_process_mounts_owned_dev_after_the_read_only_root() {
+        let config = BunRuntimeConfig::new("argument-order", "/tmp");
+        let command = contained_process_command(
+            &config,
+            Path::new("/exact/libbun-runtime-native"),
+            Path::new("/exact/bwrap"),
+        );
+        let arguments = command
+            .get_args()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        let sequence_position = |expected: &[&str]| {
+            arguments.windows(expected.len()).position(|window| {
+                window
+                    .iter()
+                    .map(String::as_str)
+                    .eq(expected.iter().copied())
+            })
+        };
+        let root = sequence_position(&["--ro-bind", "/", "/"])
+            .expect("the exact read-only root bind is retained");
+        let dev = sequence_position(&["--dev", "/dev"])
+            .expect("the exact private device mount is retained");
+        assert!(
+            root < dev,
+            "Bubblewrap applies mounts in argument order, so owned /dev must follow the root bind: {arguments:?}"
+        );
+        assert!(
+            sequence_position(&["--proc", "/proc"]).is_some(),
+            "the private proc mount remains part of the exact containment command: {arguments:?}"
+        );
+        assert_eq!(
+            arguments.last().map(String::as_str),
+            Some("/exact/libbun-runtime-native"),
+            "the exact helper remains the only contained command"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn contained_helper_create_reads_from_owned_dev_urandom() {
+        let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
+            .into_iter()
+            .find(|candidate| candidate.is_file())
+            .expect("contained Create proof requires Bubblewrap")
+            .canonicalize()
+            .expect("Bubblewrap path resolves exactly");
+        let fixture = tempfile::tempdir().expect("fixture directory is created");
+        let helper = fixture.path().join("libbun-runtime-native");
+        std::fs::write(
+            &helper,
+            r#"#!/usr/bin/python3
+import json
+import struct
+import sys
+
+reader = sys.stdin.buffer
+writer = sys.stdout.buffer
+
+def read_frame():
+    header = reader.read(4)
+    if not header:
+        return None
+    length = struct.unpack(">I", header)[0]
+    return json.loads(reader.read(length))
+
+def write_frame(value):
+    encoded = json.dumps(value, separators=(",", ":")).encode()
+    writer.write(struct.pack(">I", len(encoded)))
+    writer.write(encoded)
+    writer.flush()
+
+while True:
+    request = read_frame()
+    if request is None:
+        break
+    payload = request["payload"]
+    kind = payload["type"]
+    if kind == "hello":
+        response = {"type": "hello", "payload": payload["payload"]}
+    elif kind == "create":
+        with open("/dev/urandom", "rb") as entropy:
+            if len(entropy.read(1)) != 1:
+                raise RuntimeError("owned /dev/urandom returned no entropy")
+        response = {"type": "unit"}
+    elif kind == "drainOutput":
+        response = {"type": "output", "payload": []}
+    elif kind == "exit":
+        response = {"type": "unit"}
+    else:
+        response = {"type": "unit"}
+    write_frame({"id": request["id"], "result": {"Ok": response}})
+    if kind == "exit":
+        break
+"#,
+        )
+        .expect("fixture helper is written");
+        let mut permissions = helper
+            .metadata()
+            .expect("fixture helper metadata is readable")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&helper, permissions).expect("fixture helper is executable");
+        let helper = helper.canonicalize().expect("helper path resolves exactly");
+        let config = BunRuntimeConfig::new("contained-create", fixture.path());
+        let worker = spawn_contained_worker_with_paths(config, helper, bubblewrap)
+            .expect("contained helper completes Create with readable owned /dev/urandom");
+        let backend = BunProviderBackend {
+            worker: Some(worker),
+        };
+        assert!(matches!(
+            backend.shutdown(
+                ShutdownControl::deadline_after(Duration::from_secs(2))
+                    .expect("shutdown deadline is representable")
+            ),
+            BackendShutdownTerminal::Complete
+        ));
     }
 
     #[cfg(target_os = "linux")]
