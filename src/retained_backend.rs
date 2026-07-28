@@ -1489,6 +1489,8 @@ fn contained_process_command(
         .arg("--ro-bind")
         .arg("/")
         .arg("/")
+        .arg("--tmpfs")
+        .arg("/tmp")
         .arg("--dev")
         .arg("/dev")
         .arg("--chdir")
@@ -2737,7 +2739,7 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn contained_process_mounts_owned_dev_after_the_read_only_root() {
+    fn contained_process_mounts_private_scratch_and_owned_dev_after_the_read_only_root() {
         let config = BunRuntimeConfig::new("argument-order", "/tmp");
         let command = contained_process_command(
             &config,
@@ -2758,11 +2760,21 @@ mod tests {
         };
         let root = sequence_position(&["--ro-bind", "/", "/"])
             .expect("the exact read-only root bind is retained");
+        let scratch = sequence_position(&["--tmpfs", "/tmp"])
+            .expect("the contained worker receives one private writable scratch mount");
         let dev = sequence_position(&["--dev", "/dev"])
             .expect("the exact private device mount is retained");
         assert!(
-            root < dev,
-            "Bubblewrap applies mounts in argument order, so owned /dev must follow the root bind: {arguments:?}"
+            root < scratch && scratch < dev,
+            "Bubblewrap applies mounts in argument order, so private scratch and owned /dev must follow the root bind: {arguments:?}"
+        );
+        assert_eq!(
+            arguments
+                .windows(2)
+                .filter(|window| window[0] == "--tmpfs" && window[1] == "/tmp")
+                .count(),
+            1,
+            "the contained worker receives exactly one private scratch mount: {arguments:?}"
         );
         assert!(
             sequence_position(&["--proc", "/proc"]).is_some(),
@@ -2777,19 +2789,23 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn contained_helper_create_reads_from_owned_dev_urandom() {
+    fn contained_helper_create_materializes_exact_bytes_in_private_scratch() {
         let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
             .into_iter()
             .find(|candidate| candidate.is_file())
             .expect("contained Create proof requires Bubblewrap")
             .canonicalize()
             .expect("Bubblewrap path resolves exactly");
-        let fixture = tempfile::tempdir().expect("fixture directory is created");
+        let fixture = tempfile::Builder::new()
+            .prefix("libbun-contained-scratch-test-")
+            .tempdir_in(std::env::current_dir().expect("current directory resolves"))
+            .expect("fixture directory is created outside the private scratch mount");
         let helper = fixture.path().join("libbun-runtime-native");
         std::fs::write(
             &helper,
             r#"#!/usr/bin/python3
 import json
+import os
 import struct
 import sys
 
@@ -2821,6 +2837,15 @@ while True:
         with open("/dev/urandom", "rb") as entropy:
             if len(entropy.read(1)) != 1:
                 raise RuntimeError("owned /dev/urandom returned no entropy")
+        bundle_dir = "/tmp/libbun-prepared-bundle-proof/module.bundle/dep"
+        os.makedirs(bundle_dir)
+        module_path = os.path.join(bundle_dir, "value.mjs")
+        sealed_source = b"export const value = 7;\n"
+        with open(module_path, "wb") as module:
+            module.write(sealed_source)
+        with open(module_path, "rb") as module:
+            if module.read() != sealed_source:
+                raise RuntimeError("private scratch changed the prepared module bytes")
         response = {"type": "unit"}
     elif kind == "drainOutput":
         response = {"type": "output", "payload": []}
@@ -2843,7 +2868,7 @@ while True:
         let helper = helper.canonicalize().expect("helper path resolves exactly");
         let config = BunRuntimeConfig::new("contained-create", fixture.path());
         let worker = spawn_contained_worker_with_paths(config, helper, bubblewrap)
-            .expect("contained helper completes Create with readable owned /dev/urandom");
+            .expect("contained helper materializes exact prepared bytes in private scratch");
         let backend = BunProviderBackend {
             worker: Some(worker),
         };
@@ -2865,7 +2890,10 @@ while True:
             .expect("contained process proof requires Bubblewrap")
             .canonicalize()
             .expect("Bubblewrap path resolves exactly");
-        let fixture = tempfile::tempdir().expect("fixture directory is created");
+        let fixture = tempfile::Builder::new()
+            .prefix("libbun-contained-retirement-test-")
+            .tempdir_in(std::env::current_dir().expect("current directory resolves"))
+            .expect("fixture directory is created outside the private scratch mount");
         let helper = fixture.path().join("libbun-runtime-native");
         std::fs::write(
             &helper,
