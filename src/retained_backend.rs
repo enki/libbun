@@ -2789,6 +2789,89 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
+    fn contained_helper_keeps_authored_stdout_out_of_response_framing() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
+            .into_iter()
+            .find(|candidate| candidate.is_file())
+            .expect("contained output-plane proof requires Bubblewrap")
+            .canonicalize()
+            .expect("Bubblewrap path resolves exactly");
+        let fixture = tempfile::Builder::new()
+            .prefix("libbun-contained-output-plane-test-")
+            .tempdir_in(std::env::current_dir().expect("current directory resolves"))
+            .expect("fixture directory is created outside the private scratch mount");
+        let helper = fixture.path().join("libbun-runtime-native");
+        std::fs::write(
+            &helper,
+            r#"#!/usr/bin/python3
+import json
+import os
+import struct
+import sys
+
+reader = sys.stdin.buffer
+response_fd = os.environ.get("LIBBUN_HELPER_RESPONSE_FD")
+writer = os.fdopen(int(response_fd), "wb", closefd=False) if response_fd else sys.stdout.buffer
+
+def read_frame():
+    header = reader.read(4)
+    if not header:
+        return None
+    length = struct.unpack(">I", header)[0]
+    return json.loads(reader.read(length))
+
+def write_frame(value):
+    sys.stdout.buffer.write(b"\x00\x00\x00\x04JUNK")
+    sys.stdout.buffer.flush()
+    encoded = json.dumps(value, separators=(",", ":")).encode()
+    writer.write(struct.pack(">I", len(encoded)))
+    writer.write(encoded)
+    writer.flush()
+
+while True:
+    request = read_frame()
+    if request is None:
+        break
+    payload = request["payload"]
+    kind = payload["type"]
+    if kind == "hello":
+        response = {"type": "hello", "payload": payload["payload"]}
+    elif kind == "drainOutput":
+        response = {"type": "output", "payload": []}
+    else:
+        response = {"type": "unit"}
+    write_frame({"id": request["id"], "result": {"Ok": response}})
+    if kind == "exit":
+        break
+"#,
+        )
+        .expect("fixture helper is written");
+        let mut permissions = helper
+            .metadata()
+            .expect("fixture helper metadata is readable")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&helper, permissions).expect("fixture helper is executable");
+        let helper = helper.canonicalize().expect("helper path resolves exactly");
+        let config = BunRuntimeConfig::new("contained-output-plane", fixture.path());
+        let worker = spawn_contained_worker_with_paths(config, helper, bubblewrap)
+            .expect("authored stdout cannot corrupt contained-helper response framing");
+        let backend = BunProviderBackend {
+            worker: Some(worker),
+        };
+        assert!(matches!(
+            backend.shutdown(
+                ShutdownControl::deadline_after(Duration::from_secs(2))
+                    .expect("shutdown deadline is representable")
+            ),
+            BackendShutdownTerminal::Complete
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
     fn contained_helper_create_materializes_exact_bytes_in_private_scratch() {
         let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
             .into_iter()
