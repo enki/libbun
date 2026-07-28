@@ -1,20 +1,25 @@
 use std::cell::UnsafeCell;
 use std::fmt;
-use std::io::{self, Read};
+use std::io::{self, PipeReader, Read};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
+use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender, TryRecvError};
 use std::sync::{Arc, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+#[cfg(target_os = "linux")]
+use std::os::fd::AsRawFd;
+#[cfg(target_os = "linux")]
+use std::os::unix::process::CommandExt;
+
 use serde::Serialize;
 
 use crate::helper_protocol::{
     HelperHello, HelperRequest, HelperRequestPayload, HelperResponse, HelperResponsePayload,
-    LIBBUN_HELPER_PROTOCOL_VERSION, read_frame, write_frame,
+    LIBBUN_HELPER_PROTOCOL_VERSION, LIBBUN_HELPER_RESPONSE_FD_ENV, read_frame, write_frame,
 };
 use crate::plugin_abi::LIBBUN_PLUGIN_ABI_VERSION;
 #[cfg(test)]
@@ -1462,7 +1467,10 @@ struct ContainedProcess {
     stdin: Option<ChildStdin>,
     responses: Receiver<Result<HelperResponse, String>>,
     response_reader: Option<JoinHandle<()>>,
+    stdout_reader: Option<JoinHandle<io::Result<Vec<u8>>>>,
     stderr_reader: Option<JoinHandle<io::Result<Vec<u8>>>>,
+    captured_stdout: Vec<u8>,
+    captured_stderr: Vec<u8>,
     next_id: u64,
     finished: bool,
     exit_status: Option<ExitStatus>,
@@ -1501,22 +1509,44 @@ fn contained_process_command(
 }
 
 impl ContainedProcess {
+    #[cfg(target_os = "linux")]
     fn start(config: &BunRuntimeConfig, helper: &Path, bubblewrap: &Path) -> LibbunResult<Self> {
-        let mut child = contained_process_command(config, helper, bubblewrap)
+        let (response_reader, response_writer) = io::pipe().map_err(|error| {
+            LibbunError::initialize(format!(
+                "contained retained worker response channel allocation failed: {error}"
+            ))
+        })?;
+        let response_fd = response_writer.as_raw_fd();
+        let mut command = contained_process_command(config, helper, bubblewrap);
+        command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|error| {
-                LibbunError::initialize(format!(
-                    "exact-contained retained worker admission failed: {error}"
-                ))
-            })?;
+            .env(LIBBUN_HELPER_RESPONSE_FD_ENV, response_fd.to_string());
+        // SAFETY: this closure performs only the async-signal-safe fcntl syscall between fork and
+        // exec. The pipe writer stays owned by this stack frame until spawn returns, and clearing
+        // CLOEXEC is what transfers its one response-plane endpoint through Bubblewrap to helper.
+        unsafe {
+            command.pre_exec(move || {
+                if libc::fcntl(response_fd, libc::F_SETFD, 0) == -1 {
+                    Err(io::Error::last_os_error())
+                } else {
+                    Ok(())
+                }
+            });
+        }
+        let child = command.spawn();
+        drop(response_writer);
+        let mut child = child.map_err(|error| {
+            LibbunError::initialize(format!(
+                "exact-contained retained worker admission failed: {error}"
+            ))
+        })?;
 
         let Some(stdin) = child.stdin.take() else {
             let admission =
                 LibbunError::initialize("contained retained worker stdin custody is missing");
-            return Err(retire_partial_admission(&mut child, None)
+            return Err(retire_partial_admission(&mut child, None, None, None)
                 .err()
                 .unwrap_or(admission));
         };
@@ -1524,7 +1554,7 @@ impl ContainedProcess {
             drop(stdin);
             let admission =
                 LibbunError::initialize("contained retained worker stdout custody is missing");
-            return Err(retire_partial_admission(&mut child, None)
+            return Err(retire_partial_admission(&mut child, None, None, None)
                 .err()
                 .unwrap_or(admission));
         };
@@ -1533,14 +1563,14 @@ impl ContainedProcess {
             drop(stdout);
             let admission =
                 LibbunError::initialize("contained retained worker stderr custody is missing");
-            return Err(retire_partial_admission(&mut child, None)
+            return Err(retire_partial_admission(&mut child, None, None, None)
                 .err()
                 .unwrap_or(admission));
         };
         let (response_sender, responses) = mpsc::channel();
         let response_reader = match thread::Builder::new()
             .name("libbun-contained-response-reader".to_owned())
-            .spawn(move || read_helper_responses(stdout, response_sender))
+            .spawn(move || read_helper_responses(response_reader, response_sender))
         {
             Ok(reader) => reader,
             Err(error) => {
@@ -1549,14 +1579,35 @@ impl ContainedProcess {
                 let admission = LibbunError::initialize(format!(
                     "contained retained worker response reader spawn failed: {error}"
                 ));
-                return Err(retire_partial_admission(&mut child, None)
+                return Err(retire_partial_admission(&mut child, None, None, None)
                     .err()
                     .unwrap_or(admission));
             }
         };
+        let stdout_reader = match thread::Builder::new()
+            .name("libbun-contained-stdout-reader".to_owned())
+            .spawn(move || drain_helper_output(stdout))
+        {
+            Ok(reader) => reader,
+            Err(error) => {
+                drop(stdin);
+                drop(stderr);
+                let admission = LibbunError::initialize(format!(
+                    "contained retained worker stdout reader spawn failed: {error}"
+                ));
+                return Err(retire_partial_admission(
+                    &mut child,
+                    Some(response_reader),
+                    None,
+                    None,
+                )
+                .err()
+                .unwrap_or(admission));
+            }
+        };
         let stderr_reader = match thread::Builder::new()
             .name("libbun-contained-stderr-reader".to_owned())
-            .spawn(move || drain_helper_stderr(stderr))
+            .spawn(move || drain_helper_output(stderr))
         {
             Ok(reader) => reader,
             Err(error) => {
@@ -1564,9 +1615,14 @@ impl ContainedProcess {
                 let admission = LibbunError::initialize(format!(
                     "contained retained worker stderr reader spawn failed: {error}"
                 ));
-                return Err(retire_partial_admission(&mut child, Some(response_reader))
-                    .err()
-                    .unwrap_or(admission));
+                return Err(retire_partial_admission(
+                    &mut child,
+                    Some(response_reader),
+                    Some(stdout_reader),
+                    None,
+                )
+                .err()
+                .unwrap_or(admission));
             }
         };
         let mut process = Self {
@@ -1574,7 +1630,10 @@ impl ContainedProcess {
             stdin: Some(stdin),
             responses,
             response_reader: Some(response_reader),
+            stdout_reader: Some(stdout_reader),
             stderr_reader: Some(stderr_reader),
+            captured_stdout: Vec::new(),
+            captured_stderr: Vec::new(),
             next_id: 1,
             finished: false,
             exit_status: None,
@@ -1584,16 +1643,23 @@ impl ContainedProcess {
         match admission {
             Ok(Ok(())) => {}
             Ok(Err(admission)) => {
-                return Err(process.force_terminate().err().unwrap_or(admission));
+                return Err(process.terminate_failed_admission(admission));
             }
             Err(_) => {
                 let admission = LibbunError::initialize(
                     "contained retained worker admission supervisor unwound",
                 );
-                return Err(process.force_terminate().err().unwrap_or(admission));
+                return Err(process.terminate_failed_admission(admission));
             }
         }
         Ok(process)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn start(_config: &BunRuntimeConfig, _helper: &Path, _bubblewrap: &Path) -> LibbunResult<Self> {
+        Err(LibbunError::initialize(
+            "exact retained worker containment is currently available only on Linux",
+        ))
     }
 
     fn initialize(&mut self, config: &BunRuntimeConfig) -> LibbunResult<()> {
@@ -1640,6 +1706,27 @@ impl ContainedProcess {
                 "contained retained worker returned a non-output admission drain payload",
             )),
         }
+    }
+
+    fn terminate_failed_admission(&mut self, admission: LibbunError) -> LibbunError {
+        let retirement = self.force_terminate().err();
+        let mut message = admission.to_string();
+        if let Some(retirement) = retirement {
+            message.push_str("; helper retirement also failed: ");
+            message.push_str(&retirement.to_string());
+        }
+        for (label, captured) in [
+            ("stdout", self.captured_stdout.as_slice()),
+            ("stderr", self.captured_stderr.as_slice()),
+        ] {
+            if !captured.is_empty() {
+                message.push_str("; captured helper ");
+                message.push_str(label);
+                message.push_str(": ");
+                message.push_str(String::from_utf8_lossy(captured).trim());
+            }
+        }
+        LibbunError::backend_state("retained_worker_helper_startup_failed", message)
     }
 
     fn drive(
@@ -1944,6 +2031,10 @@ impl ContainedProcess {
             .as_ref()
             .is_some_and(|reader| !reader.is_finished())
             || self
+                .stdout_reader
+                .as_ref()
+                .is_some_and(|reader| !reader.is_finished())
+            || self
                 .stderr_reader
                 .as_ref()
                 .is_some_and(|reader| !reader.is_finished())
@@ -1958,6 +2049,22 @@ impl ContainedProcess {
                 "contained retained worker response reader unwound",
             ));
         }
+        if let Some(reader) = self.stdout_reader.take() {
+            match reader.join() {
+                Err(_) if self.retirement_fault.is_none() => {
+                    self.retirement_fault = Some(LibbunError::shutdown(
+                        "contained retained worker stdout reader unwound",
+                    ));
+                }
+                Ok(Err(error)) if self.retirement_fault.is_none() => {
+                    self.retirement_fault = Some(LibbunError::shutdown(format!(
+                        "contained retained worker stdout drain failed: {error}"
+                    )));
+                }
+                Ok(Ok(captured)) => self.captured_stdout = captured,
+                _ => {}
+            }
+        }
         if let Some(reader) = self.stderr_reader.take() {
             match reader.join() {
                 Err(_) if self.retirement_fault.is_none() => {
@@ -1970,6 +2077,7 @@ impl ContainedProcess {
                         "contained retained worker stderr drain failed: {error}"
                     )));
                 }
+                Ok(Ok(captured)) => self.captured_stderr = captured,
                 _ => {}
             }
         }
@@ -1980,6 +2088,8 @@ impl ContainedProcess {
 fn retire_partial_admission(
     child: &mut Child,
     mut response_reader: Option<JoinHandle<()>>,
+    mut stdout_reader: Option<JoinHandle<io::Result<Vec<u8>>>>,
+    mut stderr_reader: Option<JoinHandle<io::Result<Vec<u8>>>>,
 ) -> LibbunResult<()> {
     let mut first_fault = None;
     loop {
@@ -1995,6 +2105,12 @@ fn retire_partial_admission(
                 if response_reader
                     .as_ref()
                     .is_some_and(|reader| !reader.is_finished())
+                    || stdout_reader
+                        .as_ref()
+                        .is_some_and(|reader| !reader.is_finished())
+                    || stderr_reader
+                        .as_ref()
+                        .is_some_and(|reader| !reader.is_finished())
                 {
                     thread::park_timeout(Duration::from_millis(2));
                     continue;
@@ -2006,6 +2122,24 @@ fn retire_partial_admission(
                     first_fault = Some(LibbunError::shutdown(
                         "partially admitted retained worker response reader unwound",
                     ));
+                }
+                for (label, reader) in [
+                    ("stdout", stdout_reader.take()),
+                    ("stderr", stderr_reader.take()),
+                ] {
+                    match reader.map(JoinHandle::join) {
+                        Some(Err(_)) if first_fault.is_none() => {
+                            first_fault = Some(LibbunError::shutdown(format!(
+                                "partially admitted retained worker {label} reader unwound"
+                            )));
+                        }
+                        Some(Ok(Err(error))) if first_fault.is_none() => {
+                            first_fault = Some(LibbunError::shutdown(format!(
+                                "partially admitted retained worker {label} drain failed: {error}"
+                            )));
+                        }
+                        _ => {}
+                    }
                 }
                 return match first_fault {
                     Some(error) => Err(error),
@@ -2025,11 +2159,11 @@ fn retire_partial_admission(
 }
 
 fn read_helper_responses(
-    mut stdout: ChildStdout,
+    mut response_reader: PipeReader,
     responses: Sender<Result<HelperResponse, String>>,
 ) {
     loop {
-        match read_frame(&mut stdout) {
+        match read_frame(&mut response_reader) {
             Ok(Some(response)) => {
                 if responses.send(Ok(response)).is_err() {
                     break;
@@ -2037,7 +2171,8 @@ fn read_helper_responses(
             }
             Ok(None) => {
                 let _ = responses.send(Err(
-                    "contained retained worker closed stdout before the protocol ended".to_owned(),
+                    "contained retained worker closed its response channel before the protocol ended"
+                        .to_owned(),
                 ));
                 break;
             }
@@ -2049,17 +2184,17 @@ fn read_helper_responses(
     }
 }
 
-fn drain_helper_stderr(mut stderr: ChildStderr) -> io::Result<Vec<u8>> {
-    const MAX_CAPTURED_STDERR: usize = 64 * 1024;
+fn drain_helper_output(mut output: impl Read) -> io::Result<Vec<u8>> {
+    const MAX_CAPTURED_OUTPUT: usize = 64 * 1024;
 
     let mut captured = Vec::new();
     let mut chunk = [0_u8; 4096];
     loop {
-        let read = stderr.read(&mut chunk)?;
+        let read = output.read(&mut chunk)?;
         if read == 0 {
             break;
         }
-        let retained = MAX_CAPTURED_STDERR.saturating_sub(captured.len()).min(read);
+        let retained = MAX_CAPTURED_OUTPUT.saturating_sub(captured.len()).min(read);
         captured.extend_from_slice(&chunk[..retained]);
     }
     Ok(captured)
@@ -2872,6 +3007,56 @@ while True:
 
     #[cfg(target_os = "linux")]
     #[test]
+    fn contained_helper_startup_fault_retains_typed_stderr_diagnostics() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
+            .into_iter()
+            .find(|candidate| candidate.is_file())
+            .expect("contained startup-fault proof requires Bubblewrap")
+            .canonicalize()
+            .expect("Bubblewrap path resolves exactly");
+        let fixture = tempfile::Builder::new()
+            .prefix("libbun-contained-startup-fault-test-")
+            .tempdir_in(std::env::current_dir().expect("current directory resolves"))
+            .expect("fixture directory is created outside the private scratch mount");
+        let helper = fixture.path().join("libbun-runtime-native");
+        std::fs::write(
+            &helper,
+            r#"#!/usr/bin/python3
+import sys
+
+sys.stderr.write("response descriptor sealing failed: hostile startup proof\n")
+sys.stderr.flush()
+raise SystemExit(23)
+"#,
+        )
+        .expect("fixture helper is written");
+        let mut permissions = helper
+            .metadata()
+            .expect("fixture helper metadata is readable")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&helper, permissions).expect("fixture helper is executable");
+        let helper = helper.canonicalize().expect("helper path resolves exactly");
+        let config = BunRuntimeConfig::new("contained-startup-fault", fixture.path());
+        let error = spawn_contained_worker_with_paths(config, helper, bubblewrap)
+            .err()
+            .expect("startup rejection remains typed");
+        match error {
+            LibbunError::BackendState { code, message } => {
+                assert_eq!(code, "retained_worker_helper_startup_failed");
+                assert!(
+                    message.contains("response descriptor sealing failed: hostile startup proof"),
+                    "captured helper startup reason is preserved: {message}"
+                );
+            }
+            error => panic!("startup failure lost its typed backend state: {error}"),
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
     fn contained_helper_create_materializes_exact_bytes_in_private_scratch() {
         let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
             .into_iter()
@@ -2893,7 +3078,7 @@ import struct
 import sys
 
 reader = sys.stdin.buffer
-writer = sys.stdout.buffer
+writer = os.fdopen(int(os.environ["LIBBUN_HELPER_RESPONSE_FD"]), "wb", closefd=False)
 
 def read_frame():
     header = reader.read(4)
@@ -2982,12 +3167,13 @@ while True:
             &helper,
             r#"#!/usr/bin/python3
 import json
+import os
 import struct
 import sys
 import time
 
 reader = sys.stdin.buffer
-writer = sys.stdout.buffer
+writer = os.fdopen(int(os.environ["LIBBUN_HELPER_RESPONSE_FD"]), "wb", closefd=False)
 block_exit = False
 
 def read_frame():

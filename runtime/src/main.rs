@@ -7,6 +7,7 @@ use libbun::helper_protocol::HelperResponse;
 use libbun::helper_protocol::HelperResponsePayload;
 use libbun::helper_protocol::LIBBUN_HELPER_PROTOCOL_VERSION;
 use libbun::helper_protocol::read_frame;
+use libbun::helper_protocol::take_response_writer;
 use libbun::helper_protocol::write_frame;
 use libbun::plugin_abi::LIBBUN_PLUGIN_ABI_VERSION;
 use libbun::{LibbunError, LowLevelBunHost};
@@ -24,9 +25,8 @@ fn main() {
 
 fn run() -> io::Result<()> {
     let stdin = io::stdin();
-    let stdout = io::stdout();
     let mut reader = stdin.lock();
-    let mut writer = stdout.lock();
+    let mut writer = take_response_writer()?;
     let mut state = HelperState::default();
 
     while let Some(request) = read_frame::<_, HelperRequest>(&mut reader)? {
