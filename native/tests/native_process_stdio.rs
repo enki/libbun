@@ -1,5 +1,5 @@
 use libbun::{
-    BunHost, BunModuleSpec, BunRuntimeConfig, OutputStream, ProviderContractIdentity,
+    BunModuleSpec, BunRuntimeConfig, LowLevelBunHost, OutputStream, ProviderContractIdentity,
     ProviderDeadline, ProviderDomainClass, ProviderRequest, ProviderSettleOptions,
     SettledProviderReceipt, StructuralValue,
 };
@@ -11,9 +11,10 @@ fn raw_process_stdio_is_attached_to_the_exact_provider_receipt() {
     let working_directory = tempfile::tempdir().expect("working directory creates");
     let config = BunRuntimeConfig::new("native-process-stdio-test", working_directory.path())
         .with_process_stdio_capture();
-    let mut host = BunHost::<NativeBunRuntime>::initialize(config).expect("host initializes");
+    let mut host =
+        LowLevelBunHost::<NativeBunRuntime>::initialize(config).expect("host initializes");
     let receipt = host
-        .call_provider_until_settled(
+        .call_provider_until_settled_for_retained_helper_owner(
             ProviderRequest {
                 contract: ProviderContractIdentity {
                     package: "@test/native-process-output".to_owned(),
@@ -38,6 +39,10 @@ fn raw_process_stdio_is_attached_to_the_exact_provider_receipt() {
             ProviderSettleOptions::new(ProviderDeadline::from_millis(5_000)),
         )
         .expect("provider call settles");
+    assert!(
+        host.drain_captured_output().is_empty(),
+        "receipt-owned output must not be duplicated into the helper's late-output drain"
+    );
     host.shutdown().expect("host restores process stdio");
 
     let SettledProviderReceipt::Ready { output, .. } = receipt else {

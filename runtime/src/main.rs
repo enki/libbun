@@ -81,7 +81,7 @@ impl HelperState {
                 .map(HelperResponsePayload::Resolve),
             HelperRequestPayload::CallProviderUntilSettled { request, options } => self
                 .host_mut()?
-                .call_provider_until_settled(request, options)
+                .call_provider_until_settled_for_retained_helper_owner(request, options)
                 .map(HelperResponsePayload::SettledProvider),
             HelperRequestPayload::DrainOutput => {
                 let records = self

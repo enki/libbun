@@ -2142,6 +2142,26 @@ impl<R: BunEmbeddingRuntime> LowLevelBunHost<R> {
         }
     }
 
+    /// Drives one call for the retained helper owner without copying the
+    /// receipt-owned output into this host's observation buffer. The caller
+    /// separately drains that buffer after publishing the receipt so any
+    /// genuinely late output remains a quiescence fault.
+    #[doc(hidden)]
+    pub fn call_provider_until_settled_for_retained_helper_owner(
+        &mut self,
+        request: ProviderRequest,
+        options: ProviderSettleOptions,
+    ) -> LibbunResult<SettledProviderReceipt> {
+        self.ensure_live()?;
+        call_provider_until_settled_observed(
+            &mut self.runtime,
+            request,
+            options,
+            Some(&self.diagnostics),
+            None,
+        )
+    }
+
     pub fn diagnostics_handle(&self) -> ProviderDiagnosticsHandle {
         self.diagnostics.clone()
     }
