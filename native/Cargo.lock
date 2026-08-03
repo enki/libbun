@@ -2873,6 +2873,7 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 name = "libbun"
 version = "0.2.3"
 dependencies = [
+ "libc",
  "serde",
  "serde_json",
  "sha2",

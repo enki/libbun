@@ -54,7 +54,9 @@ impl HelperState {
         match payload {
             HelperRequestPayload::Hello(hello) => self.hello(hello),
             HelperRequestPayload::Create { config } => {
-                self.host = Some(LowLevelBunHost::<NativeBunRuntime>::initialize(config)?);
+                self.host = Some(LowLevelBunHost::<NativeBunRuntime>::initialize(
+                    config.with_process_stdio_capture(),
+                )?);
                 Ok(HelperResponsePayload::Unit)
             }
             HelperRequestPayload::LoadModule { spec } => self
