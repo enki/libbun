@@ -93,6 +93,8 @@ pub struct BunRuntimeConfig {
     pub stdout: SinkPolicy,
     pub stderr: SinkPolicy,
     pub log: SinkPolicy,
+    #[serde(default)]
+    pub capture_process_stdio: bool,
 }
 
 impl BunRuntimeConfig {
@@ -105,7 +107,17 @@ impl BunRuntimeConfig {
             stdout: SinkPolicy::Capture,
             stderr: SinkPolicy::Capture,
             log: SinkPolicy::Capture,
+            capture_process_stdio: false,
         }
+    }
+
+    /// Captures writes made through the embedded runtime process' file
+    /// descriptors in the same ordered stdout/stderr ledger as Bun output.
+    /// This is intended for a dedicated helper process; an in-process host
+    /// should leave it disabled because descriptor ownership is process-wide.
+    pub fn with_process_stdio_capture(mut self) -> Self {
+        self.capture_process_stdio = true;
+        self
     }
 
     pub fn with_environment_overlay(

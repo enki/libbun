@@ -45,6 +45,7 @@ pub struct NativeBunRuntime {
     stdout: OutputCapture,
     stderr: OutputCapture,
     log: OutputCapture,
+    process_stdio_capture: Option<ProcessStdioCapture>,
     source_module_paths: Vec<Box<[u8]>>,
     source_module_sources: Vec<Box<[u8]>>,
     prepared_bundle_tempdirs: Vec<tempfile::TempDir>,
@@ -60,6 +61,13 @@ struct OutputCapture {
     policy: SinkPolicy,
     write_file: std::fs::File,
     read_file: std::fs::File,
+}
+
+#[derive(Debug)]
+struct ProcessStdioCapture {
+    stdout: std::fs::File,
+    stderr: std::fs::File,
+    active: bool,
 }
 
 impl NativeBunRuntime {
@@ -360,6 +368,91 @@ impl OutputCapture {
 }
 
 #[cfg(unix)]
+impl ProcessStdioCapture {
+    fn redirect(stdout: &std::fs::File, stderr: &std::fs::File) -> LibbunResult<Self> {
+        use std::os::fd::{AsRawFd, FromRawFd};
+
+        fn duplicate(fd: libc::c_int, label: &str) -> LibbunResult<std::fs::File> {
+            let duplicate = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, 3) };
+            if duplicate < 0 {
+                return Err(LibbunError::initialize(format!(
+                    "process {label} descriptor duplication failed: {}",
+                    std::io::Error::last_os_error()
+                )));
+            }
+            Ok(unsafe { std::fs::File::from_raw_fd(duplicate) })
+        }
+
+        let saved_stdout = duplicate(libc::STDOUT_FILENO, "stdout")?;
+        let saved_stderr = duplicate(libc::STDERR_FILENO, "stderr")?;
+        if unsafe { libc::dup2(stdout.as_raw_fd(), libc::STDOUT_FILENO) } < 0 {
+            return Err(LibbunError::initialize(format!(
+                "process stdout capture installation failed: {}",
+                std::io::Error::last_os_error()
+            )));
+        }
+        if unsafe { libc::dup2(stderr.as_raw_fd(), libc::STDERR_FILENO) } < 0 {
+            unsafe {
+                libc::dup2(saved_stdout.as_raw_fd(), libc::STDOUT_FILENO);
+            }
+            return Err(LibbunError::initialize(format!(
+                "process stderr capture installation failed: {}",
+                std::io::Error::last_os_error()
+            )));
+        }
+        Ok(Self {
+            stdout: saved_stdout,
+            stderr: saved_stderr,
+            active: true,
+        })
+    }
+
+    fn restore(&mut self) -> LibbunResult<()> {
+        use std::os::fd::AsRawFd;
+
+        if !self.active {
+            return Ok(());
+        }
+        let stdout_result = unsafe { libc::dup2(self.stdout.as_raw_fd(), libc::STDOUT_FILENO) };
+        let stdout_error = std::io::Error::last_os_error();
+        let stderr_result = unsafe { libc::dup2(self.stderr.as_raw_fd(), libc::STDERR_FILENO) };
+        let stderr_error = std::io::Error::last_os_error();
+        if stdout_result < 0 {
+            return Err(LibbunError::shutdown(format!(
+                "process stdout descriptor restoration failed: {stdout_error}"
+            )));
+        }
+        if stderr_result < 0 {
+            return Err(LibbunError::shutdown(format!(
+                "process stderr descriptor restoration failed: {stderr_error}"
+            )));
+        }
+        self.active = false;
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
+impl Drop for ProcessStdioCapture {
+    fn drop(&mut self) {
+        let _ = self.restore();
+    }
+}
+
+#[cfg(not(unix))]
+impl ProcessStdioCapture {
+    fn redirect(_stdout: &std::fs::File, _stderr: &std::fs::File) -> LibbunResult<Self> {
+        Err(LibbunError::initialize(
+            "process stdio capture is currently implemented for Unix targets",
+        ))
+    }
+
+    fn restore(&mut self) -> LibbunResult<()> {
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
 fn fd_from_file(file: &std::fs::File) -> bun_core::Fd {
     use std::os::fd::AsRawFd;
 
@@ -508,6 +601,10 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
         let stdout = OutputCapture::create(OutputStream::Stdout, config.stdout)?;
         let stderr = OutputCapture::create(OutputStream::Stderr, config.stderr)?;
         let log = OutputCapture::create(OutputStream::Log, config.log)?;
+        let process_stdio_capture = config
+            .capture_process_stdio
+            .then(|| ProcessStdioCapture::redirect(&stdout.write_file, &stderr.write_file))
+            .transpose()?;
         bun_core::Output::Source::set_init(stdout.bun_file(), stderr.bun_file());
         bun_core::Output::init_scoped_debug_writer_at_startup();
         unsafe {
@@ -543,6 +640,7 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             stdout,
             stderr,
             log,
+            process_stdio_capture,
             source_module_paths: Vec::new(),
             source_module_sources: Vec::new(),
             prepared_bundle_tempdirs: Vec::new(),
@@ -707,6 +805,9 @@ impl BunEmbeddingRuntime for NativeBunRuntime {
             self.vm().run_with_api_lock(|| value.unprotect());
         }
         self.drain_output()?;
+        if let Some(mut capture) = self.process_stdio_capture.take() {
+            capture.restore()?;
+        }
         // `VirtualMachine::destroy` is Bun's worker-thread teardown path. The
         // embedded libbun runtime initializes a main-thread VM, matching Bun's
         // process-lifetime CLI shape, so leave VM-owned native state live until
