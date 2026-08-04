@@ -19,7 +19,8 @@ use serde::Serialize;
 
 use crate::helper_protocol::{
     HelperHello, HelperRequest, HelperRequestPayload, HelperResponse, HelperResponsePayload,
-    LIBBUN_HELPER_PROTOCOL_VERSION, LIBBUN_HELPER_RESPONSE_FD_ENV, read_frame, write_frame,
+    LIBBUN_HELPER_PROTOCOL_VERSION, LIBBUN_HELPER_RESPONSE_FD_ENV, LIBBUN_RUNTIME_NATIVE_PATH_ENV,
+    read_frame, write_frame,
 };
 use crate::plugin_abi::LIBBUN_PLUGIN_ABI_VERSION;
 #[cfg(test)]
@@ -576,6 +577,12 @@ fn preallocate_reaper_node() -> LibbunResult<Box<DurableReaperNode>> {
 }
 
 impl BunProviderBackend {
+    /// Opens the optional contained runtime worker.
+    ///
+    /// On Linux, [`LIBBUN_RUNTIME_NATIVE_PATH_ENV`] selects the exact helper executable when it
+    /// is present. The selected path must resolve to an executable file; an invalid explicit path
+    /// is refused without falling back. When the variable is absent, the helper is resolved beside
+    /// the current executable using the existing sibling layout.
     pub fn open(config: BunRuntimeConfig) -> LibbunResult<Self> {
         ensure_durable_reaper().map_err(|message| {
             LibbunError::initialize(format!(
@@ -1339,36 +1346,43 @@ fn spawn_contained_worker(mut config: BunRuntimeConfig) -> LibbunResult<WorkerCu
 }
 
 #[cfg(target_os = "linux")]
-fn resolve_contained_worker_paths() -> LibbunResult<(PathBuf, PathBuf)> {
+fn exact_executable(path: &Path, label: &str) -> LibbunResult<PathBuf> {
     use std::os::unix::fs::PermissionsExt;
 
-    fn exact_executable(path: &Path, label: &str) -> LibbunResult<PathBuf> {
-        let exact = path.canonicalize().map_err(|error| {
-            LibbunError::initialize(format!(
-                "{label} `{}` cannot be resolved exactly: {error}",
-                path.display()
-            ))
-        })?;
-        let metadata = exact.metadata().map_err(|error| {
-            LibbunError::initialize(format!(
-                "{label} `{}` metadata cannot be read: {error}",
-                exact.display()
-            ))
-        })?;
-        if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
-            return Err(LibbunError::initialize(format!(
-                "{label} `{}` is not an executable file",
-                exact.display()
-            )));
-        }
-        Ok(exact)
-    }
-
-    let current = std::env::current_exe().map_err(|error| {
+    let exact = path.canonicalize().map_err(|error| {
         LibbunError::initialize(format!(
-            "retained worker host executable cannot be resolved: {error}"
+            "{label} `{}` cannot be resolved exactly: {error}",
+            path.display()
         ))
     })?;
+    let metadata = exact.metadata().map_err(|error| {
+        LibbunError::initialize(format!(
+            "{label} `{}` metadata cannot be read: {error}",
+            exact.display()
+        ))
+    })?;
+    if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+        return Err(LibbunError::initialize(format!(
+            "{label} `{}` is not an executable file",
+            exact.display()
+        )));
+    }
+    Ok(exact)
+}
+
+#[cfg(target_os = "linux")]
+fn resolve_runtime_worker_path(
+    explicit: Option<PathBuf>,
+    current_executable: impl FnOnce() -> LibbunResult<PathBuf>,
+) -> LibbunResult<PathBuf> {
+    if let Some(explicit) = explicit {
+        return exact_executable(
+            &explicit,
+            &format!("retained runtime worker selected by {LIBBUN_RUNTIME_NATIVE_PATH_ENV}"),
+        );
+    }
+
+    let current = current_executable()?;
     let directory = current.parent().ok_or_else(|| {
         LibbunError::initialize("retained worker host executable has no parent directory")
     })?;
@@ -1387,7 +1401,21 @@ fn resolve_contained_worker_paths() -> LibbunResult<(PathBuf, PathBuf)> {
                 current.display()
             ))
         })?;
-    let helper = exact_executable(helper, "retained runtime worker")?;
+    exact_executable(helper, "retained runtime worker")
+}
+
+#[cfg(target_os = "linux")]
+fn resolve_contained_worker_paths() -> LibbunResult<(PathBuf, PathBuf)> {
+    let helper = resolve_runtime_worker_path(
+        std::env::var_os(LIBBUN_RUNTIME_NATIVE_PATH_ENV).map(PathBuf::from),
+        || {
+            std::env::current_exe().map_err(|error| {
+                LibbunError::initialize(format!(
+                    "retained worker host executable cannot be resolved: {error}"
+                ))
+            })
+        },
+    )?;
 
     let bubblewrap = [Path::new("/usr/bin/bwrap"), Path::new("/bin/bwrap")]
         .into_iter()
@@ -2870,6 +2898,124 @@ mod tests {
         queue.drain_snapshot();
         assert!(queue.head.load(Ordering::Acquire).is_null());
         drop(receiver);
+    }
+
+    #[cfg(target_os = "linux")]
+    fn write_executable_fixture(path: &Path) {
+        std::fs::write(path, "#!/bin/sh\nexit 0\n").expect("executable fixture is written");
+        let mut permissions = path
+            .metadata()
+            .expect("executable fixture metadata is readable")
+            .permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(path, permissions).expect("fixture is made executable");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn explicit_runtime_worker_path_precedes_executable_sibling() {
+        let fixture = tempfile::tempdir().expect("helper resolution fixture is created");
+        let host_directory = fixture.path().join("host-bin");
+        let explicit_directory = fixture.path().join("bazel-bin");
+        std::fs::create_dir_all(&host_directory).expect("host directory is created");
+        std::fs::create_dir_all(&explicit_directory).expect("explicit directory is created");
+        let sibling = host_directory.join("libbun-runtime-native");
+        let explicit = explicit_directory.join("libbun-runtime-native");
+        write_executable_fixture(&sibling);
+        write_executable_fixture(&explicit);
+
+        let resolved = resolve_runtime_worker_path(Some(explicit.clone()), || {
+            panic!("explicit selection must precede current-executable sibling resolution")
+        })
+        .expect("explicit retained worker path resolves");
+
+        assert_eq!(
+            resolved,
+            explicit
+                .canonicalize()
+                .expect("explicit worker canonicalizes")
+        );
+        assert_ne!(
+            resolved,
+            sibling
+                .canonicalize()
+                .expect("sibling worker canonicalizes"),
+            "the executable sibling cannot override the explicit environment contract"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn invalid_explicit_runtime_worker_path_refuses_sibling_fallback() {
+        let fixture = tempfile::tempdir().expect("helper resolution fixture is created");
+        let host_directory = fixture.path().join("host-bin");
+        std::fs::create_dir_all(&host_directory).expect("host directory is created");
+        let sibling = host_directory.join("libbun-runtime-native");
+        write_executable_fixture(&sibling);
+
+        let missing = fixture.path().join("missing-helper");
+        let missing_error = resolve_runtime_worker_path(Some(missing.clone()), || {
+            panic!("invalid explicit selection cannot reach sibling fallback")
+        })
+        .expect_err("a missing explicit worker is refused");
+        assert!(
+            missing_error.to_string().contains(&format!(
+                "retained runtime worker selected by {LIBBUN_RUNTIME_NATIVE_PATH_ENV} `{}` cannot be resolved exactly",
+                missing.display()
+            )),
+            "missing explicit worker failure remains attributable to the environment contract: {missing_error}"
+        );
+
+        let non_executable = fixture.path().join("non-executable-helper");
+        std::fs::write(&non_executable, "not executable")
+            .expect("non-executable fixture is written");
+        let non_executable_error =
+            resolve_runtime_worker_path(Some(non_executable.clone()), || {
+                panic!("invalid explicit selection cannot reach sibling fallback")
+            })
+            .expect_err("a non-executable explicit worker is refused");
+        assert!(
+            non_executable_error.to_string().contains(&format!(
+                "retained runtime worker selected by {LIBBUN_RUNTIME_NATIVE_PATH_ENV} `{}` is not an executable file",
+                non_executable
+                    .canonicalize()
+                    .expect("non-executable worker canonicalizes")
+                    .display()
+            )),
+            "non-executable explicit worker failure remains attributable to the environment contract: {non_executable_error}"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn absent_explicit_runtime_worker_path_retains_sibling_fallback() {
+        let fixture = tempfile::tempdir().expect("helper resolution fixture is created");
+        let direct_directory = fixture.path().join("direct-bin");
+        std::fs::create_dir_all(&direct_directory).expect("direct host directory is created");
+        let direct_sibling = direct_directory.join("libbun-runtime-native");
+        write_executable_fixture(&direct_sibling);
+        assert_eq!(
+            resolve_runtime_worker_path(None, || Ok(direct_directory.join("swarm")))
+                .expect("direct executable sibling resolves"),
+            direct_sibling
+                .canonicalize()
+                .expect("direct sibling canonicalizes")
+        );
+
+        let target_directory = fixture.path().join("target").join("debug");
+        let deps_directory = target_directory.join("deps");
+        std::fs::create_dir_all(&deps_directory).expect("test executable directory is created");
+        let parent_sibling = target_directory.join("libbun-runtime-native");
+        write_executable_fixture(&parent_sibling);
+        assert_eq!(
+            resolve_runtime_worker_path(None, || {
+                Ok(deps_directory.join("retained_backend-test"))
+            })
+            .expect("parent sibling for a test executable resolves"),
+            parent_sibling
+                .canonicalize()
+                .expect("parent sibling canonicalizes")
+        );
     }
 
     #[cfg(target_os = "linux")]
